@@ -9,6 +9,7 @@ import '../../features/discover/presentation/discover_screen.dart';
 import '../../features/halaqa/presentation/halaqa_screen.dart';
 import '../../features/growth/presentation/growth_screen.dart';
 import '../../features/growth/presentation/vocab_bank_screen.dart';
+import '../../features/growth/presentation/muhasabah_screen.dart';
 import '../../features/minbar/presentation/minbar_screen.dart';
 import '../../shared/widgets/app_shell.dart';
 
@@ -67,6 +68,11 @@ class AppRouter {
               GoRoute(
                 path: 'vocab',
                 builder: (context, state) => const VocabBankScreen(),
+              ),
+              // Muhasabah — private evening reckoning
+              GoRoute(
+                path: 'muhasabah',
+                builder: (context, state) => const MuhasabahScreen(),
               ),
             ],
           ),
