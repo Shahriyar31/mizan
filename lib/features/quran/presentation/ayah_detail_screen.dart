@@ -50,6 +50,10 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
         );
     final ayatAsync = ref.watch(ayatProvider(widget.surahNumber));
 
+    // Get surah name from loaded data, fallback to generic
+    final surahName =
+        surahAsync.valueOrNull?.englishName ?? 'Surah ${widget.surahNumber}';
+
     return Scaffold(
       backgroundColor: AppColors.night,
       body: ayatAsync.when(
@@ -64,6 +68,7 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
           currentPage: _currentPage,
           onPageChanged: (page) => setState(() => _currentPage = page),
           surahNumber: widget.surahNumber,
+          surahName: surahName,
         ),
       ),
     );
@@ -79,6 +84,7 @@ class _PageViewReader extends StatelessWidget {
     required this.currentPage,
     required this.onPageChanged,
     required this.surahNumber,
+    required this.surahName,
   });
 
   final AsyncValue<Surah> surahAsync;
@@ -87,6 +93,7 @@ class _PageViewReader extends StatelessWidget {
   final int currentPage;
   final ValueChanged<int> onPageChanged;
   final int surahNumber;
+  final String surahName;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +115,7 @@ class _PageViewReader extends StatelessWidget {
               return _AyahPage(
                 ayah: ayat[index],
                 surahNumber: surahNumber,
+                surahName: surahName,
                 isFirst: index == 0,
               );
             },
@@ -197,11 +205,13 @@ class _AyahPage extends StatelessWidget {
   const _AyahPage({
     required this.ayah,
     required this.surahNumber,
+    required this.surahName,
     required this.isFirst,
   });
 
   final Ayah ayah;
   final int surahNumber;
+  final String surahName;
   final bool isFirst;
 
   static const Map<int, String> _scenes = {
@@ -229,21 +239,21 @@ class _AyahPage extends StatelessWidget {
               const SizedBox(height: 16),
               _SceneSetting(text: _scenes[surahNumber]!),
             ],
-
             SizedBox(
               height: hasScene ? screenHeight * 0.08 : screenHeight * 0.18,
             ),
-
-            // Ayah reference
             Text(
               '${ayah.surahNumber}:${ayah.ayahNumber}',
               style: AppTypography.caption(color: AppColors.gold),
             ),
             const SizedBox(height: 24),
-
-            // Arabic — tappable words if available, fallback otherwise
             if (tappableWords.isNotEmpty)
-              _TappableArabicText(words: tappableWords)
+              _TappableArabicText(
+                words: tappableWords,
+                surahNumber: surahNumber,
+                ayahNumber: ayah.ayahNumber,
+                surahName: surahName,
+              )
             else
               Text(
                 ayah.arabicText,
@@ -254,19 +264,13 @@ class _AyahPage extends StatelessWidget {
                 textAlign: TextAlign.center,
                 textDirection: TextDirection.rtl,
               ),
-
             const SizedBox(height: 32),
-
-            // Gold divider
             Container(
               height: 1,
               width: 60,
               color: AppColors.gold.withOpacity(0.3),
             ),
-
             const SizedBox(height: 16),
-
-            // Tap hint — first ayah only
             if (isFirst && tappableWords.isNotEmpty) ...[
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -285,8 +289,6 @@ class _AyahPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
             ],
-
-            // Translation
             if (ayah.translation.isNotEmpty)
               Text(
                 ayah.translation,
@@ -295,10 +297,7 @@ class _AyahPage extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-
             const SizedBox(height: 32),
-
-            // Action buttons
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -321,7 +320,6 @@ class _AyahPage extends StatelessWidget {
                 ),
               ],
             ),
-
             const SizedBox(height: 40),
           ],
         ),
@@ -332,8 +330,17 @@ class _AyahPage extends StatelessWidget {
 
 // ── Tappable Arabic Text ──────────────────────────────────────
 class _TappableArabicText extends StatelessWidget {
-  const _TappableArabicText({required this.words});
+  const _TappableArabicText({
+    required this.words,
+    required this.surahNumber,
+    required this.ayahNumber,
+    required this.surahName,
+  });
+
   final List<AyahWord> words;
+  final int surahNumber;
+  final int ayahNumber;
+  final String surahName;
 
   @override
   Widget build(BuildContext context) {
@@ -343,7 +350,14 @@ class _TappableArabicText extends StatelessWidget {
         alignment: WrapAlignment.center,
         spacing: 4,
         runSpacing: 8,
-        children: words.map((word) => _TappableWord(word: word)).toList(),
+        children: words
+            .map((word) => _TappableWord(
+                  word: word,
+                  surahNumber: surahNumber,
+                  ayahNumber: ayahNumber,
+                  surahName: surahName,
+                ))
+            .toList(),
       ),
     );
   }
@@ -351,8 +365,17 @@ class _TappableArabicText extends StatelessWidget {
 
 // ── Single Tappable Word ──────────────────────────────────────
 class _TappableWord extends StatefulWidget {
-  const _TappableWord({required this.word});
+  const _TappableWord({
+    required this.word,
+    required this.surahNumber,
+    required this.ayahNumber,
+    required this.surahName,
+  });
+
   final AyahWord word;
+  final int surahNumber;
+  final int ayahNumber;
+  final String surahName;
 
   @override
   State<_TappableWord> createState() => _TappableWordState();
@@ -367,7 +390,13 @@ class _TappableWordState extends State<_TappableWord> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
         setState(() => _pressed = false);
-        showWordSheet(context, widget.word);
+        showWordSheet(
+          context,
+          widget.word,
+          surahNumber: widget.surahNumber,
+          ayahNumber: widget.ayahNumber,
+          surahName: widget.surahName,
+        );
       },
       onTapCancel: () => setState(() => _pressed = false),
       child: AnimatedContainer(
@@ -487,7 +516,6 @@ class _PageControls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // NEXT on LEFT — Arabic RTL direction
           GestureDetector(
             onTap: !_isLastAyah
                 ? () => pageController.nextPage(
@@ -536,14 +564,10 @@ class _PageControls extends StatelessWidget {
               ),
             ),
           ),
-
-          // Dot indicator — RTL
           _DotIndicator(
             currentPage: currentPage,
             totalPages: totalPages,
           ),
-
-          // PREV on RIGHT — Arabic RTL direction
           GestureDetector(
             onTap: !_isFirstAyah
                 ? () => pageController.previousPage(

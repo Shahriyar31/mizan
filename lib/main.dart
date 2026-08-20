@@ -1,20 +1,16 @@
 /// Taddabur — Entry Point
-/// Kept minimal intentionally — all setup delegated to app.dart
-///
-/// Why so short: main() should only do three things:
-/// 1. Ensure Flutter is initialized
-/// 2. Set up any async dependencies
-/// 3. Run the app
-/// Business logic, routing, theming — all in app.dart
 library;
 
 import 'package:flutter/material.dart';
+import 'services/database/database_service.dart';
 import 'app.dart';
 
 Future<void> main() async {
-  // Must be called before any Flutter framework code
-  // that requires the binding to be initialized
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize SQLite database before app starts
+  // This creates the database file and tables on first run
+  await DatabaseService.instance.database;
 
   runApp(const TadabburApp());
 }
