@@ -73,10 +73,10 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
 
   @override
   Widget build(BuildContext context) {
-    final content = LayerContentData.getContent(
-      widget.surahNumber,
-      widget.ayahNumber,
-    );
+    // Use ScholarAI provider — fetches from Groq if not hardcoded
+    final contentKey = '$_ayahKey|||${widget.arabicText}|||${widget.translation}';
+    final contentAsync = ref.watch(layerContentProvider(contentKey));
+    final content = contentAsync.valueOrNull;
     final layerStatesAsync = ref.watch(layerStatesProvider(_ayahKey));
 
     return Scaffold(

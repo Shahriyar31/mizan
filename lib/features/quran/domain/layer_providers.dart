@@ -1,30 +1,41 @@
-/// Layer System Riverpod Providers
+/// Layer Providers — updated to use ScholarAIService
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/layer_repository.dart';
+import '../data/layer_content.dart';
 import '../models/layer_unlock.dart';
+import '../../../services/scholar_ai/scholar_ai_service.dart';
 
 // ── Repository ────────────────────────────────────────────────
 final layerRepositoryProvider = Provider<LayerRepository>((ref) {
   return LayerRepository();
 });
 
-// ── Ayah unlock state ─────────────────────────────────────────
-// Holds all unlock records for a specific ayah
-// Key = "surahNumber:ayahNumber"
-final ayahUnlocksProvider =
-    FutureProvider.family<List<LayerUnlock>, String>((ref, ayahKey) async {
-  final parts = ayahKey.split(':');
-  final surahNumber = int.parse(parts[0]);
-  final ayahNumber = int.parse(parts[1]);
-  final repo = ref.watch(layerRepositoryProvider);
-  return repo.getUnlocksForAyah(surahNumber, ayahNumber);
-});
+// ── Layer Content Provider ────────────────────────────────────
+// Fetches content from ScholarAI (Groq or local fallback)
+// Key format: "surahNumber:ayahNumber:arabicText:translation"
+final layerContentProvider = FutureProvider.family<LayerData?, String>(
+  (ref, key) async {
+    final parts = key.split('|||');
+    final ayahKey = parts[0]; // "1:1"
+    final arabicText = parts.length > 1 ? parts[1] : '';
+    final translation = parts.length > 2 ? parts[2] : '';
 
-// ── Layer availability provider ───────────────────────────────
-// Computes which layers are available and which are locked
-// Returns a list of 5 LayerState objects
+    final ayahParts = ayahKey.split(':');
+    final surahNumber = int.parse(ayahParts[0]);
+    final ayahNumber = int.parse(ayahParts[1]);
+
+    return ScholarAIService.instance.getLayerContent(
+      surahNumber,
+      ayahNumber,
+      arabicText,
+      translation,
+    );
+  },
+);
+
+// ── Layer States Provider ─────────────────────────────────────
 final layerStatesProvider =
     FutureProvider.family<List<LayerState>, String>((ref, ayahKey) async {
   final parts = ayahKey.split(':');
@@ -36,42 +47,32 @@ final layerStatesProvider =
 
   return List.generate(5, (index) {
     if (index == 0) {
-      // Words layer — always unlocked
       return LayerState(
         index: index,
         isUnlocked: true,
-        unlockedAt: unlocks.isNotEmpty
-            ? unlocks.firstWhere(
-                (u) => u.layerIndex == 0,
-                orElse: () => LayerUnlock(
-                  surahNumber: surahNumber,
-                  ayahNumber: ayahNumber,
-                  layerIndex: 0,
-                  unlockedAt: now,
-                ),
-              ).unlockedAt
-            : null,
+        unlockedAt: unlocks
+            .where((u) => u.layerIndex == 0)
+            .firstOrNull
+            ?.unlockedAt,
         availableAt: null,
       );
     }
 
-    // Find if previous layer was unlocked
-    final previousUnlock = unlocks.where(
-      (u) => u.layerIndex == index - 1,
-    ).firstOrNull;
+    final previousUnlock = unlocks
+        .where((u) => u.layerIndex == index - 1)
+        .firstOrNull;
 
     if (previousUnlock == null) {
-      // Previous layer not even opened
       return LayerState(
         index: index,
         isUnlocked: false,
         unlockedAt: null,
-        availableAt: null, // unknown — depends on opening previous
+        availableAt: null,
       );
     }
 
-    final availableAt = previousUnlock.unlockedAt
-        .add(LayerMeta.unlockInterval);
+    final availableAt =
+        previousUnlock.unlockedAt.add(LayerMeta.unlockInterval);
     final isUnlocked = now.isAfter(availableAt) ||
         unlocks.any((u) => u.layerIndex == index);
 
@@ -87,7 +88,7 @@ final layerStatesProvider =
   });
 });
 
-// ── Reflection provider ───────────────────────────────────────
+// ── Reflection Provider ───────────────────────────────────────
 final reflectionProvider =
     FutureProvider.family<String?, String>((ref, ayahKey) async {
   final parts = ayahKey.split(':');
@@ -95,7 +96,7 @@ final reflectionProvider =
   return repo.getReflection(int.parse(parts[0]), int.parse(parts[1]));
 });
 
-// ── State class ───────────────────────────────────────────────
+// ── State Class ───────────────────────────────────────────────
 class LayerState {
   const LayerState({
     required this.index,
@@ -106,10 +107,9 @@ class LayerState {
 
   final int index;
   final bool isUnlocked;
-  final DateTime? unlockedAt;   // when this layer was opened
-  final DateTime? availableAt;  // when it will become available
+  final DateTime? unlockedAt;
+  final DateTime? availableAt;
 
-  /// How long until this layer unlocks, formatted
   String get timeUntilUnlock {
     if (availableAt == null) return '';
     final diff = availableAt!.difference(DateTime.now());

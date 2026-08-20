@@ -48,6 +48,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  assets:
+    - .env
+    - assets/data/ibn_kathir/
+
   fonts:
     - family: Amiri
       fonts:
