@@ -1,16 +1,4 @@
-/// DatabaseService — SQLite setup and table management
-///
-/// Why a single DatabaseService for the whole app:
-/// SQLite has one database file per app. Opening it multiple times
-/// wastes resources. We open it once here and share it everywhere.
-///
-/// This service only handles:
-/// - Opening the database
-/// - Creating tables
-/// - Migrations (future schema changes)
-///
-/// It does NOT handle queries — those go in repositories.
-/// One responsibility per class.
+/// DatabaseService — SQLite setup, now with layer_unlocks table
 library;
 
 import 'package:sqflite/sqflite.dart';
@@ -19,34 +7,21 @@ import '../../core/utils/logger.dart';
 
 class DatabaseService {
   DatabaseService._();
-
   static final DatabaseService instance = DatabaseService._();
-
   static Database? _database;
   static const String _tag = 'DatabaseService';
+  static const int _version = 2; // bumped from 1 → 2 for new table
 
-  // Current schema version
-  // Increment this when you change table structure
-  static const int _version = 1;
-
-  /// Returns the open database, opening it if needed
   Future<Database> get database async {
-    // Return existing connection if open
     if (_database != null) return _database!;
-
-    // Open for the first time
     _database = await _openDatabase();
     return _database!;
   }
 
   Future<Database> _openDatabase() async {
-    // Get the device's default database directory
-    // On Android: /data/data/com.example.ummahapp/databases/
     final databasesPath = await getDatabasesPath();
     final path = join(databasesPath, 'taddabur.db');
-
     AppLogger.info('Opening database at $path', tag: _tag);
-
     return openDatabase(
       path,
       version: _version,
@@ -55,12 +30,10 @@ class DatabaseService {
     );
   }
 
-  /// Called when database is created for the first time
-  /// Defines all table schemas
   Future<void> _onCreate(Database db, int version) async {
     AppLogger.info('Creating database schema v$version', tag: _tag);
 
-    // ── Vocabulary Bank table ─────────────────────────────────
+    // Vocabulary Bank table
     await db.execute('''
       CREATE TABLE vocab_words (
         id              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,35 +51,73 @@ class DatabaseService {
       )
     ''');
 
-    // Index for fast lookup of words due for review
-    // Used every morning when building the Wird
     await db.execute('''
-      CREATE INDEX idx_vocab_next_review
-      ON vocab_words (next_review_at)
+      CREATE INDEX idx_vocab_next_review ON vocab_words (next_review_at)
+    ''');
+    await db.execute('''
+      CREATE INDEX idx_vocab_arabic ON vocab_words (arabic)
     ''');
 
-    // Index for looking up if a word is already saved
-    // Used to show correct state on Save button
+    // Layer unlock tracking table
     await db.execute('''
-      CREATE INDEX idx_vocab_arabic
-      ON vocab_words (arabic)
+      CREATE TABLE layer_unlocks (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number  INTEGER NOT NULL,
+        ayah_number   INTEGER NOT NULL,
+        layer_index   INTEGER NOT NULL,
+        unlocked_at   TEXT NOT NULL,
+        UNIQUE(surah_number, ayah_number, layer_index)
+      )
+    ''');
+
+    // Reflection storage table (for Layer 5 — personal reflection)
+    await db.execute('''
+      CREATE TABLE reflections (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        surah_number  INTEGER NOT NULL,
+        ayah_number   INTEGER NOT NULL,
+        reflection    TEXT NOT NULL,
+        saved_at      TEXT NOT NULL,
+        UNIQUE(surah_number, ayah_number)
+      )
     ''');
 
     AppLogger.info('Database schema created', tag: _tag);
   }
 
-  /// Called when version number increases
-  /// Handles schema migrations without losing user data
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     AppLogger.info(
-      'Upgrading database from v$oldVersion to v$newVersion',
+      'Upgrading database v$oldVersion → v$newVersion',
       tag: _tag,
     );
-    // Future migrations go here
-    // Example: ALTER TABLE vocab_words ADD COLUMN notes TEXT
+
+    if (oldVersion < 2) {
+      // Add layer_unlocks table (new in v2)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS layer_unlocks (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          surah_number  INTEGER NOT NULL,
+          ayah_number   INTEGER NOT NULL,
+          layer_index   INTEGER NOT NULL,
+          unlocked_at   TEXT NOT NULL,
+          UNIQUE(surah_number, ayah_number, layer_index)
+        )
+      ''');
+
+      // Add reflections table (new in v2)
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS reflections (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          surah_number  INTEGER NOT NULL,
+          ayah_number   INTEGER NOT NULL,
+          reflection    TEXT NOT NULL,
+          saved_at      TEXT NOT NULL,
+          UNIQUE(surah_number, ayah_number)
+        )
+      ''');
+    }
   }
 
-  /// Closes the database — call when app is terminating
   Future<void> close() async {
     final db = _database;
     if (db != null) {

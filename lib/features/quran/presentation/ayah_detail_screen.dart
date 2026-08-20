@@ -11,6 +11,7 @@ import '../../../shared/models/ayah_word.dart';
 import '../../../shared/widgets/word_tap_sheet.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import 'layer_screen.dart';
 
 class AyahDetailScreen extends ConsumerStatefulWidget {
   const AyahDetailScreen({
@@ -316,7 +317,19 @@ class _AyahPage extends StatelessWidget {
                 _ActionButton(
                   icon: Icons.layers_rounded,
                   label: 'Layers',
-                  onTap: () {},
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => LayerScreen(
+                          surahNumber: surahNumber,
+                          ayahNumber: ayah.ayahNumber,
+                          surahName: surahName,
+                          arabicText: ayah.arabicText,
+                          translation: ayah.translation,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),
