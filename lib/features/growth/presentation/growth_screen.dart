@@ -1,8 +1,8 @@
-/// Growth screen — placeholder
-/// TODO: Implement Growth screen
 library;
 
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 
 class GrowthScreen extends StatelessWidget {
   const GrowthScreen({super.key});
@@ -10,11 +10,11 @@ class GrowthScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1120),
+      backgroundColor: AppColors.parchment,
       body: Center(
         child: Text(
-          'Growth',
-          style: const TextStyle(color: Colors.white, fontSize: 24),
+          'Growth — Phase 2',
+          style: AppTypography.displayMedium(),
         ),
       ),
     );

@@ -1,8 +1,8 @@
-/// Home screen — placeholder
-/// TODO: Implement Home screen
 library;
 
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -10,11 +10,23 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1120),
+      backgroundColor: AppColors.night,
       body: Center(
-        child: Text(
-          'Home',
-          style: const TextStyle(color: Colors.white, fontSize: 24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'تَدَبُّر',
+              style: AppTypography.arabicHero(),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Home — Phase 3',
+              style: AppTypography.labelMedium(
+                color: AppColors.muted,
+              ),
+            ),
+          ],
         ),
       ),
     );

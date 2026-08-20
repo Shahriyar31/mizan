@@ -1,8 +1,8 @@
-/// Minbar screen — placeholder
-/// TODO: Implement Minbar screen
 library;
 
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 
 class MinbarScreen extends StatelessWidget {
   const MinbarScreen({super.key});
@@ -10,11 +10,13 @@ class MinbarScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1120),
+      backgroundColor: AppColors.night,
       body: Center(
         child: Text(
-          'Minbar',
-          style: const TextStyle(color: Colors.white, fontSize: 24),
+          'Al-Minbar — Phase 5',
+          style: AppTypography.displayMedium(
+            color: AppColors.white,
+          ),
         ),
       ),
     );

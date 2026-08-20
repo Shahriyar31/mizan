@@ -1,8 +1,8 @@
-/// Discover screen — placeholder
-/// TODO: Implement Discover screen
 library;
 
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_typography.dart';
 
 class DiscoverScreen extends StatelessWidget {
   const DiscoverScreen({super.key});
@@ -10,11 +10,11 @@ class DiscoverScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1120),
+      backgroundColor: AppColors.parchment,
       body: Center(
         child: Text(
-          'Discover',
-          style: const TextStyle(color: Colors.white, fontSize: 24),
+          'Discover — Phase 4',
+          style: AppTypography.displayMedium(),
         ),
       ),
     );
