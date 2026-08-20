@@ -1,18 +1,14 @@
-/// Ayah Detail Screen — PageView reading experience
-///
-/// Design decision: PageView instead of ListView
-/// Reasoning: Reading Quran is not like browsing a list.
-/// Each ayah deserves full attention. Swiping page by page
-/// forces the reader to sit with one ayah before moving to next.
-/// This matches how physical Quran reading works.
+/// Ayah Detail Screen — PageView reading experience with word tap
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../domain/quran_providers.dart';
+import '../data/word_roots_data.dart';
 import '../../../shared/models/ayah.dart';
 import '../../../shared/models/surah.dart';
+import '../../../shared/models/ayah_word.dart';
+import '../../../shared/widgets/word_tap_sheet.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 
@@ -96,16 +92,12 @@ class _PageViewReader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        // ── Fixed Header ─────────────────────────────────────
         _SurahHeader(
           surahAsync: surahAsync,
           currentPage: currentPage,
           totalAyat: ayat.length,
           surahNumber: surahNumber,
         ),
-
-        // ── PageView — one ayah per page ─────────────────────
-        // reverse: true makes swipe direction match Arabic RTL reading
         Expanded(
           child: PageView.builder(
             controller: pageController,
@@ -121,8 +113,6 @@ class _PageViewReader extends StatelessWidget {
             },
           ),
         ),
-
-        // ── Page indicator + navigation ──────────────────────
         _PageControls(
           currentPage: currentPage,
           totalPages: ayat.length,
@@ -160,7 +150,6 @@ class _SurahHeader extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Back button
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
             child: const Icon(
@@ -170,8 +159,6 @@ class _SurahHeader extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Surah name
           Expanded(
             child: surahAsync.when(
               loading: () => const SizedBox.shrink(),
@@ -183,16 +170,11 @@ class _SurahHeader extends StatelessWidget {
                     surah.englishName,
                     style: AppTypography.displaySmall(color: AppColors.white),
                   ),
-                  Text(
-                    surah.translatedName,
-                    style: AppTypography.caption(),
-                  ),
+                  Text(surah.translatedName, style: AppTypography.caption()),
                 ],
               ),
             ),
           ),
-
-          // Ayah counter
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -225,7 +207,7 @@ class _AyahPage extends StatelessWidget {
   static const Map<int, String> _scenes = {
     1: 'Recited in every rakah of every prayer — at minimum 17 times every day. These are the words you say to Allah more than any other.',
     18: 'Recommended to recite every Friday. Contains four stories: the People of the Cave, the two men with gardens, Musa and Al-Khidr, and Dhul-Qarnayn.',
-    94: 'Revealed during the Year of Sorrow — after the Prophet ﷺ lost Khadijah (RA) and Abu Talib, and was stoned out of Ta\'if. These words came down in that exact moment.',
+    94: 'Revealed during the Year of Sorrow — after the Prophet ﷺ lost Khadijah (RA) and Abu Talib, and was stoned out of Ta\'if.',
     112:
         'Worth one-third of the Quran in reward. A complete description of Allah\'s nature in four ayat.',
     114:
@@ -236,51 +218,73 @@ class _AyahPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
     final hasScene = isFirst && _scenes.containsKey(surahNumber);
+    final tappableWords = ayah.tappableWords;
 
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           children: [
-            // Scene setting — only on first ayah of key surahs
             if (hasScene) ...[
               const SizedBox(height: 16),
               _SceneSetting(text: _scenes[surahNumber]!),
             ],
 
-            // Vertical spacing to center the ayah
             SizedBox(
-              height: hasScene ? screenHeight * 0.1 : screenHeight * 0.2,
+              height: hasScene ? screenHeight * 0.08 : screenHeight * 0.18,
             ),
 
-            // Ayah reference number
+            // Ayah reference
             Text(
               '${ayah.surahNumber}:${ayah.ayahNumber}',
               style: AppTypography.caption(color: AppColors.gold),
             ),
             const SizedBox(height: 24),
 
-            // Arabic text — hero of the page
-            Text(
-              ayah.arabicText,
-              style: AppTypography.arabicHero(
-                color: AppColors.white,
-                size: 30,
+            // Arabic — tappable words if available, fallback otherwise
+            if (tappableWords.isNotEmpty)
+              _TappableArabicText(words: tappableWords)
+            else
+              Text(
+                ayah.arabicText,
+                style: AppTypography.arabicHero(
+                  color: AppColors.white,
+                  size: 30,
+                ),
+                textAlign: TextAlign.center,
+                textDirection: TextDirection.rtl,
               ),
-              textAlign: TextAlign.center,
-              textDirection: TextDirection.rtl,
-            ),
 
             const SizedBox(height: 32),
 
-            // Gold divider line
+            // Gold divider
             Container(
               height: 1,
               width: 60,
               color: AppColors.gold.withOpacity(0.3),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Tap hint — first ayah only
+            if (isFirst && tappableWords.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(
+                    Icons.touch_app_rounded,
+                    size: 12,
+                    color: AppColors.muted,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Tap any word to explore its meaning',
+                    style: AppTypography.caption(color: AppColors.muted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
 
             // Translation
             if (ayah.translation.isNotEmpty)
@@ -289,12 +293,6 @@ class _AyahPage extends StatelessWidget {
                 style: AppTypography.quoteItalic(
                   color: const Color(0xFF9CADB8),
                 ),
-                textAlign: TextAlign.center,
-              )
-            else
-              Text(
-                'Translation loading…',
-                style: AppTypography.bodySmall(color: AppColors.muted),
                 textAlign: TextAlign.center,
               ),
 
@@ -332,6 +330,73 @@ class _AyahPage extends StatelessWidget {
   }
 }
 
+// ── Tappable Arabic Text ──────────────────────────────────────
+class _TappableArabicText extends StatelessWidget {
+  const _TappableArabicText({required this.words});
+  final List<AyahWord> words;
+
+  @override
+  Widget build(BuildContext context) {
+    return Directionality(
+      textDirection: TextDirection.rtl,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        spacing: 4,
+        runSpacing: 8,
+        children: words.map((word) => _TappableWord(word: word)).toList(),
+      ),
+    );
+  }
+}
+
+// ── Single Tappable Word ──────────────────────────────────────
+class _TappableWord extends StatefulWidget {
+  const _TappableWord({required this.word});
+  final AyahWord word;
+
+  @override
+  State<_TappableWord> createState() => _TappableWordState();
+}
+
+class _TappableWordState extends State<_TappableWord> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) {
+        setState(() => _pressed = false);
+        showWordSheet(context, widget.word);
+      },
+      onTapCancel: () => setState(() => _pressed = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 100),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+        decoration: BoxDecoration(
+          color:
+              _pressed ? AppColors.jade.withOpacity(0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color:
+                _pressed ? AppColors.jade.withOpacity(0.4) : Colors.transparent,
+          ),
+        ),
+        child: Text(
+          widget.word.arabic,
+          style: TextStyle(
+            fontFamily: 'Amiri',
+            fontSize: 28,
+            color: _pressed ? AppColors.gold : AppColors.white,
+            height: 1.9,
+          ),
+          textDirection: TextDirection.rtl,
+        ),
+      ),
+    );
+  }
+}
+
 // ── Scene Setting Card ────────────────────────────────────────
 class _SceneSetting extends StatelessWidget {
   const _SceneSetting({required this.text});
@@ -350,9 +415,7 @@ class _SceneSetting extends StatelessWidget {
       ),
       child: Text(
         text,
-        style: AppTypography.bodySmall(
-          color: const Color(0xFFB0C4C0),
-        ),
+        style: AppTypography.bodySmall(color: const Color(0xFFB0C4C0)),
       ),
     );
   }
@@ -424,19 +487,15 @@ class _PageControls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // ── NEXT on LEFT (Arabic RTL direction) ──────────────
+          // NEXT on LEFT — Arabic RTL direction
           GestureDetector(
             onTap: !_isLastAyah
-                // Not last ayah — go to next ayah
                 ? () => pageController.nextPage(
                       duration: const Duration(milliseconds: 300),
                       curve: Curves.easeInOut,
                     )
-                // Last ayah + more surahs — go to next surah
                 : !_isLastSurah
                     ? () {
-                        // Replace current screen with next surah
-                        // User can still tap back to return to surah list
                         Navigator.of(context).pushReplacement(
                           MaterialPageRoute(
                             builder: (_) => AyahDetailScreen(
@@ -445,15 +504,10 @@ class _PageControls extends StatelessWidget {
                           ),
                         );
                       }
-                    // Last ayah of An-Nas (114) — nothing more
                     : null,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
-                // Dim the button if it's the very end (An-Nas last ayah)
                 color: (!_isLastAyah || !_isLastSurah)
                     ? AppColors.slate
                     : AppColors.slate.withOpacity(0.3),
@@ -471,7 +525,6 @@ class _PageControls extends StatelessWidget {
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    // Label changes at end of surah
                     _isLastAyah && !_isLastSurah ? 'Next Surah' : 'Next',
                     style: AppTypography.labelSmall(
                       color: (!_isLastAyah || !_isLastSurah)
@@ -484,13 +537,13 @@ class _PageControls extends StatelessWidget {
             ),
           ),
 
-          // ── Dot Indicator — RTL (active dot starts from right) ──
+          // Dot indicator — RTL
           _DotIndicator(
             currentPage: currentPage,
             totalPages: totalPages,
           ),
 
-          // ── PREV on RIGHT (Arabic RTL direction) ─────────────
+          // PREV on RIGHT — Arabic RTL direction
           GestureDetector(
             onTap: !_isFirstAyah
                 ? () => pageController.previousPage(
@@ -499,10 +552,7 @@ class _PageControls extends StatelessWidget {
                     )
                 : null,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 10,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               decoration: BoxDecoration(
                 color: !_isFirstAyah
                     ? AppColors.slate
@@ -546,7 +596,6 @@ class _DotIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // For long surahs show text indicator instead of dots
     if (totalPages > 10) {
       return Text(
         '${currentPage + 1} of $totalPages',
@@ -554,12 +603,9 @@ class _DotIndicator extends StatelessWidget {
       );
     }
 
-    // RTL dots — active dot is on the RIGHT for first ayah
-    // List is reversed so dot 0 appears on the right
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: List.generate(totalPages, (index) {
-        // Reverse the index so first ayah = rightmost dot
         final reversedIndex = totalPages - 1 - index;
         final isActive = reversedIndex == currentPage;
         return Container(
@@ -576,22 +622,18 @@ class _DotIndicator extends StatelessWidget {
   }
 }
 
-// ── Loading Page ──────────────────────────────────────────────
+// ── Loading / Error ───────────────────────────────────────────
 class _LoadingPage extends StatelessWidget {
   const _LoadingPage();
 
   @override
   Widget build(BuildContext context) {
     return const Center(
-      child: CircularProgressIndicator(
-        color: AppColors.gold,
-        strokeWidth: 2,
-      ),
+      child: CircularProgressIndicator(color: AppColors.gold, strokeWidth: 2),
     );
   }
 }
 
-// ── Error Page ────────────────────────────────────────────────
 class _ErrorPage extends StatelessWidget {
   const _ErrorPage({required this.onRetry});
   final VoidCallback onRetry;
@@ -602,21 +644,14 @@ class _ErrorPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
-            Icons.wifi_off_rounded,
-            color: AppColors.muted,
-            size: 48,
-          ),
+          const Icon(Icons.wifi_off_rounded, color: AppColors.muted, size: 48),
           const SizedBox(height: 16),
           Text(
             'Could not load ayat',
             style: AppTypography.labelLarge(color: AppColors.white),
           ),
           const SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: onRetry,
-            child: const Text('Retry'),
-          ),
+          ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
     );

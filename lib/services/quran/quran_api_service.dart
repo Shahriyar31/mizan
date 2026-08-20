@@ -1,4 +1,4 @@
-/// Quran.com API integration
+/// Quran.com API integration — updated with word-level data
 library;
 
 import 'dart:convert';
@@ -14,6 +14,7 @@ class QuranApiService {
   final http.Client _client;
   static const String _tag = 'QuranApiService';
 
+  /// Fetches all 114 surah metadata
   Future<List<Map<String, dynamic>>> getSurahs({
     String language = 'en',
   }) async {
@@ -43,6 +44,12 @@ class QuranApiService {
     }
   }
 
+  /// Fetches all ayat for a surah WITH word-level data
+  /// 
+  /// words=true — includes individual word objects
+  /// word_fields — which data to include per word
+  /// fields=text_uthmani — include full Arabic text per verse
+  /// translations — English translation per verse
   Future<List<Ayah>> getAyatForSurah(
     int surahNumber, {
     int translationId = ApiConstants.translationEnglish,
@@ -56,6 +63,8 @@ class QuranApiService {
       ).replace(queryParameters: {
         'translations': translationId.toString(),
         'fields': 'text_uthmani',
+        'words': 'true',
+        'word_fields': 'text_uthmani,translation,transliteration',
         'per_page': '300',
       });
 
@@ -69,15 +78,6 @@ class QuranApiService {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final verses = data['verses'] as List;
-
-      // ── TEMPORARY DEBUG — shows us exact API response structure ──
-      if (verses.isNotEmpty) {
-        print('=== FIRST VERSE JSON ===');
-        print(verses.first);
-        print('=== VERSE KEYS ===');
-        print((verses.first as Map).keys.toList());
-        print('========================');
-      }
 
       return verses
           .map((v) => Ayah.fromJson(v as Map<String, dynamic>))

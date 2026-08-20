@@ -1,6 +1,7 @@
-/// Ayah data model
-/// Represents a single Quran verse with all associated data
+/// Ayah data model — updated with word-level data
 library;
+
+import 'ayah_word.dart';
 
 class Ayah {
   const Ayah({
@@ -17,9 +18,16 @@ class Ayah {
   final String arabicText;
   final String translation;
   final String? transliteration;
-  final List<AyahWord> words;
+  final List<AyahWord> words; // individual tappable words
 
   String get key => '$surahNumber:$ayahNumber';
+
+  /// Whether this ayah has word-level data loaded
+  bool get hasWords => words.isNotEmpty;
+
+  /// Only actual words — excludes ayah number end markers
+  List<AyahWord> get tappableWords =>
+      words.where((w) => w.isWord).toList();
 
   factory Ayah.fromJson(Map<String, dynamic> json) {
     // Parse verse_key "1:1" into surah and ayah numbers
@@ -28,7 +36,7 @@ class Ayah {
     final surahNum = int.tryParse(parts[0]) ?? 0;
     final ayahNum = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
 
-    // Extract translation safely
+    // Extract translation safely — strip HTML tags Quran.com sometimes includes
     String translationText = '';
     final translations = json['translations'];
     if (translations != null &&
@@ -36,30 +44,24 @@ class Ayah {
         translations.isNotEmpty) {
       final first = translations[0];
       if (first is Map) {
-        translationText =
-            (first['text'] as String? ?? '').replaceAll(RegExp(r'<[^>]*>'), '');
+        translationText = (first['text'] as String? ?? '')
+            .replaceAll(RegExp(r'<[^>]*>'), '');
       }
     }
+
+    // Parse word-level data if present in response
+    final wordsList = json['words'] as List?;
+    final words = wordsList
+            ?.map((w) => AyahWord.fromJson(w as Map<String, dynamic>))
+            .toList() ??
+        [];
 
     return Ayah(
       surahNumber: surahNum,
       ayahNumber: ayahNum,
       arabicText: json['text_uthmani'] as String? ?? '',
       translation: translationText,
+      words: words,
     );
   }
-}
-
-class AyahWord {
-  const AyahWord({
-    required this.arabic,
-    required this.root,
-    required this.meaning,
-    this.insight,
-  });
-
-  final String arabic;
-  final String root;
-  final String meaning;
-  final String? insight;
 }
