@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/quran_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/word_roots_data.dart';
 import '../../../shared/models/ayah.dart';
 import '../../../shared/models/surah.dart';
@@ -33,6 +34,26 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
   void initState() {
     super.initState();
     _pageController = PageController();
+    _pageController.addListener(_onPageChanged);
+  }
+
+  void _onPageChanged() {
+    // No-op here — we save on page settle below
+  }
+
+  Future<void> _saveLastAyah({
+    required int surahNumber,
+    required int ayahNumber,
+    required String surahName,
+    required String arabic,
+    required String translation,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('last_surah', surahNumber);
+    await prefs.setInt('last_ayah', ayahNumber);
+    await prefs.setString('last_surah_name', surahName);
+    await prefs.setString('last_ayah_arabic', arabic);
+    await prefs.setString('last_ayah_translation', translation);
   }
 
   @override
@@ -67,7 +88,19 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
           ayat: ayat,
           pageController: _pageController,
           currentPage: _currentPage,
-          onPageChanged: (page) => setState(() => _currentPage = page),
+          onPageChanged: (page) {
+            setState(() => _currentPage = page);
+            if (page < ayat.length) {
+              final ayah = ayat[page];
+              _saveLastAyah(
+                surahNumber: widget.surahNumber,
+                ayahNumber: ayah.ayahNumber,
+                surahName: surahName,
+                arabic: ayah.arabicText,
+                translation: ayah.translation,
+              );
+            }
+          },
           surahNumber: widget.surahNumber,
           surahName: surahName,
         ),
