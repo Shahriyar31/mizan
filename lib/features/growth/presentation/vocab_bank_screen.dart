@@ -150,7 +150,7 @@ class _VocabWordCard extends StatelessWidget {
           color: AppColors.slate,
           borderRadius: BorderRadius.circular(14),
           border: isDue
-              ? Border.all(color: AppColors.gold.withOpacity(0.4))
+              ? Border.all(color: AppColors.gold.withValues(alpha: 0.4))
               : null,
         ),
         child: Row(
@@ -238,7 +238,7 @@ class _ReviewBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(

@@ -1,7 +1,6 @@
 /// App Router — Single source of truth for all navigation
 library;
 
-import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/quran/presentation/quran_screen.dart';

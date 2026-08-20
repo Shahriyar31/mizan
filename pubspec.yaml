@@ -17,7 +17,7 @@ dependencies:
   flutter_riverpod: ^2.5.0
 
   # Backend
-  supabase_flutter: ^2.3.0
+  supabase_flutter: ^2.17.2
 
   # HTTP
   http: ^1.2.1

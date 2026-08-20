@@ -269,7 +269,7 @@ class _AyahPage extends StatelessWidget {
             Container(
               height: 1,
               width: 60,
-              color: AppColors.gold.withOpacity(0.3),
+              color: AppColors.gold.withValues(alpha: 0.3),
             ),
             const SizedBox(height: 16),
             if (isFirst && tappableWords.isNotEmpty) ...[
@@ -417,11 +417,11 @@ class _TappableWordState extends State<_TappableWord> {
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           color:
-              _pressed ? AppColors.jade.withOpacity(0.2) : Colors.transparent,
+              _pressed ? AppColors.jade.withValues(alpha: 0.2) : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color:
-                _pressed ? AppColors.jade.withOpacity(0.4) : Colors.transparent,
+                _pressed ? AppColors.jade.withValues(alpha: 0.4) : Colors.transparent,
           ),
         ),
         child: Text(
@@ -451,8 +451,8 @@ class _SceneSetting extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.slate,
         borderRadius: BorderRadius.circular(12),
-        border: Border(
-          left: BorderSide(color: AppColors.gold, width: 3),
+        border: const Border(
+          left: const BorderSide(color: AppColors.gold, width: 3),
         ),
       ),
       child: Text(
@@ -551,7 +551,7 @@ class _PageControls extends StatelessWidget {
               decoration: BoxDecoration(
                 color: (!_isLastAyah || !_isLastSurah)
                     ? AppColors.slate
-                    : AppColors.slate.withOpacity(0.3),
+                    : AppColors.slate.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Row(
@@ -593,7 +593,7 @@ class _PageControls extends StatelessWidget {
               decoration: BoxDecoration(
                 color: !_isFirstAyah
                     ? AppColors.slate
-                    : AppColors.slate.withOpacity(0.3),
+                    : AppColors.slate.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(99),
               ),
               child: Row(

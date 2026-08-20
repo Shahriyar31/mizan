@@ -198,7 +198,7 @@ class _SurahItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.06),
+              color: Colors.black.withValues(alpha: 0.06),
               blurRadius: 8,
               offset: const Offset(0, 2),
             ),
@@ -224,13 +224,13 @@ class _SurahItem extends StatelessWidget {
                       ),
                       if (surah.isFridaySurah) ...[
                         const SizedBox(width: 6),
-                        _Badge(
+                        const _Badge(
                           label: '📅 Friday',
                           color: AppColors.jade,
                         ),
                       ] else if (surah.isRecitedInSalah) ...[
                         const SizedBox(width: 6),
-                        _Badge(
+                        const _Badge(
                           label: '🕌 Salah',
                           color: AppColors.gold,
                         ),
@@ -305,7 +305,7 @@ class _Badge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(

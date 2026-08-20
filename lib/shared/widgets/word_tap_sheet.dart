@@ -79,7 +79,7 @@ class WordTapSheet extends ConsumerWidget {
             width: 36,
             height: 4,
             decoration: BoxDecoration(
-              color: AppColors.muted.withOpacity(0.3),
+              color: AppColors.muted.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(99),
             ),
           ),
@@ -113,7 +113,7 @@ class WordTapSheet extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Divider(
-              color: AppColors.white.withOpacity(0.08),
+              color: AppColors.white.withValues(alpha: 0.08),
               height: 1,
             ),
           ),
@@ -160,8 +160,8 @@ class WordTapSheet extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: AppColors.night,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border(
-                        left: BorderSide(color: AppColors.jade, width: 3),
+                      border: const Border(
+                        left: const BorderSide(color: AppColors.jade, width: 3),
                       ),
                     ),
                     child: Column(
@@ -204,12 +204,12 @@ class WordTapSheet extends ConsumerWidget {
 
                 // ── Save to Vocabulary Bank ───────────────────
                 isSavedAsync.when(
-                  loading: () => _SaveButton(
+                  loading: () => const _SaveButton(
                     isSaved: false,
                     isLoading: true,
                     onTap: null,
                   ),
-                  error: (_, __) => _SaveButton(
+                  error: (_, __) => const _SaveButton(
                     isSaved: false,
                     isLoading: false,
                     onTap: null,
@@ -300,7 +300,7 @@ class _SaveButton extends StatelessWidget {
           border: Border.all(
             color: isSaved
                 ? AppColors.jade
-                : AppColors.jade.withOpacity(0.3),
+                : AppColors.jade.withValues(alpha: 0.3),
           ),
         ),
         child: Row(

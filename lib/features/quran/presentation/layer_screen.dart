@@ -4,6 +4,7 @@
 /// Shows 5 tab buttons at the top. Locked layers show a lock icon
 /// with countdown timer. Unlocked layers show full content.
 /// Layer 5 (Reflection) has a text field for private notes.
+library;
 
 import 'package:flutter/material.dart';
 import 'dart:ui' as ui;
@@ -309,7 +310,7 @@ class _LayerHeader extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.jade.withOpacity(0.15),
+                  color: AppColors.jade.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text(
@@ -469,16 +470,16 @@ class _WordsLayerBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle('🔤 Word Analysis'),
+        const _SectionTitle('🔤 Word Analysis'),
         const SizedBox(height: 12),
         _ContentCard(text: content.words),
         const SizedBox(height: 16),
         Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: AppColors.jade.withOpacity(0.1),
+            color: AppColors.jade.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.jade.withOpacity(0.3)),
+            border: Border.all(color: AppColors.jade.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
@@ -509,7 +510,7 @@ class _ContextLayerBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle('📍 Historical Context'),
+        const _SectionTitle('📍 Historical Context'),
         const SizedBox(height: 12),
         _ContentCard(text: content.context),
       ],
@@ -528,7 +529,7 @@ class _ScholarsLayerBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle('📚 Scholar Insight'),
+        const _SectionTitle('📚 Scholar Insight'),
         const SizedBox(height: 12),
 
         // Scholar identity card
@@ -544,7 +545,7 @@ class _ScholarsLayerBody extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: AppColors.violet.withOpacity(0.2),
+                  color: AppColors.violet.withValues(alpha: 0.2),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(
@@ -583,8 +584,8 @@ class _ScholarsLayerBody extends StatelessWidget {
             decoration: BoxDecoration(
               color: AppColors.night,
               borderRadius: BorderRadius.circular(12),
-              border: Border(
-                right: BorderSide(color: AppColors.violet, width: 3),
+              border: const Border(
+                right: const BorderSide(color: AppColors.violet, width: 3),
               ),
             ),
             child: Text(
@@ -616,7 +617,7 @@ class _IsnadLayerBody extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionTitle('🔗 Chain of Narration (Isnad)'),
+        const _SectionTitle('🔗 Chain of Narration (Isnad)'),
         const SizedBox(height: 12),
 
         // The hadith
@@ -625,8 +626,8 @@ class _IsnadLayerBody extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.slate,
             borderRadius: BorderRadius.circular(12),
-            border: Border(
-              left: BorderSide(color: AppColors.gold, width: 3),
+            border: const Border(
+              left: const BorderSide(color: AppColors.gold, width: 3),
             ),
           ),
           child: Column(
@@ -652,7 +653,7 @@ class _IsnadLayerBody extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.jade.withOpacity(0.15),
+                      color: AppColors.jade.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(99),
                     ),
                     child: Text(
@@ -737,7 +738,7 @@ class _NarratorCardState extends State<_NarratorCard> {
                 Container(
                   width: 22,
                   height: 22,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.night,
                     shape: BoxShape.circle,
                   ),
@@ -830,7 +831,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _SectionTitle('✍️ Your Reflection'),
+          const _SectionTitle('✍️ Your Reflection'),
           const SizedBox(height: 8),
           Text(
             'This is private. Only you will ever see this.',
@@ -899,7 +900,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                         border: Border.all(
                           color: _saved
                               ? AppColors.jade
-                              : AppColors.jade.withOpacity(0.3),
+                              : AppColors.jade.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
@@ -956,7 +957,7 @@ class _LockedLayer extends StatelessWidget {
             Container(
               width: 72,
               height: 72,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.slate,
                 shape: BoxShape.circle,
               ),
@@ -1006,7 +1007,7 @@ class _NoCuratedContent extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text('📖', style: const TextStyle(fontSize: 40)),
+            const Text('📖', style: TextStyle(fontSize: 40)),
             const SizedBox(height: 16),
             Text(
               '${LayerMeta.names[layerIndex]} content',
@@ -1075,7 +1076,7 @@ class _TomorrowTeaser extends StatelessWidget {
         color: AppColors.night,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: AppColors.gold.withOpacity(0.3),
+          color: AppColors.gold.withValues(alpha: 0.3),
         ),
       ),
       child: Column(

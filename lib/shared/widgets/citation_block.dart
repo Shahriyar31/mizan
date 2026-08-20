@@ -27,8 +27,8 @@ class CitationBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.parchment,
         borderRadius: BorderRadius.circular(10),
-        border: Border(
-          left: BorderSide(color: AppColors.gold, width: 3),
+        border: const Border(
+          left: const BorderSide(color: AppColors.gold, width: 3),
         ),
       ),
       child: Column(

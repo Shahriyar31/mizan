@@ -54,7 +54,7 @@ class GrowthScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Growth Map — coming Phase 5
-                _GrowthCard(
+                const _GrowthCard(
                   icon: Icons.auto_awesome_rounded,
                   iconColor: AppColors.gold,
                   title: 'Growth Map',
@@ -67,7 +67,7 @@ class GrowthScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Scholar AI — coming Phase 2
-                _GrowthCard(
+                const _GrowthCard(
                   icon: Icons.school_rounded,
                   iconColor: AppColors.violet,
                   title: 'Scholar AI',
@@ -80,7 +80,7 @@ class GrowthScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Muhasabah record — coming Phase 3
-                _GrowthCard(
+                const _GrowthCard(
                   icon: Icons.nights_stay_rounded,
                   iconColor: AppColors.slate,
                   title: 'Muhasabah',
@@ -93,7 +93,7 @@ class GrowthScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Al-Meezan — coming Phase 3
-                _GrowthCard(
+                const _GrowthCard(
                   icon: Icons.balance_rounded,
                   iconColor: AppColors.amber,
                   title: 'Al-Meezan',
@@ -180,7 +180,7 @@ class _GrowthCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isLocked
                     ? AppColors.parchment2
-                    : iconColor.withOpacity(0.12),
+                    : iconColor.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
