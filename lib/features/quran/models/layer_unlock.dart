@@ -62,7 +62,7 @@ class LayerMeta {
   ];
 
   /// How long to wait before next layer unlocks
-  static const Duration unlockInterval = Duration(hours: 24);
+  static const Duration unlockInterval = Duration(seconds: 1);
 
   /// For testing — use 1 minute instead of 24 hours
   /// Change back to Duration(hours: 24) before release

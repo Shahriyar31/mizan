@@ -51,6 +51,7 @@ flutter:
   assets:
     - .env
     - assets/data/ibn_kathir/
+    - assets/data/ibn_kathir_processed/
 
   fonts:
     - family: Amiri

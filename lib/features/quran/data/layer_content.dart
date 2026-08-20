@@ -108,10 +108,7 @@ class LayerContentData {
 
     // ── Al-Fatihah 1:1 — Bismillah ─────────────────────────────
     '1:1': LayerData(
-      words: 'Four words. بِسْمِ (by the name) + ٱللَّهِ (Allah) + '
-          'ٱلرَّحْمَٰنِ (the Most Gracious) + ٱلرَّحِيمِ (the Most Merciful). '
-          'The ba prefix (بـ) is the ba of seeking help — not just '
-          '"in the name" but "seeking assistance through the name."',
+      words: 'بِسْمِ — In (the) name\nٱللَّهِ — Allah, The God\nٱلرَّحْمَٰنِ — The Most Gracious\nٱلرَّحِيمِ — The Most Merciful',
 
       context: 'The Basmala was revealed to the Prophet ﷺ before '
           'nearly every surah — it is the opening of the Quran itself. '
@@ -183,11 +180,7 @@ class LayerContentData {
 
     // ── Al-Fatihah 1:2 — Alhamdulillah ────────────────────────
     '1:2': LayerData(
-      words: 'ٱلْحَمْدُ (the praise) + لِلَّهِ (belongs to Allah) + '
-          'رَبِّ (Lord of) + ٱلْعَٰلَمِينَ (all the worlds). '
-          'The definite article "al" before hamd means ALL praise — '
-          'not some, not most, but every category of praise that '
-          'exists belongs to Allah.',
+      words: 'ٱلْحَمْدُ — All praise\nلِلَّهِ — belongs to Allah\nرَبِّ — Lord of\nٱلْعَٰلَمِينَ — all the worlds',
 
       context: 'Al-Fatihah was revealed twice — once in Mecca early '
           'in the Prophet\'s ﷺ mission, and once in Madinah. It is '
@@ -258,11 +251,7 @@ class LayerContentData {
 
     // ── Al-Fatihah 1:3 ─────────────────────────────────────────
     '1:3': LayerData(
-      words: 'ٱلرَّحْمَٰنِ (the Most Gracious) + ٱلرَّحِيمِ (the Most Merciful). '
-          'Same two names as in Bismillah — but placed here after '
-          'establishing that all praise belongs to Allah. The repetition '
-          'is intentional: mercy is the lens through which Allah\'s '
-          'lordship should be understood.',
+      words: 'ٱلرَّحْمَٰنِ — The Most Gracious (vast mercy for all creation)\nٱلرَّحِيمِ — The Most Merciful (specific mercy for believers)',
 
       context: 'Both names come from the root r-h-m (mercy). '
           'The scholars made a distinction: Al-Rahman is the vast mercy '
@@ -334,10 +323,7 @@ class LayerContentData {
 
     // ── Remaining ayat — abbreviated for launch, expand in Phase 4 ──
     '1:4': LayerData(
-      words: 'مَٰلِكِ (Owner/Master of) + يَوْمِ (the Day of) + '
-          'ٱلدِّينِ (the Deen/Recompense). The word Malik means '
-          'the one who owns absolutely — on that Day, nothing belongs '
-          'to anyone except by Allah\'s permission.',
+      words: 'مَٰلِكِ — Owner, Master\nيَوْمِ — of the Day\nٱلدِّينِ — of Recompense',
       context: 'Yawm al-Din — the Day when every action is weighed '
           'and every soul receives exactly what it earned. The Quran '
           'returns to this Day repeatedly because human beings tend '
@@ -391,12 +377,7 @@ class LayerContentData {
     ),
 
     '1:5': LayerData(
-      words: 'إِيَّاكَ (You alone) + نَعْبُدُ (we worship) + '
-          'وَإِيَّاكَ (and You alone) + نَسْتَعِينُ (we ask for help). '
-          'The word order in Arabic is significant: iyyaka (You) '
-          'before na\'budu (we worship) means the object comes before '
-          'the verb — this is emphasis. It is not "we worship You" '
-          'but "You — only You — do we worship."',
+      words: 'إِيَّاكَ — You alone\nنَعْبُدُ — we worship\nوَإِيَّاكَ — and You alone\nنَسْتَعِينُ — we ask for help',
       context: 'This is the center of Al-Fatihah and the center of '
           'the prayer itself. The surah shifts here from third person '
           '(praising Allah who is described) to second person '
@@ -467,12 +448,7 @@ class LayerContentData {
     ),
 
     '1:6': LayerData(
-      words: 'ٱهْدِنَا (guide us) + ٱلصِّرَٰطَ (the path/road) + '
-          'ٱلْمُسْتَقِيمَ (the straight/upright). The verb ihdinā '
-          'is a du\'a verb — a request, not a statement. Every single '
-          'rakah of prayer, the Muslim asks Allah for guidance. '
-          'Not past tense ("You guided us") but present imperative '
-          '("Guide us — right now, in this moment").',
+      words: 'ٱهْدِنَا — Guide us\nٱلصِّرَٰطَ — the path\nٱلْمُسْتَقِيمَ — the straight and upright',
       context: 'A Muslim who prays five times a day says this du\'a '
           'a minimum of 17 times. Scholars noted the wisdom: guidance '
           'is not a one-time event but a continuous need. '
@@ -529,13 +505,7 @@ class LayerContentData {
     ),
 
     '1:7': LayerData(
-      words: 'صِرَٰطَ (path of) + ٱلَّذِينَ (those who) + '
-          'أَنْعَمْتَ (You blessed) + عَلَيْهِمْ (upon them) + '
-          'غَيْرِ (not) + ٱلْمَغْضُوبِ (those who earned anger) + '
-          'عَلَيْهِمْ (upon them) + وَلَا (nor) + ٱلضَّآلِّينَ '
-          '(those who went astray). The surah ends by defining '
-          'the straight path through contrast — not just what it is, '
-          'but what it is not.',
+      words: 'صِرَٰطَ — path of\nٱلَّذِينَ — those who\nأَنْعَمْتَ — You have blessed\nعَلَيْهِمْ — upon them\nغَيْرِ — not\nٱلْمَغْضُوبِ — those who earned anger\nٱلضَّآلِّينَ — those who went astray',
       context: 'The Prophet ﷺ explained in a hadith who al-maghdub '
           '(those who earned anger) and al-dhallin (those who went '
           'astray) refer to. The Quran does not leave this undefined. '

@@ -70,9 +70,10 @@ class WordTapSheet extends ConsumerWidget {
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom + 24,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
           // ── Drag handle ──────────────────────────────────────
           Container(
             margin: const EdgeInsets.only(top: 12, bottom: 20),
@@ -268,7 +269,8 @@ class WordTapSheet extends ConsumerWidget {
           ),
 
           const SizedBox(height: 8),
-        ],
+          ],
+        ),
       ),
     );
   }

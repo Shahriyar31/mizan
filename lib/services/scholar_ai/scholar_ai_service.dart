@@ -1,10 +1,4 @@
-/// ScholarAIService — reads Ibn Kathir locally, no AI needed for layers
-///
-/// Architecture:
-/// - Ibn Kathir tafseer stored in assets/data/ibn_kathir/
-/// - Layer content reads directly from local JSON — instant, free, accurate
-/// - No AI in the middle — Ibn Kathir's actual words displayed directly
-/// - Groq is reserved for Scholar AI chat only (user questions)
+/// ScholarAIService — reads preprocessed Ibn Kathir JSON
 library;
 
 import 'dart:convert';
@@ -17,168 +11,115 @@ class ScholarAIService {
   static final ScholarAIService instance = ScholarAIService._();
   static const String _tag = 'ScholarAIService';
 
-  // In-memory cache — load each surah's tafseer once per session
   final Map<int, List<Map<String, dynamic>>> _cache = {};
 
-  /// Gets layer content for an ayah
-  /// Priority:
-  /// 1. Hardcoded curated data (Al-Fatihah — hand-crafted, richest)
-  /// 2. Ibn Kathir local JSON (all 114 surahs — scholar's actual words)
   Future<LayerData?> getLayerContent(
     int surahNumber,
     int ayahNumber,
     String arabicText,
     String translation,
   ) async {
-    // Step 1: Hand-curated data for Al-Fatihah
+    // Step 1: Hand-curated Al-Fatihah data
     final curated = LayerContentData.getContent(surahNumber, ayahNumber);
-    if (curated != null) {
-      AppLogger.info(
-        'Using curated content for $surahNumber:$ayahNumber',
-        tag: _tag,
-      );
-      return curated;
-    }
+    if (curated != null) return curated;
 
-    // Step 2: Ibn Kathir local JSON
+    // Step 2: Preprocessed Ibn Kathir
     try {
-      final commentary = await _getIbnKathirLocal(surahNumber, ayahNumber);
-      if (commentary != null && commentary.isNotEmpty) {
-        AppLogger.info(
-          'Using Ibn Kathir local for $surahNumber:$ayahNumber',
-          tag: _tag,
-        );
-        return _buildLayerData(commentary, surahNumber, ayahNumber);
+      final ayahData = await _loadProcessedAyah(surahNumber, ayahNumber);
+      if (ayahData != null) {
+        return _buildFromProcessed(ayahData);
       }
     } catch (e) {
-      AppLogger.error('Ibn Kathir local read failed', error: e, tag: _tag);
+      AppLogger.error('Processed data load failed', error: e, tag: _tag);
     }
-
     return null;
   }
 
-  /// Reads Ibn Kathir commentary from local assets
-  Future<String?> _getIbnKathirLocal(
+  Future<Map<String, dynamic>?> _loadProcessedAyah(
       int surahNumber, int ayahNumber) async {
-    // Load from cache if available
     if (!_cache.containsKey(surahNumber)) {
       try {
         final jsonStr = await rootBundle.loadString(
-          'assets/data/ibn_kathir/$surahNumber.json',
+          'assets/data/ibn_kathir_processed/$surahNumber.json',
         );
         final List<dynamic> data = jsonDecode(jsonStr);
-        _cache[surahNumber] = data
-            .map((e) => e as Map<String, dynamic>)
-            .toList();
-        AppLogger.info(
-          'Loaded Ibn Kathir surah $surahNumber: ${_cache[surahNumber]!.length} ayat',
-          tag: _tag,
-        );
+        _cache[surahNumber] =
+            data.map((e) => e as Map<String, dynamic>).toList();
       } catch (e) {
-        AppLogger.error(
-          'Failed to load Ibn Kathir surah $surahNumber',
-          error: e,
-          tag: _tag,
-        );
         return null;
       }
     }
 
-    // Find the specific ayah
     final ayahs = _cache[surahNumber]!;
     for (final ayah in ayahs) {
-      final ayahNum = (ayah['ayah'] as num?)?.toInt();
-      if (ayahNum == ayahNumber) {
-        return ayah['text'] as String?;
-      }
+      if ((ayah['ayah'] as int?) == ayahNumber) return ayah;
     }
     return null;
   }
 
-  /// Builds LayerData from Ibn Kathir's commentary text
-  /// The text IS the scholar layer — displayed directly, no AI processing
-  LayerData _buildLayerData(
-      String commentary, int surahNumber, int ayahNumber) {
-    // Split commentary into sections for different layers
-    // Ibn Kathir's tafseer naturally has: linguistic notes, context,
-    // hadith citations, and reflective conclusions
-    final lines = commentary.split('\n').where((l) => l.trim().isNotEmpty).toList();
+  LayerData _buildFromProcessed(Map<String, dynamic> data) {
+    final fullCommentary = data['full_commentary'] as String? ?? '';
+    final keyInsight     = data['key_insight'] as String? ?? '';
+    final teasers        = data['tomorrow_teaser'] as String? ?? '';
+    final contextMap     = data['context'] as Map<String, dynamic>? ?? {};
+    final location       = contextMap['location'] as String? ?? 'Unknown';
+    final hadiths        = (data['hadiths'] as List? ?? [])
+        .map((h) => h as Map<String, dynamic>)
+        .toList();
+    final hadith = hadiths.isNotEmpty ? hadiths.first : null;
 
-    // Words layer — first paragraph (usually linguistic)
-    final wordsText = lines.isNotEmpty
-        ? lines.take(3).join(' ')
-        : 'See the full Ibn Kathir commentary in the Scholars layer.';
+    // Layer 1 — Words: first meaningful sentence from Ibn Kathir
+    final wordsText = keyInsight.isNotEmpty
+        ? keyInsight
+        : fullCommentary.substring(0, fullCommentary.length.clamp(0, 300));
 
-    // Context layer — next section
-    final contextText = lines.length > 3
-        ? lines.skip(3).take(4).join(' ')
-        : wordsText;
+    // Layer 2 — Context: full commentary with location prefix
+    final locationPrefix = (location != 'Unknown' && location.isNotEmpty)
+        ? 'Revealed in $location\n\n'
+        : '';
+    final contextText = locationPrefix + fullCommentary;
 
-    // Scholar layer — Ibn Kathir's main commentary (largest section)
-    // We show the full commentary here — his actual words
-    final scholarText = commentary.length > 1000
-        ? commentary.substring(0, 1000)
-        : commentary;
+    // Layer 3 — Scholars: full commentary under Ibn Kathir attribution
+    final scholarInsightText =
+        fullCommentary.isNotEmpty ? fullCommentary : keyInsight;
 
-    // Extract hadith if present — look for hadith markers
-    String hadithText = '';
-    String narrator = '';
-    String collection = '';
-    String reference = '';
-    String grade = '';
-
-    // Ibn Kathir frequently cites Bukhari and Muslim
-    // Look for common patterns in his text
-    if (commentary.contains('Bukhari')) {
-      collection = 'Sahih al-Bukhari';
-      grade = 'Sahih';
-    } else if (commentary.contains('Muslim')) {
-      collection = 'Sahih Muslim';
-      grade = 'Sahih';
-    } else if (commentary.contains('Tirmidhi')) {
-      collection = 'Jami al-Tirmidhi';
-      grade = 'See commentary';
-    }
-
-    // Find narrator — Ibn Kathir usually names companions
-    final companions = [
-      'Ibn Abbas', 'Ibn Masud', 'Abu Hurairah', 'Umar',
-      'Ali', 'Aisha', 'Anas', 'Abu Bakr'
-    ];
-    for (final companion in companions) {
-      if (commentary.contains(companion)) {
-        narrator = companion;
-        break;
-      }
-    }
-
-    // Tomorrow teasers — contextual to the surah
-    final teasers = [
-      'Tomorrow: The linguistic depth of the key words in this ayah.',
-      'Tomorrow: Ibn Kathir\'s historical context for this revelation.',
-      'Tomorrow: The hadith chains Ibn Kathir cites for this ayah.',
-      'Tomorrow: What does this ayah mean for your life today?',
-    ];
+    // Tomorrow teasers — use stored or sensible defaults
+    final teaserList = teasers.isNotEmpty
+        ? [teasers, teasers, teasers, teasers]
+        : [
+            'Tomorrow: Explore the historical context of this ayah.',
+            'Tomorrow: What scholars said about the words in this ayah.',
+            'Tomorrow: Trace the chain of narration behind this hadith.',
+            'Tomorrow: Sit with this ayah — what does it mean for your life right now?',
+          ];
 
     return LayerData(
-      words: wordsText,
-      context: contextText,
+      words: wordsText.isNotEmpty
+          ? wordsText
+          : 'Tap each word above to explore its root and meaning.',
+      context: contextText.isNotEmpty
+          ? contextText
+          : "Ibn Kathir's commentary for this ayah.",
       scholars: ScholarInsight(
         scholarName: 'Ibn Kathir',
         scholarEra: '1301–1373 CE',
         work: 'Tafseer al-Quran al-Azeem',
-        insight: scholarText,
+        insight: scholarInsightText,
         arabicQuote: '',
       ),
       isnad: IsnadData(
-        hadithText: hadithText,
-        narrator: narrator,
-        collection: collection,
-        reference: reference,
-        grade: grade,
+        hadithText: hadith?['text'] as String? ?? '',
+        narrator:   hadith?['narrator'] as String? ?? '',
+        collection: hadith?['collection'] as String? ?? '',
+        reference:  hadith?['reference'] as String? ?? '',
+        grade:      hadith?['grade'] as String? ?? '',
         chain: [],
       ),
-      tomorrowTeasers: teasers,
+      tomorrowTeasers: teaserList,
     );
   }
+}
+
+extension _ListExtension<T> on List<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }
