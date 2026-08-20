@@ -22,11 +22,30 @@ class Ayah {
   String get key => '$surahNumber:$ayahNumber';
 
   factory Ayah.fromJson(Map<String, dynamic> json) {
+    // Parse verse_key "1:1" into surah and ayah numbers
+    final verseKey = json['verse_key'] as String? ?? '0:0';
+    final parts = verseKey.split(':');
+    final surahNum = int.tryParse(parts[0]) ?? 0;
+    final ayahNum = int.tryParse(parts.length > 1 ? parts[1] : '0') ?? 0;
+
+    // Extract translation safely
+    String translationText = '';
+    final translations = json['translations'];
+    if (translations != null &&
+        translations is List &&
+        translations.isNotEmpty) {
+      final first = translations[0];
+      if (first is Map) {
+        translationText =
+            (first['text'] as String? ?? '').replaceAll(RegExp(r'<[^>]*>'), '');
+      }
+    }
+
     return Ayah(
-      surahNumber: json['chapter_id'] as int,
-      ayahNumber: json['verse_number'] as int,
+      surahNumber: surahNum,
+      ayahNumber: ayahNum,
       arabicText: json['text_uthmani'] as String? ?? '',
-      translation: json['translations']?[0]?['text'] as String? ?? '',
+      translation: translationText,
     );
   }
 }

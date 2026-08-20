@@ -12,9 +12,10 @@ class ApiConstants {
   static const String quranVerseByKey = '/verses/by_key';
 
   // Default translation IDs from Quran.com
-  static const int translationEnglish = 131;  // Sahih International
-  static const int translationBengali = 213;  // Muhammad Muhiuddin Khan
-  static const int translationHindi   = 462;  // Fateh Muhammad Jalandhri
+  static const int translationEnglish =
+      85; // Abdul Haleem (replaces Sahih International which was removed from API)
+  static const int translationBengali = 213; // Muhammad Muhiuddin Khan
+  static const int translationHindi = 462; // Fateh Muhammad Jalandhri
 
   // ── Sunnah.com API ────────────────────────────────────────────
   static const String hadithBaseUrl = 'https://api.sunnah.com/v1';
@@ -27,5 +28,5 @@ class ApiConstants {
 
   // ── Timeouts ──────────────────────────────────────────────────
   static const Duration apiTimeout = Duration(seconds: 30);
-  static const Duration aiTimeout  = Duration(seconds: 60);
+  static const Duration aiTimeout = Duration(seconds: 60);
 }

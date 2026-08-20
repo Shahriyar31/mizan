@@ -1,6 +1,4 @@
 /// Quran.com API integration
-/// Provides Quran content — surahs, ayat, word-level data
-/// Free API, no authentication required for public endpoints
 library;
 
 import 'dart:convert';
@@ -11,13 +9,11 @@ import '../../core/utils/logger.dart';
 import '../../shared/models/ayah.dart';
 
 class QuranApiService {
-  QuranApiService({http.Client? client})
-      : _client = client ?? http.Client();
+  QuranApiService({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
   static const String _tag = 'QuranApiService';
 
-  /// Fetches all 114 surah metadata
   Future<List<Map<String, dynamic>>> getSurahs({
     String language = 'en',
   }) async {
@@ -28,9 +24,7 @@ class QuranApiService {
         '${ApiConstants.quranBaseUrl}${ApiConstants.quranChapters}',
       ).replace(queryParameters: {'language': language});
 
-      final response = await _client
-          .get(uri)
-          .timeout(ApiConstants.apiTimeout);
+      final response = await _client.get(uri).timeout(ApiConstants.apiTimeout);
 
       if (response.statusCode != 200) {
         throw NetworkException(
@@ -40,9 +34,7 @@ class QuranApiService {
       }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
-      return List<Map<String, dynamic>>.from(
-        data['chapters'] as List,
-      );
+      return List<Map<String, dynamic>>.from(data['chapters'] as List);
     } on NetworkException {
       rethrow;
     } catch (e) {
@@ -51,7 +43,6 @@ class QuranApiService {
     }
   }
 
-  /// Fetches all ayat for a given surah number
   Future<List<Ayah>> getAyatForSurah(
     int surahNumber, {
     int translationId = ApiConstants.translationEnglish,
@@ -64,13 +55,11 @@ class QuranApiService {
         '${ApiConstants.quranVersesByChapter}/$surahNumber',
       ).replace(queryParameters: {
         'translations': translationId.toString(),
-        'word_fields': 'text_uthmani',
+        'fields': 'text_uthmani',
         'per_page': '300',
       });
 
-      final response = await _client
-          .get(uri)
-          .timeout(ApiConstants.apiTimeout);
+      final response = await _client.get(uri).timeout(ApiConstants.apiTimeout);
 
       if (response.statusCode != 200) {
         throw NetworkException(
@@ -80,6 +69,16 @@ class QuranApiService {
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final verses = data['verses'] as List;
+
+      // ── TEMPORARY DEBUG — shows us exact API response structure ──
+      if (verses.isNotEmpty) {
+        print('=== FIRST VERSE JSON ===');
+        print(verses.first);
+        print('=== VERSE KEYS ===');
+        print((verses.first as Map).keys.toList());
+        print('========================');
+      }
+
       return verses
           .map((v) => Ayah.fromJson(v as Map<String, dynamic>))
           .toList();
