@@ -48,15 +48,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Assets
-  assets:
-    - .env
-
-  # Fonts — loaded via google_fonts package
-  # Amiri loaded via assets for Arabic
   fonts:
     - family: Amiri
       fonts:
         - asset: assets/fonts/Amiri-Regular.ttf
         - asset: assets/fonts/Amiri-Bold.ttf
           weight: 700
+
