@@ -10,6 +10,7 @@ import '../../features/discover/screens/sahabi_detail_screen.dart';
 import '../../features/discover/screens/seerah_detail_screen.dart';
 import '../../features/discover/screens/divine_name_detail_screen.dart';
 import '../../features/halaqa/presentation/halaqa_screen.dart';
+import '../../features/halaqa/presentation/halaqa_circle_screen.dart';
 import '../../features/growth/presentation/growth_screen.dart';
 import '../../features/growth/presentation/vocab_bank_screen.dart';
 import '../../features/growth/presentation/muhasabah_screen.dart';
@@ -90,6 +91,15 @@ class AppRouter {
             pageBuilder: (context, state) => const NoTransitionPage(
               child: HalaqaScreen(),
             ),
+            routes: [
+              GoRoute(
+                path: 'circle/:halaqaId',
+                builder: (context, state) {
+                  final halaqaId = state.pathParameters['halaqaId']!;
+                  return HalaqaCircleScreen(halaqaId: halaqaId);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/growth',

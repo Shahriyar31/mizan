@@ -12,6 +12,8 @@ import '../../../shared/models/ayah_word.dart';
 import '../../../shared/widgets/word_tap_sheet.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../data/ayah_share_mapper.dart';
+import '../../sharing/share_target_sheet.dart';
 import 'layer_screen.dart';
 
 class AyahDetailScreen extends ConsumerStatefulWidget {
@@ -155,6 +157,7 @@ class _PageViewReader extends StatelessWidget {
             itemBuilder: (context, index) {
               return _AyahPage(
                 ayah: ayat[index],
+                surah: surahAsync.valueOrNull,
                 surahNumber: surahNumber,
                 surahName: surahName,
                 isFirst: index == 0,
@@ -245,12 +248,14 @@ class _SurahHeader extends StatelessWidget {
 class _AyahPage extends StatelessWidget {
   const _AyahPage({
     required this.ayah,
+    required this.surah,
     required this.surahNumber,
     required this.surahName,
     required this.isFirst,
   });
 
   final Ayah ayah;
+  final Surah? surah;
   final int surahNumber;
   final String surahName;
   final bool isFirst;
@@ -347,7 +352,13 @@ class _AyahPage extends StatelessWidget {
                   ayahNumber: ayah.ayahNumber,
                 ),
                 const SizedBox(width: 16),
-                _ShareAyahButton(
+                _ShareToFeedButton(
+                  ayah: ayah,
+                  surah: surah,
+                  surahName: surahName,
+                ),
+                const SizedBox(width: 16),
+                _CopyAyahButton(
                   ayah: ayah,
                   surahNumber: surahNumber,
                   surahName: surahName,
@@ -622,12 +633,44 @@ class _SaveAyahButtonState extends State<_SaveAyahButton> {
   }
 }
 
-// ── Share button — copies a shareable card to the clipboard ─────
-// No native share-sheet dependency in the project yet (share_plus etc.),
-// so this gives a real, working action today: the OS share sheet is a
-// follow-up once that dependency is added.
-class _ShareAyahButton extends StatelessWidget {
-  const _ShareAyahButton({
+// ── Share to feed — opens the in-app share sheet (Al-Minbar / a circle) ──
+// This is the app's core social action: pass the ayah on to your circle or
+// the whole Ummah. The sheet itself handles picking a destination, the
+// optional note for a circle, persistence, and the confirmation — so here we
+// just build the verified content snapshot and hand it over.
+class _ShareToFeedButton extends StatelessWidget {
+  const _ShareToFeedButton({
+    required this.ayah,
+    required this.surah,
+    required this.surahName,
+  });
+
+  final Ayah ayah;
+  final Surah? surah;
+  final String surahName;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ActionButton(
+      icon: Icons.share_rounded,
+      label: 'Share',
+      onTap: () {
+        HapticFeedback.selectionClick();
+        showShareTargetSheet(
+          context,
+          ayah.toSharedContent(surah: surah, fallbackName: surahName),
+        );
+      },
+    );
+  }
+}
+
+// ── Copy button — copies a shareable card to the clipboard ─────
+// The "outward" counterpart to Share: for pasting into WhatsApp, notes, etc.
+// No native OS share-sheet dependency in the project yet (share_plus), so a
+// clipboard copy is the real, working action today.
+class _CopyAyahButton extends StatelessWidget {
+  const _CopyAyahButton({
     required this.ayah,
     required this.surahNumber,
     required this.surahName,
@@ -640,8 +683,8 @@ class _ShareAyahButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _ActionButton(
-      icon: Icons.share_rounded,
-      label: 'Share',
+      icon: Icons.copy_rounded,
+      label: 'Copy',
       onTap: () async {
         HapticFeedback.selectionClick();
         final text = '${ayah.arabicText}\n\n'

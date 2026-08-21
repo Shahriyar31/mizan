@@ -25,6 +25,7 @@ class LayerStoryScaffold extends StatefulWidget {
     this.backgroundColor = AppColors.night,
     this.accent = AppColors.gold,
     this.onBeginQuiz,
+    this.onShare,
     this.initialLayer = 0,
   });
 
@@ -45,6 +46,11 @@ class LayerStoryScaffold extends StatefulWidget {
 
   /// Called when "Begin Quiz" is tapped on the final layer. Null hides it.
   final VoidCallback? onBeginQuiz;
+
+  /// Called when the header share button is tapped. Null hides the button.
+  /// Wired to the share-target sheet so a story can be shared into a circle or
+  /// to Al-Minbar. One hook here gives all four Discover screens a share action.
+  final VoidCallback? onShare;
 
   final int initialLayer;
 
@@ -82,6 +88,7 @@ class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
               subtitle: widget.headerSubtitle,
               trailing: widget.headerTrailing,
               accent: widget.accent,
+              onShare: widget.onShare,
               progressCount: widget.layers.length,
               progressCurrent: _currentLayer,
               progressVisited: _visited,
@@ -138,6 +145,7 @@ class _Header extends StatelessWidget {
     required this.subtitle,
     required this.trailing,
     required this.accent,
+    required this.onShare,
     required this.progressCount,
     required this.progressCurrent,
     required this.progressVisited,
@@ -147,6 +155,7 @@ class _Header extends StatelessWidget {
   final String subtitle;
   final String? trailing;
   final Color accent;
+  final VoidCallback? onShare;
   final int progressCount;
   final int progressCurrent;
   final Set<int> progressVisited;
@@ -183,6 +192,12 @@ class _Header extends StatelessWidget {
             Text(trailing!,
                 style: AppTypography.labelSmall(
                     color: AppColors.muted.withValues(alpha: 0.4))),
+          if (onShare != null)
+            IconButton(
+              icon: Icon(Icons.share_rounded, color: accent, size: 20),
+              tooltip: 'Share',
+              onPressed: onShare,
+            ),
         ],
       ),
     );

@@ -73,6 +73,7 @@ class AppColors {
   static const Color cardHadithBg = Color(0xFF1E2D3D); // scholarly navy
   static const Color cardNameBg = Color(0xFF0B1120); // carved night
   static const Color cardProphetBg = Color(0xFF0D2218); // emerald depth
+  static const Color cardSeerahBg = Color(0xFF171426); // indigo dusk (life-story)
 
   // ── Quran Reading Surfaces ─────────────────────────────────────
   // The deep scholarly-blue material used by the ayah reader and the

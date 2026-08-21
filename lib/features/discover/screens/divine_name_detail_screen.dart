@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:taddabur/core/theme/app_colors.dart';
 import 'package:taddabur/core/theme/app_typography.dart';
 import 'package:taddabur/shared/widgets/layer_story_scaffold.dart';
+import 'package:taddabur/features/sharing/share_target_sheet.dart';
+import 'package:taddabur/features/discover/data/discover_share_mapper.dart';
 import '../models/discover_models.dart';
 import '../providers/discover_providers.dart';
 import 'quiz_screen.dart';
@@ -77,6 +79,7 @@ class _DivineNameDetailScreenState
       headerTitle: entry.arabic,
       headerSubtitle: '${entry.translit} — ${entry.meaningBrief}',
       headerTrailing: '#${entry.number}',
+      onShare: () => showShareTargetSheet(context, entry.toSharedContent()),
       onBeginQuiz: () => Navigator.push(
           context,
           MaterialPageRoute(

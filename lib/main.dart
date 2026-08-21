@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'services/database/database_service.dart';
+import 'services/seed/social_seeder.dart';
 import 'app.dart';
 
 Future<void> main() async {
@@ -21,6 +22,10 @@ Future<void> main() async {
     url: dotenv.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54321',
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
+
+  // Seed demo Halaqa + Al-Minbar data on first run (guarded by a feature flag
+  // and an "empty tables" check). Never throws — safe to await here.
+  await SocialSeeder.run();
 
   runApp(const TadabburApp());
 }
