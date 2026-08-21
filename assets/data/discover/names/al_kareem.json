@@ -1,0 +1,322 @@
+{
+  "id": "al_kareem",
+  "type": "divine_name",
+  "number": 52,
+  "arabic": "الكَرِيم",
+  "translit": "Al-Kareem",
+  "meaning_brief": "The Bountiful and Generous",
+  "layers": [
+    {
+      "layer_number": 1,
+      "title": "The Root",
+      "subtitle": "What this Name means linguistically",
+      "content": "The Name Al-Kareem (الكَرِيم)\n\nThe Bountiful and Generous\n\nThis Name appears among the 99 Names of Allah in the hadith of the Prophet: 'Verily to Allah belongs ninety-nine names, one hundred less one. Whoever enumerates them will enter paradise.' (Sahih Muslim)",
+      "quran_ref": "Quran 27:40 — My Lord is Al-Ghanee, Al-Kareem",
+      "hadith_ref": "The Prophet said: Verily to Allah belongs ninety-nine names. Whoever enumerates them will enter paradise. — Sahih Muslim",
+      "source": "Sheikh Ibn Uthaymeen, Commentary on the 99 Names of Allah"
+    },
+    {
+      "layer_number": 2,
+      "title": "The Meaning",
+      "subtitle": "The full understanding of this Name",
+      "content": "The Bountiful — the Generous One abundant in good. The one who causes and makes easy every good and who bestows generously. So generous that He bestows favours upon those who reject His favours and then use them as a means to disobey Him.",
+      "quran_ref": "Quran 27:40 — My Lord is Al-Ghanee, Al-Kareem",
+      "hadith_ref": null,
+      "source": "Sheikh Ibn Uthaymeen, Commentary on the 99 Names of Allah"
+    },
+    {
+      "layer_number": 3,
+      "title": "In the Quran",
+      "subtitle": "Where Allah calls Himself by this Name",
+      "content": "Allah calls Himself Al-Kareem in the Quran. The placement of each Name is not accidental. When Allah ends a verse with Al-Kareem, He is signalling that the meaning of that Name is the reason for what preceded.\n\nQuran 27:40 — My Lord is Al-Ghanee, Al-Kareem\n\nThe scholars note that knowing which Name closes which verse deepens understanding of the Quran itself. The Name is the key to the verse.",
+      "quran_ref": "Quran 27:40 — My Lord is Al-Ghanee, Al-Kareem",
+      "hadith_ref": null,
+      "source": "Sheikh Ibn Uthaymeen, Commentary on the 99 Names of Allah"
+    },
+    {
+      "layer_number": 4,
+      "title": "The Scholar",
+      "subtitle": "Ibn Uthaymeen's explanation",
+      "content": "Sheikh Ibn Uthaymeen (rahimahullah) taught that the Name Al-Kareem must be understood in its full depth:\n\nThe Bountiful — the Generous One abundant in good. The one who causes and makes easy every good and who bestows generously. So generous that He bestows favours upon those who reject His favours and then use them as a means to disobey Him.\n\nHe emphasised that truly knowing the Names of Allah changes a person — not merely memorising them, but understanding their meaning and living in light of them. He who knows Allah as Al-Kareem will relate to Allah differently, supplicate to Him differently, and trust in Him differently.",
+      "quran_ref": null,
+      "hadith_ref": null,
+      "source": "Sheikh Ibn Uthaymeen, Commentary on the 99 Names of Allah"
+    },
+    {
+      "layer_number": 5,
+      "title": "Your Reflection",
+      "subtitle": "What this Name means for your life",
+      "content": "The Name Al-Kareem is not only something to know about Allah — it is something to live in relation to.\n\nThe Prophet said: 'Verily to Allah belongs ninety-nine names. Whoever enumerates them will enter paradise.' The word for enumerate — ahsaha — means to know, understand, act upon, and call upon Allah by each Name appropriately.\n\nReflect: When do you most need to call upon Allah as Al-Kareem? What situation in your life right now makes this particular Name the one you need most?\n\nThe Quran says: 'And to Allah belong the best Names, so call upon Him by them.' (7:180)",
+      "quran_ref": "Quran 7:180 — And to Allah belong the best Names, so call upon Him by them",
+      "hadith_ref": "Whoever enumerates them will enter paradise — Sahih Muslim",
+      "source": "Sheikh Ibn Uthaymeen, Commentary on the 99 Names of Allah"
+    }
+  ],
+  "quiz": [
+    {
+      "number": 1,
+      "type": "factual",
+      "prompt": "What is the primary meaning of the Name Al-Kareem?",
+      "options": [
+        {
+          "id": "a",
+          "text": "The Bountiful and Generous"
+        },
+        {
+          "id": "b",
+          "text": "The All-Knowing"
+        },
+        {
+          "id": "c",
+          "text": "The Most Powerful"
+        },
+        {
+          "id": "d",
+          "text": "The Creator"
+        }
+      ],
+      "correct_option_id": "a",
+      "citation": "Sheikh Ibn Uthaymeen, Commentary on the 99 Names",
+      "scholar_reflection": "The Name Al-Kareem means the bountiful and generous. Knowing the precise meaning allows you to call upon Allah by this Name at exactly the right moment."
+    },
+    {
+      "number": 2,
+      "type": "factual",
+      "prompt": "How many Names does Allah have according to the hadith?",
+      "options": [
+        {
+          "id": "a",
+          "text": "One hundred names"
+        },
+        {
+          "id": "b",
+          "text": "Ninety-nine — one hundred less one"
+        },
+        {
+          "id": "c",
+          "text": "Seventy-two names"
+        },
+        {
+          "id": "d",
+          "text": "An unlimited number"
+        }
+      ],
+      "correct_option_id": "b",
+      "citation": "Sahih Muslim — Verily to Allah belongs ninety-nine names, one hundred less one",
+      "scholar_reflection": "The scholars note Allah has more Names than ninety-nine — these are the specific Names He has revealed. The ninety-nine are a door; what lies beyond is immeasurable."
+    },
+    {
+      "number": 3,
+      "type": "factual",
+      "prompt": "In which Quranic context does the Name Al-Kareem appear?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Quran 27:40 — My Lord is Al-Ghanee, Al-Kareem"
+        },
+        {
+          "id": "b",
+          "text": "Quran 1:1 — Ar-Rahman, Ar-Raheem"
+        },
+        {
+          "id": "c",
+          "text": "Quran 112:1 — Al-Ahad"
+        },
+        {
+          "id": "d",
+          "text": "Quran 2:255 — The Throne Verse"
+        }
+      ],
+      "correct_option_id": "a",
+      "citation": "Quran 27:40 — My Lord is Al-Ghanee, Al-Kareem",
+      "scholar_reflection": "Allah places each Name in a specific context. He is telling you through the Name He chose why He did what He did. The Name is the key to the verse."
+    },
+    {
+      "number": 4,
+      "type": "factual",
+      "prompt": "What does truly 'enumerating' the Names mean according to the scholars?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Memorising them in Arabic"
+        },
+        {
+          "id": "b",
+          "text": "Knowing, understanding, acting upon, and calling upon Allah by each Name"
+        },
+        {
+          "id": "c",
+          "text": "Counting them on prayer beads"
+        },
+        {
+          "id": "d",
+          "text": "Writing them in calligraphy"
+        }
+      ],
+      "correct_option_id": "b",
+      "citation": "Ibn Uthaymeen, Commentary on the 99 Names",
+      "scholar_reflection": "Memorisation is only the beginning. Call upon Al-Mujeeb when you need response, Al-Ghafoor when you need forgiveness, Al-Lateef when you need subtle help."
+    },
+    {
+      "number": 5,
+      "type": "factual",
+      "prompt": "What does the Quran command regarding the Names of Allah?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Memorise them all"
+        },
+        {
+          "id": "b",
+          "text": "Call upon Him by them"
+        },
+        {
+          "id": "c",
+          "text": "Recite them after every prayer"
+        },
+        {
+          "id": "d",
+          "text": "Teach them to your children"
+        }
+      ],
+      "correct_option_id": "b",
+      "citation": "Quran 7:180 — And to Allah belong the best Names, so call upon Him by them",
+      "scholar_reflection": "The purpose of knowing the Names is calling upon Allah by them — in du'a, in dhikr, in trusting Him. Knowledge that does not change how you relate to Allah has not fully entered the heart."
+    },
+    {
+      "number": 6,
+      "type": "reflective",
+      "prompt": "Allah is Al-Kareem — the bountiful and generous. When have you most needed Him to be this for you?",
+      "slider_label": "How often do you call upon Allah by this specific Name?",
+      "options": [
+        {
+          "id": "a",
+          "text": "In a moment of fear or danger"
+        },
+        {
+          "id": "b",
+          "text": "When I needed something no one else could provide"
+        },
+        {
+          "id": "c",
+          "text": "When I felt broken or ashamed"
+        },
+        {
+          "id": "d",
+          "text": "I have not thought about needing this quality specifically"
+        }
+      ],
+      "correct_option_id": null,
+      "citation": "Reflection on the Name Al-Kareem",
+      "scholar_reflection": "The Names of Allah become real in the moments we need them most. Each Name is a door — and Allah placed exactly this Name in your path at exactly this moment."
+    },
+    {
+      "number": 7,
+      "type": "reflective",
+      "prompt": "The Prophet said whoever enumerates the Names enters paradise. What is the relationship between truly knowing Allah and the Garden?",
+      "slider_label": "How much does your knowledge of Allah shape your daily choices?",
+      "options": [
+        {
+          "id": "a",
+          "text": "Knowing Who Allah truly is makes it impossible to live as if He does not exist"
+        },
+        {
+          "id": "b",
+          "text": "The Names change how you relate to Allah in every act of worship"
+        },
+        {
+          "id": "c",
+          "text": "Understanding the Names removes the distance between you and Him"
+        },
+        {
+          "id": "d",
+          "text": "All of these — true knowledge of Allah transforms everything"
+        }
+      ],
+      "correct_option_id": null,
+      "citation": "Sahih Muslim — the hadith of the 99 Names",
+      "scholar_reflection": "You do not enter paradise by reciting a list. You enter because true knowledge of Allah reshapes who you are — your love, your fear, your trust, your worship."
+    },
+    {
+      "number": 8,
+      "type": "reflective",
+      "prompt": "Allah is Al-Kareem. How does knowing this change how you make du'a?",
+      "slider_label": "How specific are you when you call upon Allah?",
+      "options": [
+        {
+          "id": "a",
+          "text": "I call upon Him by this Name when I need what it describes"
+        },
+        {
+          "id": "b",
+          "text": "I have not thought about matching the Name to the need"
+        },
+        {
+          "id": "c",
+          "text": "It makes me more confident that my du'a will be heard"
+        },
+        {
+          "id": "d",
+          "text": "It makes me more specific and sincere in asking"
+        }
+      ],
+      "correct_option_id": null,
+      "citation": "Quran 7:180 — Call upon Allah by His Names",
+      "scholar_reflection": "Calling upon Al-Ghafoor for forgiveness is not the same as calling upon Al-Qadir for strength. Match the Name to the need — this is what the Quran commands."
+    },
+    {
+      "number": 9,
+      "type": "reflective",
+      "prompt": "Ibn al-Qayyim said the heart is created to love something. What makes Allah the most worthy of that love?",
+      "slider_label": "How much of your relationship with Allah is based on knowing Who He is?",
+      "options": [
+        {
+          "id": "a",
+          "text": "He is the source of every good thing you have ever received"
+        },
+        {
+          "id": "b",
+          "text": "He loves you even when you are heedless of Him"
+        },
+        {
+          "id": "c",
+          "text": "He is Al-Jameel — beautiful — and beauty draws love"
+        },
+        {
+          "id": "d",
+          "text": "All of these — each Name reveals another reason to love Him"
+        }
+      ],
+      "correct_option_id": null,
+      "citation": "Ibn al-Qayyim — Madarij as-Salikeen",
+      "scholar_reflection": "The Names of Allah, when truly known, make Him the most worthy object of love. The more Names you know, the more of Him you know — and the more of Him you know, the more naturally the heart turns toward Him."
+    },
+    {
+      "number": 10,
+      "type": "reflective",
+      "prompt": "If you spent one week consciously remembering that Allah is Al-Kareem, what would change?",
+      "slider_label": "How present is awareness of Allah in your daily life?",
+      "options": [
+        {
+          "id": "a",
+          "text": "My anxiety would decrease — I would trust more completely"
+        },
+        {
+          "id": "b",
+          "text": "My du'a would become more sincere and specific"
+        },
+        {
+          "id": "c",
+          "text": "I would act differently knowing He is aware of everything"
+        },
+        {
+          "id": "d",
+          "text": "I would feel less alone in whatever I am facing"
+        }
+      ],
+      "correct_option_id": null,
+      "citation": "Practical reflection on the Name Al-Kareem",
+      "scholar_reflection": "The purpose of knowing the Names is taqwa — constant awareness of Allah. Not fear alone, but awareness. When you are aware of Al-Qareeb, you are never truly alone."
+    }
+  ]
+}

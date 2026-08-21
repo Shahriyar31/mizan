@@ -27,12 +27,13 @@ enum HomeState {
 
 // ── Home State Provider ───────────────────────────────────────
 final homeStateProvider = FutureProvider<HomeState>((ref) async {
+  return HomeState.wird; // TEMP: force wird for testing
   final now = DateTime.now();
 
   // 1. Friday always wins — Jumu'ah is sacred
-  if (now.weekday == DateTime.friday) {
-    return HomeState.friday;
-  }
+  // if (now.weekday == DateTime.friday) {
+  //   return HomeState.friday;
+  // }
 
   // 2. Check last opened — returning state if 3+ days
   final prefs = await SharedPreferences.getInstance();

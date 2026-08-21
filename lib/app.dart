@@ -17,7 +17,9 @@ class TadabburApp extends StatelessWidget {
       child: MaterialApp.router(
         title: 'Taddabur',
         debugShowCheckedModeBanner: false,
-        theme: AppTheme.light,
+        theme: AppTheme.dark,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
         routerConfig: AppRouter.router,
         localizationsDelegates: const [
           GlobalMaterialLocalizations.delegate,

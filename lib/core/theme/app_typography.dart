@@ -7,6 +7,9 @@
 ///
 /// Why strict rules: mixing fonts randomly makes apps look amateur.
 /// Consistent typography is the single biggest signal of design quality.
+///
+/// Default colors are set for DARK THEME — the app's sole theme.
+/// Override with named 'color' parameter when needed.
 library;
 
 import 'package:flutter/material.dart';
@@ -33,7 +36,7 @@ class AppTypography {
       );
 
   static TextStyle arabicDisplay({
-    Color color = AppColors.ink,
+    Color color = AppColors.gold,
     double size = 26,
   }) =>
       TextStyle(
@@ -44,7 +47,7 @@ class AppTypography {
       );
 
   static TextStyle arabicBody({
-    Color color = AppColors.ink,
+    Color color = AppColors.textPrimary,
     double size = 20,
   }) =>
       TextStyle(
@@ -55,7 +58,7 @@ class AppTypography {
       );
 
   static TextStyle arabicSmall({
-    Color color = AppColors.ink,
+    Color color = AppColors.textSecondary,
     double size = 16,
   }) =>
       TextStyle(
@@ -69,7 +72,7 @@ class AppTypography {
   // Used for: screen titles, card headlines, sahabi names
   // Never used for: body copy, labels, metadata
 
-  static TextStyle displayLarge({Color color = AppColors.ink}) =>
+  static TextStyle displayLarge({Color color = AppColors.textPrimary}) =>
       GoogleFonts.lora(
         fontSize: 26,
         fontWeight: FontWeight.w700,
@@ -78,7 +81,7 @@ class AppTypography {
         height: 1.3,
       );
 
-  static TextStyle displayMedium({Color color = AppColors.ink}) =>
+  static TextStyle displayMedium({Color color = AppColors.textPrimary}) =>
       GoogleFonts.lora(
         fontSize: 22,
         fontWeight: FontWeight.w600,
@@ -86,7 +89,7 @@ class AppTypography {
         height: 1.35,
       );
 
-  static TextStyle displaySmall({Color color = AppColors.ink}) =>
+  static TextStyle displaySmall({Color color = AppColors.textPrimary}) =>
       GoogleFonts.lora(
         fontSize: 18,
         fontWeight: FontWeight.w600,
@@ -95,7 +98,7 @@ class AppTypography {
       );
 
   // Italic Lora for translations and quotes
-  static TextStyle quoteItalic({Color color = AppColors.body}) =>
+  static TextStyle quoteItalic({Color color = AppColors.textSecondary}) =>
       GoogleFonts.lora(
         fontSize: 14,
         fontStyle: FontStyle.italic,
@@ -107,7 +110,7 @@ class AppTypography {
   // Used for: everything else — buttons, labels, body, captions
   // Inter is invisible when done right — it gets out of the way
 
-  static TextStyle labelLarge({Color color = AppColors.ink}) =>
+  static TextStyle labelLarge({Color color = AppColors.textPrimary}) =>
       GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w600,
@@ -130,7 +133,7 @@ class AppTypography {
         // Small caps feel — uppercase with tracking
       );
 
-  static TextStyle bodyLarge({Color color = AppColors.body}) =>
+  static TextStyle bodyLarge({Color color = AppColors.textSecondary}) =>
       GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w400,
@@ -138,7 +141,7 @@ class AppTypography {
         height: 1.75,
       );
 
-  static TextStyle bodyMedium({Color color = AppColors.body}) =>
+  static TextStyle bodyMedium({Color color = AppColors.textSecondary}) =>
       GoogleFonts.inter(
         fontSize: 13,
         fontWeight: FontWeight.w400,
@@ -164,7 +167,7 @@ class AppTypography {
   static TextStyle buttonPrimary() => GoogleFonts.inter(
         fontSize: 14,
         fontWeight: FontWeight.w700,
-        color: AppColors.white,
+        color: AppColors.night,
       );
 
   static TextStyle buttonSecondary({Color color = AppColors.jade}) =>

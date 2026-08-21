@@ -2,10 +2,10 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/quran_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../data/word_roots_data.dart';
 import '../../../shared/models/ayah.dart';
 import '../../../shared/models/surah.dart';
 import '../../../shared/models/ayah_word.dart';
@@ -18,9 +18,14 @@ class AyahDetailScreen extends ConsumerStatefulWidget {
   const AyahDetailScreen({
     super.key,
     required this.surahNumber,
+    this.initialAyahNumber,
   });
 
   final int surahNumber;
+
+  /// Opens the reader straight to this ayah instead of the first one —
+  /// used by "Continue reading" on the surah list.
+  final int? initialAyahNumber;
 
   @override
   ConsumerState<AyahDetailScreen> createState() => _AyahDetailScreenState();
@@ -28,12 +33,14 @@ class AyahDetailScreen extends ConsumerStatefulWidget {
 
 class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
   late PageController _pageController;
-  int _currentPage = 0;
+  late int _currentPage;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
+    final initialIndex = (widget.initialAyahNumber ?? 1) - 1;
+    _currentPage = initialIndex < 0 ? 0 : initialIndex;
+    _pageController = PageController(initialPage: _currentPage);
     _pageController.addListener(_onPageChanged);
   }
 
@@ -327,7 +334,7 @@ class _AyahPage extends StatelessWidget {
               Text(
                 ayah.translation,
                 style: AppTypography.quoteItalic(
-                  color: const Color(0xFF9CADB8),
+                  color: AppColors.quranMuted,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -335,16 +342,15 @@ class _AyahPage extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                _ActionButton(
-                  icon: Icons.bookmark_border_rounded,
-                  label: 'Save',
-                  onTap: () {},
+                _SaveAyahButton(
+                  surahNumber: surahNumber,
+                  ayahNumber: ayah.ayahNumber,
                 ),
                 const SizedBox(width: 16),
-                _ActionButton(
-                  icon: Icons.share_rounded,
-                  label: 'Share',
-                  onTap: () {},
+                _ShareAyahButton(
+                  ayah: ayah,
+                  surahNumber: surahNumber,
+                  surahName: surahName,
                 ),
                 const SizedBox(width: 16),
                 _ActionButton(
@@ -436,6 +442,7 @@ class _TappableWordState extends State<_TappableWord> {
       onTapDown: (_) => setState(() => _pressed = true),
       onTapUp: (_) {
         setState(() => _pressed = false);
+        HapticFeedback.selectionClick();
         showWordSheet(
           context,
           widget.word,
@@ -502,11 +509,15 @@ class _ActionButton extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.onTap,
+    this.iconColor = AppColors.muted,
+    this.labelColor,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
+  final Color iconColor;
+  final Color? labelColor;
 
   @override
   Widget build(BuildContext context) {
@@ -514,19 +525,143 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       child: Column(
         children: [
-          Container(
+          AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
             width: 48,
             height: 48,
             decoration: BoxDecoration(
               color: AppColors.slate,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: AppColors.muted, size: 20),
+            child: Icon(icon, color: iconColor, size: 20),
           ),
           const SizedBox(height: 5),
-          Text(label, style: AppTypography.caption()),
+          Text(label, style: AppTypography.caption(color: labelColor ?? AppColors.muted)),
         ],
       ),
+    );
+  }
+}
+
+// ── Saved ayat — lightweight local bookmark list ────────────────
+class SavedAyatStore {
+  static const _key = 'saved_ayat';
+
+  static Future<Set<String>> _load(SharedPreferences prefs) async =>
+      (prefs.getStringList(_key) ?? const []).toSet();
+
+  static Future<bool> isSaved(int surahNumber, int ayahNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = await _load(prefs);
+    return saved.contains('$surahNumber:$ayahNumber');
+  }
+
+  /// Flips the saved state for this ayah and returns the new state.
+  static Future<bool> toggle(int surahNumber, int ayahNumber) async {
+    final prefs = await SharedPreferences.getInstance();
+    final saved = await _load(prefs);
+    final key = '$surahNumber:$ayahNumber';
+    final nowSaved = !saved.contains(key);
+    nowSaved ? saved.add(key) : saved.remove(key);
+    await prefs.setStringList(_key, saved.toList());
+    return nowSaved;
+  }
+}
+
+// ── Save button — bookmarks the ayah locally ────────────────────
+class _SaveAyahButton extends StatefulWidget {
+  const _SaveAyahButton({required this.surahNumber, required this.ayahNumber});
+
+  final int surahNumber;
+  final int ayahNumber;
+
+  @override
+  State<_SaveAyahButton> createState() => _SaveAyahButtonState();
+}
+
+class _SaveAyahButtonState extends State<_SaveAyahButton> {
+  bool _saved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SavedAyatStore.isSaved(widget.surahNumber, widget.ayahNumber).then((v) {
+      if (mounted) setState(() => _saved = v);
+    });
+  }
+
+  Future<void> _toggle() async {
+    HapticFeedback.mediumImpact();
+    final nowSaved =
+        await SavedAyatStore.toggle(widget.surahNumber, widget.ayahNumber);
+    if (!mounted) return;
+    setState(() => _saved = nowSaved);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          nowSaved ? 'Ayah saved' : 'Removed from saved ayat',
+          style: AppTypography.bodySmall(color: AppColors.white),
+        ),
+        backgroundColor: nowSaved ? AppColors.jade : AppColors.muted,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _ActionButton(
+      icon: _saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+      label: _saved ? 'Saved' : 'Save',
+      iconColor: _saved ? AppColors.gold : AppColors.muted,
+      labelColor: _saved ? AppColors.gold : null,
+      onTap: _toggle,
+    );
+  }
+}
+
+// ── Share button — copies a shareable card to the clipboard ─────
+// No native share-sheet dependency in the project yet (share_plus etc.),
+// so this gives a real, working action today: the OS share sheet is a
+// follow-up once that dependency is added.
+class _ShareAyahButton extends StatelessWidget {
+  const _ShareAyahButton({
+    required this.ayah,
+    required this.surahNumber,
+    required this.surahName,
+  });
+
+  final Ayah ayah;
+  final int surahNumber;
+  final String surahName;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ActionButton(
+      icon: Icons.share_rounded,
+      label: 'Share',
+      onTap: () async {
+        HapticFeedback.selectionClick();
+        final text = '${ayah.arabicText}\n\n'
+            '"${ayah.translation}"\n\n'
+            '— Quran $surahName $surahNumber:${ayah.ayahNumber}';
+        await Clipboard.setData(ClipboardData(text: text));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Ayah copied — paste anywhere to share',
+              style: AppTypography.bodySmall(color: AppColors.white),
+            ),
+            backgroundColor: AppColors.jade,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      },
     );
   }
 }

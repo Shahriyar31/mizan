@@ -11,7 +11,7 @@ class ArabicText extends StatelessWidget {
     this.text, {
     super.key,
     this.fontSize = 24,
-    this.color = AppColors.ink,
+    this.color = AppColors.textPrimary,
     this.textAlign = TextAlign.right,
   });
 

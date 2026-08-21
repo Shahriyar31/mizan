@@ -14,10 +14,12 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/quran_providers.dart';
 import '../../../shared/models/surah.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import 'ayah_detail_screen.dart';
 
 class QuranScreen extends ConsumerWidget {
   const QuranScreen({super.key});
@@ -30,6 +32,9 @@ class QuranScreen extends ConsumerWidget {
         children: [
           // ── Header ──────────────────────────────────────────
           _QuranHeader(ref: ref),
+
+          // ── Continue reading ─────────────────────────────────
+          const _ResumeReadingCard(),
 
           // ── Surah List ──────────────────────────────────────
           Expanded(
@@ -103,15 +108,15 @@ class _SearchField extends StatelessWidget {
         filled: true,
         fillColor: AppColors.slate,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(99),
           borderSide: BorderSide.none,
         ),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(99),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(99),
           borderSide: const BorderSide(
             color: AppColors.jade,
             width: 1.5,
@@ -120,6 +125,126 @@ class _SearchField extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 12,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Continue Reading — resumes from the last ayah viewed ───────
+class _ResumeReadingCard extends StatefulWidget {
+  const _ResumeReadingCard();
+
+  @override
+  State<_ResumeReadingCard> createState() => _ResumeReadingCardState();
+}
+
+class _LastRead {
+  const _LastRead({
+    required this.surahNumber,
+    required this.ayahNumber,
+    required this.surahName,
+    required this.arabic,
+  });
+
+  final int surahNumber;
+  final int ayahNumber;
+  final String surahName;
+  final String arabic;
+}
+
+class _ResumeReadingCardState extends State<_ResumeReadingCard> {
+  _LastRead? _lastRead;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final surahNumber = prefs.getInt('last_surah');
+    final ayahNumber = prefs.getInt('last_ayah');
+    if (surahNumber == null || ayahNumber == null) return;
+    if (!mounted) return;
+    setState(() {
+      _lastRead = _LastRead(
+        surahNumber: surahNumber,
+        ayahNumber: ayahNumber,
+        surahName: prefs.getString('last_surah_name') ?? 'Surah $surahNumber',
+        arabic: prefs.getString('last_ayah_arabic') ?? '',
+      );
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final lastRead = _lastRead;
+    if (lastRead == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => AyahDetailScreen(
+                surahNumber: lastRead.surahNumber,
+                initialAyahNumber: lastRead.ayahNumber,
+              ),
+            ),
+          ),
+          child: Ink(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  AppColors.gold.withValues(alpha: 0.14),
+                  AppColors.jade.withValues(alpha: 0.08),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.gold.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.auto_stories_rounded,
+                      color: AppColors.gold, size: 18),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('CONTINUE READING',
+                          style: AppTypography.labelSmall(color: AppColors.gold)),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${lastRead.surahName} — ${lastRead.surahNumber}:${lastRead.ayahNumber}',
+                        style: AppTypography.bodyMedium(color: AppColors.white),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const Icon(Icons.arrow_forward_ios_rounded,
+                    color: AppColors.gold, size: 14),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -188,80 +313,90 @@ class _SurahItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 8),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Surah number badge
-            _SurahNumber(number: surah.number),
-            const SizedBox(width: 14),
-
-            // Surah info
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Semantics(
+        button: true,
+        label: '${surah.englishName}, ${surah.translatedName}',
+        child: Material(
+          color: Colors.transparent,
+          shape: const StadiumBorder(),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: Ink(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(
+                  color: AppColors.border,
+                  width: 0.5,
+                ),
+              ),
+              child: Row(
                 children: [
-                  // English name + salah/friday badge
-                  Row(
-                    children: [
-                      Text(
-                        surah.englishName,
-                        style: AppTypography.labelLarge(),
-                      ),
-                      if (surah.isFridaySurah) ...[
-                        const SizedBox(width: 6),
-                        const _Badge(
-                          label: '📅 Friday',
-                          color: AppColors.jade,
+                  // Surah number badge
+                  _SurahNumber(number: surah.number),
+                  const SizedBox(width: 14),
+
+                  // Surah info
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // English name + salah/friday badge
+                        Row(
+                          children: [
+                            Text(
+                              surah.englishName,
+                              style: AppTypography.labelLarge(
+                                  color: AppColors.textPrimary),
+                            ),
+                            if (surah.isFridaySurah) ...[
+                              const SizedBox(width: 6),
+                              const _Badge(
+                                label: '📅 Friday',
+                                color: AppColors.jade,
+                              ),
+                            ] else if (surah.isRecitedInSalah) ...[
+                              const SizedBox(width: 6),
+                              const _Badge(
+                                label: '🕌 Salah',
+                                color: AppColors.gold,
+                              ),
+                            ],
+                          ],
                         ),
-                      ] else if (surah.isRecitedInSalah) ...[
-                        const SizedBox(width: 6),
-                        const _Badge(
-                          label: '🕌 Salah',
-                          color: AppColors.gold,
+                        const SizedBox(height: 2),
+
+                        // Translated name + meta
+                        Text(
+                          surah.translatedName,
+                          style: AppTypography.bodySmall(
+                              color: AppColors.textSecondary),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          surah.metaDisplay,
+                          style: AppTypography.caption(color: AppColors.muted),
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                  const SizedBox(height: 2),
 
-                  // Translated name + meta
+                  // Arabic name
                   Text(
-                    surah.translatedName,
-                    style: AppTypography.bodySmall(),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    surah.metaDisplay,
-                    style: AppTypography.caption(),
+                    surah.arabicName,
+                    style: AppTypography.arabicSmall(
+                      color: AppColors.muted,
+                    ),
+                    textDirection: TextDirection.rtl,
                   ),
                 ],
               ),
             ),
-
-            // Arabic name
-            Text(
-              surah.arabicName,
-              style: AppTypography.arabicSmall(
-                color: AppColors.muted,
-              ),
-              textDirection: TextDirection.rtl,
-            ),
-          ],
+          ),
         ),
       ),
     );
@@ -279,7 +414,7 @@ class _SurahNumber extends StatelessWidget {
       height: 40,
       decoration: BoxDecoration(
         color: AppColors.night,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(99),
       ),
       alignment: Alignment.center,
       child: Text(

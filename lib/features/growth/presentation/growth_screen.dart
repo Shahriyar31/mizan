@@ -19,7 +19,7 @@ class GrowthScreen extends ConsumerWidget {
     final wordCountAsync = ref.watch(vocabCountProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.parchment,
+      backgroundColor: AppColors.night,
       body: CustomScrollView(
         slivers: [
           // ── Header ──────────────────────────────────────────
@@ -67,7 +67,7 @@ class GrowthScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Scholar AI — coming Phase 2
-                const _GrowthCard(
+                _GrowthCard(
                   icon: Icons.school_rounded,
                   iconColor: AppColors.violet,
                   title: 'Scholar AI',
@@ -82,7 +82,7 @@ class GrowthScreen extends ConsumerWidget {
                 // Muhasabah record — coming Phase 3
                 const _GrowthCard(
                   icon: Icons.nights_stay_rounded,
-                  iconColor: AppColors.slate,
+                  iconColor: AppColors.navInactive,
                   title: 'Muhasabah',
                   subtitle:
                       'Nightly 3-question self-reckoning — private forever',
@@ -93,7 +93,7 @@ class GrowthScreen extends ConsumerWidget {
                 const SizedBox(height: 12),
 
                 // Al-Meezan — coming Phase 3
-                const _GrowthCard(
+                _GrowthCard(
                   icon: Icons.balance_rounded,
                   iconColor: AppColors.amber,
                   title: 'Al-Meezan',
@@ -115,19 +115,23 @@ class _GrowthHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AppColors.parchment,
+      color: AppColors.night,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 20,
-        left: 20,
-        right: 20,
+        left: 24,
+        right: 24,
         bottom: 20,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
+            'النُّمُوّ',
+            style: AppTypography.arabicDisplay(color: AppColors.gold, size: 20),
+          ),
+          Text(
             'Growth',
-            style: AppTypography.displayLarge(),
+            style: AppTypography.displayLarge(color: AppColors.textPrimary),
           ),
           const SizedBox(height: 4),
           Text(
@@ -162,100 +166,112 @@ class _GrowthCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          children: [
-            // Icon container
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: isLocked
-                    ? AppColors.parchment2
-                    : iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(
-                icon,
-                color: isLocked ? AppColors.muted : iconColor,
-                size: 22,
-              ),
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      label: title,
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(20),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: Ink(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: AppColors.border),
             ),
+            child: Row(
+              children: [
+                // Icon container
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: isLocked
+                        ? AppColors.slate
+                        : iconColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(
+                    icon,
+                    color: isLocked ? AppColors.navInactive : iconColor,
+                    size: 22,
+                  ),
+                ),
 
-            const SizedBox(width: 14),
+                const SizedBox(width: 14),
 
-            // Text
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                // Text
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: AppTypography.labelLarge(
-                          color: isLocked ? AppColors.muted : AppColors.ink,
-                        ),
-                      ),
-                      if (badge != null) ...[
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: iconColor,
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: Text(
-                            badge!,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
-                              fontFamily: 'Inter',
+                      Row(
+                        children: [
+                          Text(
+                            title,
+                            style: AppTypography.labelLarge(
+                              color: isLocked
+                                  ? AppColors.navInactive
+                                  : AppColors.textPrimary,
                             ),
                           ),
-                        ),
-                      ],
-                      if (isLocked) ...[
-                        const SizedBox(width: 6),
-                        const Icon(
-                          Icons.lock_rounded,
-                          size: 12,
-                          color: AppColors.muted,
-                        ),
-                      ],
+                          if (badge != null) ...[
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: iconColor,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                badge!,
+                                style: const TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (isLocked) ...[
+                            const SizedBox(width: 6),
+                            const Icon(
+                              Icons.lock_rounded,
+                              size: 12,
+                              color: AppColors.navInactive,
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: AppTypography.bodySmall(color: AppColors.muted),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 3),
-                  Text(
-                    subtitle,
-                    style: AppTypography.bodySmall(),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
+                ),
 
-            // Arrow — only for unlocked cards
-            if (!isLocked)
-              const Icon(
-                Icons.arrow_forward_ios_rounded,
-                size: 14,
-                color: AppColors.muted,
-              ),
-          ],
+                // Arrow — only for unlocked cards
+                if (!isLocked)
+                  const Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    size: 14,
+                    color: AppColors.muted,
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );

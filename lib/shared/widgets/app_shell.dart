@@ -76,10 +76,10 @@ class _TadabburBottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.white,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 1),
+      decoration: BoxDecoration(
+        color: AppColors.navBg,
+        border: const Border(
+          top: BorderSide(color: AppColors.border, width: 0.5),
         ),
       ),
       child: SafeArea(
@@ -150,25 +150,40 @@ class _NavItem extends StatelessWidget {
     final color = isActive ? AppColors.gold : AppColors.navInactive;
 
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 3),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 8,
-                fontWeight: FontWeight.w700,
-                color: color,
-                letterSpacing: 0.4,
-                fontFamily: 'Inter',
-              ),
+      child: Semantics(
+        button: true,
+        selected: isActive,
+        label: label,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(99),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? AppColors.gold.withValues(alpha: 0.14)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(99),
             ),
-          ],
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: 22),
+                const SizedBox(height: 3),
+                Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: 8,
+                    fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
+                    color: color,
+                    letterSpacing: 0.4,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

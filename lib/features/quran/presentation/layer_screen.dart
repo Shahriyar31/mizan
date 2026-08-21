@@ -4,14 +4,15 @@ library;
 
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../domain/layer_providers.dart';
 import '../data/layer_content.dart';
 import '../data/surah_metadata.dart';
 import '../models/layer_unlock.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/fade_slide_in.dart';
 
 class LayerScreen extends ConsumerStatefulWidget {
   const LayerScreen({
@@ -64,7 +65,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
     final content = contentAsync.valueOrNull;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1120),
+      backgroundColor: AppColors.cardQuranBg,
       body: Column(
         children: [
           // ── Header ──────────────────────────────────────────
@@ -109,7 +110,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
 
   Widget _buildHeader(BuildContext context) {
     return Container(
-      color: const Color(0xFF0B1120),
+      color: AppColors.cardQuranBg,
       padding: EdgeInsets.only(
         top: MediaQuery.of(context).padding.top + 8,
         left: 16,
@@ -136,7 +137,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: AppColors.jade.withOpacity(0.15),
+                  color: AppColors.jade.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(99),
                 ),
                 child: Text('5 Layers',
@@ -153,9 +154,9 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
           const SizedBox(height: 6),
           Text(
             widget.translation,
-            style: AppTypography.quoteItalic(color: const Color(0xFF9CADB8)),
+            style: AppTypography.quoteItalic(color: AppColors.quranMuted),
           ),
-          const Divider(color: Color(0xFF1A2535), height: 24),
+          const Divider(color: AppColors.quranSurface, height: 24),
         ],
       ),
     );
@@ -164,8 +165,8 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
   Widget _buildBottomTabBar() {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF0D1626),
-        border: Border(top: BorderSide(color: Color(0xFF1A2535), width: 1)),
+        color: AppColors.quranSurfaceDim,
+        border: Border(top: BorderSide(color: AppColors.quranSurface, width: 1)),
       ),
       padding: EdgeInsets.only(
         bottom: 12,
@@ -179,7 +180,10 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
             final isReflection = index == 4;
             return Expanded(
               child: GestureDetector(
-                onTap: () => _tabController.animateTo(index),
+                onTap: () {
+                  if (!isActive) HapticFeedback.selectionClick();
+                  _tabController.animateTo(index);
+                },
                 behavior: HitTestBehavior.opaque,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -197,9 +201,17 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
                         borderRadius: BorderRadius.circular(99),
                       ),
                     ),
-                    Text(
-                      LayerMeta.icons[index],
-                      style: TextStyle(fontSize: isActive ? 22 : 18),
+                    TweenAnimationBuilder<double>(
+                      key: ValueKey('tab-icon-$index-$isActive'),
+                      tween: Tween(begin: isActive ? 0.6 : 1.0, end: 1.0),
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutBack,
+                      builder: (context, scale, child) =>
+                          Transform.scale(scale: scale, child: child),
+                      child: Text(
+                        LayerMeta.icons[index],
+                        style: TextStyle(fontSize: isActive ? 22 : 18),
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -264,8 +276,11 @@ class _WordsLayerState extends State<_WordsLayer> {
               final isRevealed = _revealed.contains(i);
 
               return GestureDetector(
-                onTap: () => setState(
-                    () => isRevealed ? _revealed.remove(i) : _revealed.add(i)),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(
+                      () => isRevealed ? _revealed.remove(i) : _revealed.add(i));
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 250),
                   curve: Curves.easeInOut,
@@ -273,11 +288,11 @@ class _WordsLayerState extends State<_WordsLayer> {
                   decoration: BoxDecoration(
                     color: isRevealed
                         ? const Color(0xFF0D2A24)
-                        : const Color(0xFF1A2535),
+                        : AppColors.quranSurface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
                       color: isRevealed
-                          ? AppColors.jade.withOpacity(0.5)
+                          ? AppColors.jade.withValues(alpha: 0.5)
                           : Colors.transparent,
                     ),
                   ),
@@ -293,7 +308,7 @@ class _WordsLayerState extends State<_WordsLayer> {
                                   style: const TextStyle(
                                     fontFamily: 'Amiri',
                                     fontSize: 24,
-                                    color: Color(0xFFC8973A),
+                                    color: AppColors.gold,
                                     height: 1.6,
                                   ),
                                   textDirection: ui.TextDirection.rtl,
@@ -361,8 +376,8 @@ class _ContextLayer extends StatelessWidget {
     // Get structured metadata for this surah
     final meta = SurahMetadata.get(surahNumber);
     final location = meta?.location ?? '';
-    final period   = meta?.period   ?? '';
-    final theme    = meta?.theme    ?? '';
+    final period = meta?.period ?? '';
+    final theme = meta?.theme ?? '';
 
     // Body text is Ibn Kathir's commentary — used as scene description
     final bodyText = content!.context.isNotEmpty
@@ -378,8 +393,7 @@ class _ContextLayer extends StatelessWidget {
               style: AppTypography.displaySmall(color: AppColors.white)),
           const SizedBox(height: 4),
           if (theme.isNotEmpty)
-            Text(theme,
-                style: AppTypography.bodySmall(color: AppColors.muted)),
+            Text(theme, style: AppTypography.bodySmall(color: AppColors.muted)),
           const SizedBox(height: 20),
 
           // ── Two stat pills ───────────────────────────────────
@@ -424,7 +438,7 @@ class _ContextLayer extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2535),
+              color: AppColors.quranSurface,
               borderRadius: BorderRadius.circular(14),
               border: Border(left: BorderSide(color: AppColors.gold, width: 3)),
             ),
@@ -442,14 +456,14 @@ class _ContextLayer extends StatelessWidget {
                 ),
                 if (content!.context.isNotEmpty && theme.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  const Divider(color: Color(0xFF2A3545)),
+                  const Divider(color: AppColors.quranBorder),
                   const SizedBox(height: 14),
                   Text("Ibn Kathir's Introduction",
                       style: AppTypography.caption(color: AppColors.muted)
                           .copyWith(letterSpacing: 0.8)),
                   const SizedBox(height: 8),
-                  Text(
-                    _contextIntro(content!.context),
+                  _ParagraphFlow(
+                    text: _contextIntro(content!.context),
                     style: AppTypography.bodySmall(color: AppColors.white)
                         .copyWith(height: 1.7),
                   ),
@@ -472,11 +486,14 @@ class _ContextLayer extends StatelessWidget {
 // ── Context intro helper ─────────────────────────────────────
 String _contextIntro(String fullText) {
   // Return first 2 paragraphs of Ibn Kathir as the intro
-  final paragraphs = fullText.split('\n\n')
+  final paragraphs = fullText
+      .split('\n\n')
       .where((p) => p.trim().length > 50)
       .take(2)
       .join('\n\n');
-  return paragraphs.isNotEmpty ? paragraphs : fullText.substring(0, fullText.length.clamp(0, 400));
+  return paragraphs.isNotEmpty
+      ? paragraphs
+      : fullText.substring(0, fullText.length.clamp(0, 400));
 }
 
 // ── Stat Pill ─────────────────────────────────────────────────
@@ -505,7 +522,7 @@ class _StatPill extends StatelessWidget {
           colors: gradientColors,
         ),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor.withOpacity(0.4)),
+        border: Border.all(color: borderColor.withValues(alpha: 0.4)),
       ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Column(
@@ -563,7 +580,7 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2535),
+              color: AppColors.quranSurface,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
@@ -572,7 +589,10 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
                   width: 46,
                   height: 46,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF5B21B622),
+                    // Was a malformed 5-byte hex literal (0xFF5B21B622,
+                    // overflowing 32-bit ARGB) — this is what it was
+                    // clearly meant to be: violet at ~13% opacity.
+                    color: AppColors.violetDim.withValues(alpha: 0.13),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Center(
@@ -601,7 +621,7 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
           Container(
             padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A2535),
+              color: AppColors.quranSurface,
               borderRadius: BorderRadius.circular(14),
               border:
                   Border(left: BorderSide(color: AppColors.violet, width: 3)),
@@ -612,10 +632,14 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
                 Text('💡  Key insight',
                     style: AppTypography.caption(color: AppColors.jade)),
                 const SizedBox(height: 10),
-                _RichArabicText(
+                _ParagraphFlow(
                   text: _expanded
                       ? scholar.insight
-                      : (scholar.insight.length > 500 ? scholar.insight.substring(0, 500) : scholar.insight),
+                      : (scholar.insight.length > 500
+                          ? scholar.insight.substring(0, 500)
+                          : scholar.insight),
+                  style: AppTypography.bodyMedium(
+                      color: const Color(0xFFD4DDE4)),
                 ),
               ],
             ),
@@ -635,7 +659,7 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
                 style: const TextStyle(
                   fontFamily: 'Amiri',
                   fontSize: 20,
-                  color: Color(0xFFC8973A),
+                  color: AppColors.gold,
                   height: 1.9,
                 ),
                 textDirection: ui.TextDirection.rtl,
@@ -649,12 +673,15 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
             // Button always at the very bottom — after all content
             const SizedBox(height: 12),
             GestureDetector(
-              onTap: () => setState(() => _expanded = !_expanded),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _expanded = !_expanded);
+              },
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A2535),
+                  color: AppColors.quranSurface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Center(
@@ -699,7 +726,7 @@ class _IsnadLayer extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A2535),
+                color: AppColors.quranSurface,
                 borderRadius: BorderRadius.circular(14),
                 border:
                     Border(left: BorderSide(color: AppColors.gold, width: 3)),
@@ -722,7 +749,7 @@ class _IsnadLayer extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.jade.withOpacity(0.15),
+                            color: AppColors.jade.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(isnad.grade,
@@ -743,7 +770,7 @@ class _IsnadLayer extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A2535),
+                color: AppColors.quranSurface,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
@@ -751,7 +778,7 @@ class _IsnadLayer extends StatelessWidget {
                 'Ibn Kathir\'s full commentary in the Scholars layer. '
                 'The chain of transmission for Al-Baqarah traces back '
                 'through the companions of the Prophet ﷺ.',
-                style: AppTypography.bodyMedium(color: const Color(0xFF9CADB8)),
+                style: AppTypography.bodyMedium(color: AppColors.quranMuted),
               ),
             ),
           ],
@@ -823,11 +850,11 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                 end: Alignment.bottomRight,
                 colors: [
                   const Color(0xFF0D2218),
-                  const Color(0xFF1A2535),
+                  AppColors.quranSurface,
                 ],
               ),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.jade.withOpacity(0.4)),
+              border: Border.all(color: AppColors.jade.withValues(alpha: 0.4)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -840,7 +867,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                   'and the narrations. Write one sentence — what does '
                   'this ayah mean for your life right now?',
                   style:
-                      AppTypography.bodySmall(color: const Color(0xFF9CADB8)),
+                      AppTypography.bodySmall(color: AppColors.quranMuted),
                 ),
               ],
             ),
@@ -867,7 +894,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                       hintStyle:
                           AppTypography.bodySmall(color: AppColors.muted),
                       filled: true,
-                      fillColor: const Color(0xFF1A2535),
+                      fillColor: AppColors.quranSurface,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide: BorderSide.none,
@@ -886,6 +913,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                   GestureDetector(
                     onTap: () async {
                       if (_controller.text.trim().isEmpty) {
+                        HapticFeedback.heavyImpact();
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
@@ -909,6 +937,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                         _controller.text.trim(),
                       );
                       ref.invalidate(reflectionProvider(widget.ayahKey));
+                      HapticFeedback.mediumImpact();
                       setState(() => _saved = true);
                     },
                     child: AnimatedContainer(
@@ -921,7 +950,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                         border: Border.all(
                           color: _saved
                               ? AppColors.jade
-                              : AppColors.jade.withOpacity(0.5),
+                              : AppColors.jade.withValues(alpha: 0.5),
                           width: _saved ? 0 : 1.5,
                         ),
                       ),
@@ -951,27 +980,30 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
 
                   if (_saved) ...[
                     const SizedBox(height: 16),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.jade.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(14),
-                        border:
-                            Border.all(color: AppColors.jade.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Text('🌟', style: TextStyle(fontSize: 20)),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              'You have completed this ayah. '
-                              'JazakAllah khayran.',
-                              style: AppTypography.bodySmall(
-                                  color: AppColors.jade),
+                    FadeSlideIn(
+                      index: 0,
+                      child: Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.jade.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: AppColors.jade.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Text('🌟', style: TextStyle(fontSize: 20)),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'You have completed this ayah. '
+                                'JazakAllah khayran.',
+                                style: AppTypography.bodySmall(
+                                    color: AppColors.jade),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ],
@@ -988,12 +1020,15 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
 // ── Shared widgets ────────────────────────────────────────────
 
 class _RichArabicText extends StatelessWidget {
-  const _RichArabicText({required this.text});
+  const _RichArabicText({required this.text, this.style});
   final String text;
+  final TextStyle? style;
 
   @override
   Widget build(BuildContext context) {
     final segments = _split(text);
+    final baseStyle =
+        style ?? AppTypography.bodyMedium(color: const Color(0xFFD4DDE4));
     return RichText(
       softWrap: true,
       overflow: TextOverflow.visible,
@@ -1005,15 +1040,12 @@ class _RichArabicText extends StatelessWidget {
               style: const TextStyle(
                 fontFamily: 'Amiri',
                 fontSize: 20,
-                color: Color(0xFFC8973A),
+                color: AppColors.gold,
                 height: 1.9,
               ),
             );
           }
-          return TextSpan(
-            text: seg['text'],
-            style: AppTypography.bodyMedium(color: const Color(0xFFD4DDE4)),
-          );
+          return TextSpan(text: seg['text'], style: baseStyle);
         }).toList(),
       ),
     );
@@ -1036,6 +1068,40 @@ class _RichArabicText extends StatelessWidget {
   }
 }
 
+/// Splits a long block of Ibn Kathir prose into paragraphs and fades each
+/// one in with a short stagger — the same reading rhythm Discover uses,
+/// applied here so a long tafsir doesn't land as one dense wall of text.
+class _ParagraphFlow extends StatelessWidget {
+  const _ParagraphFlow({required this.text, this.style});
+
+  final String text;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    final paragraphs = text
+        .split(RegExp(r'\n\s*\n'))
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+
+    if (paragraphs.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < paragraphs.length; i++) ...[
+          if (i > 0) const SizedBox(height: 14),
+          FadeSlideIn(
+            index: i,
+            child: _RichArabicText(text: paragraphs[i], style: style),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _TomorrowTeaser extends StatelessWidget {
   const _TomorrowTeaser({required this.text});
   final String text;
@@ -1046,9 +1112,9 @@ class _TomorrowTeaser extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF0B1120),
+        color: AppColors.cardQuranBg,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.gold.withOpacity(0.3)),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1061,7 +1127,7 @@ class _TomorrowTeaser extends StatelessWidget {
           ]),
           const SizedBox(height: 8),
           Text(text,
-              style: AppTypography.bodySmall(color: const Color(0xFF9CADB8))),
+              style: AppTypography.bodySmall(color: AppColors.quranMuted)),
         ],
       ),
     );

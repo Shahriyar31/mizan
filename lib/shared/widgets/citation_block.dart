@@ -25,18 +25,18 @@ class CitationBlock extends StatelessWidget {
       margin: const EdgeInsets.only(top: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.parchment,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
         border: const Border(
-          left: const BorderSide(color: AppColors.gold, width: 3),
+          left: BorderSide(color: AppColors.gold, width: 3),
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('📚 $source', style: AppTypography.caption()),
+          Text('📚 $source', style: AppTypography.caption(color: AppColors.gold)),
           const SizedBox(height: 3),
-          Text(detail, style: AppTypography.bodySmall()),
+          Text(detail, style: AppTypography.bodySmall(color: AppColors.textSecondary)),
           if (isVerified) ...[
             const SizedBox(height: 6),
             Row(

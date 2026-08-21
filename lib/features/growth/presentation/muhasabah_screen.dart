@@ -147,7 +147,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     padding: const EdgeInsets.symmetric(vertical: 18),
                     decoration: BoxDecoration(
                       color: AppColors.jade,
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(99),
                     ),
                     child: Center(
                       child: _saving
@@ -269,7 +269,7 @@ class _SavedState extends StatelessWidget {
                       horizontal: 32, vertical: 16),
                   decoration: BoxDecoration(
                     color: const Color(0xFF1A2535),
-                    borderRadius: BorderRadius.circular(14),
+                    borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text('Return home',
                       style: AppTypography.labelLarge(color: AppColors.muted)),

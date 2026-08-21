@@ -1,0 +1,878 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// discover_screen.dart — Redesigned with bottom nav + immersive cards
+// ─────────────────────────────────────────────────────────────────────────────
+
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:taddabur/core/theme/app_colors.dart';
+import 'package:taddabur/core/theme/app_typography.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../providers/discover_providers.dart';
+import '../models/discover_models.dart';
+
+class DiscoverScreen extends ConsumerStatefulWidget {
+  const DiscoverScreen({super.key});
+
+  @override
+  ConsumerState<DiscoverScreen> createState() => _DiscoverScreenState();
+}
+
+class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabController;
+  int _currentTab = 0;
+
+  static const _tabs = [
+    _TabInfo('Prophets', '🕌', 'أَنْبِيَاء'),
+    _TabInfo('Sahabah', '⚔️', 'صَحَابَة'),
+    _TabInfo('99 Names', '✨', 'أَسْمَاء'),
+    _TabInfo('Seerah', '📜', 'سِيرَة'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) {
+        setState(() => _currentTab = _tabController.index);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.night,
+      body: Column(
+        children: [
+          // Header — minimal, Arabic-led
+          _DiscoverHeader(tab: _tabs[_currentTab]),
+          // Content
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: const [
+                _ProphetsTab(),
+                _SahabahTab(),
+                _NamesTab(),
+                _SeerahTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+      // Bottom nav — matches Quran tab pattern
+      bottomNavigationBar: _DiscoverBottomNav(
+        currentIndex: _currentTab,
+        tabs: _tabs,
+        onTap: (i) {
+          setState(() => _currentTab = i);
+          _tabController.animateTo(i);
+        },
+      ),
+    );
+  }
+}
+
+class _TabInfo {
+  final String label;
+  final String emoji;
+  final String arabic;
+  const _TabInfo(this.label, this.emoji, this.arabic);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Header
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DiscoverHeader extends StatelessWidget {
+  final _TabInfo tab;
+  const _DiscoverHeader({required this.tab});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tab.arabic,
+                    style: AppTypography.arabicDisplay(
+                        color: AppColors.gold, size: 22),
+                  ),
+                  Text(
+                    tab.label,
+                    style:
+                        AppTypography.displayMedium(color: AppColors.parchment),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.gold.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: AppColors.gold.withValues(alpha: 0.3), width: 1),
+              ),
+              child: Text(
+                'Five layers',
+                style: AppTypography.labelSmall(color: AppColors.gold),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom Navigation
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DiscoverBottomNav extends StatelessWidget {
+  final int currentIndex;
+  final List<_TabInfo> tabs;
+  final ValueChanged<int> onTap;
+
+  const _DiscoverBottomNav({
+    required this.currentIndex,
+    required this.tabs,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+      decoration: const BoxDecoration(
+        color: AppColors.navBg,
+        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 52,
+          child: Row(
+            children: List.generate(tabs.length, (i) {
+              final active = i == currentIndex;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(right: i == tabs.length - 1 ? 0 : 6),
+                  child: Semantics(
+                    button: true,
+                    selected: active,
+                    label: tabs[i].label,
+                    child: Material(
+                      color: Colors.transparent,
+                      shape: const StadiumBorder(),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        onTap: () => onTap(i),
+                        child: AnimatedContainer(
+                          duration: const Duration(milliseconds: 180),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: active
+                                ? AppColors.gold.withValues(alpha: 0.18)
+                                : AppColors.surface,
+                            borderRadius: BorderRadius.circular(99),
+                            border: Border.all(
+                              color: active
+                                  ? AppColors.gold.withValues(alpha: 0.75)
+                                  : AppColors.border,
+                            ),
+                          ),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(tabs[i].emoji,
+                                  style: TextStyle(fontSize: active ? 17 : 15)),
+                              Text(
+                                tabs[i].label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTypography.labelSmall(
+                                  color: active
+                                      ? AppColors.goldSoft
+                                      : AppColors.textSecondary,
+                                ).copyWith(fontSize: 8, letterSpacing: 0.25),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Prophets Tab — Immersive cards with era context
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ProphetsTab extends ConsumerWidget {
+  const _ProphetsTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listAsync = ref.watch(prophetListProvider);
+    return listAsync.when(
+      loading: () => const _LoadingView(),
+      error: (e, _) => _ErrorView(e.toString()),
+      data: (items) => ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        itemCount: items.length,
+        itemBuilder: (context, i) {
+          final item = items[i];
+          return _ProphetCard(
+            entry: item.entry,
+            isUnlocked: item.isUnlocked,
+            layersRead: item.progress?.layersUnlocked ?? 0,
+            onTap: () => context.push('/discover/prophet/${item.entry.id}'),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ProphetCard extends StatelessWidget {
+  final ProphetEntry entry;
+  final bool isUnlocked;
+  final int layersRead;
+  final VoidCallback onTap;
+
+  const _ProphetCard({
+    required this.entry,
+    required this.isUnlocked,
+    required this.layersRead,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: AppColors.slate,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: layersRead > 0
+                ? AppColors.gold.withValues(alpha: 0.4)
+                : AppColors.gold.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top bar with era + number
+            Container(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+              child: Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      entry.era,
+                      style: AppTypography.labelSmall(color: AppColors.gold),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '#${entry.sequenceNumber}',
+                    style: AppTypography.labelSmall(
+                        color: AppColors.muted.withValues(alpha: 0.5)),
+                  ),
+                ],
+              ),
+            ),
+            // Names
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.nameArabic,
+                          style: AppTypography.arabicDisplay(
+                              color: AppColors.gold, size: 26),
+                        ),
+                        Text(
+                          entry.nameEnglish,
+                          style: AppTypography.displaySmall(
+                              color: AppColors.parchment),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.arrow_forward_ios_rounded,
+                    color: AppColors.gold.withValues(alpha: 0.5),
+                    size: 16,
+                  ),
+                ],
+              ),
+            ),
+            // Teaser
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Text(
+                entry.teaser,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.bodySmall(color: AppColors.muted),
+              ),
+            ),
+            // Layer progress bar
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        '$layersRead / 5 layers',
+                        style: AppTypography.labelSmall(
+                            color: AppColors.muted.withValues(alpha: 0.6)),
+                      ),
+                      const Spacer(),
+                      if (layersRead == 5)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.jade.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text('Complete',
+                              style: AppTypography.labelSmall(
+                                  color: AppColors.jade)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(3),
+                    child: LinearProgressIndicator(
+                      value: layersRead / 5,
+                      backgroundColor: AppColors.gold.withValues(alpha: 0.1),
+                      valueColor: AlwaysStoppedAnimation(AppColors.gold),
+                      minHeight: 3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sahabah Tab — Horizontal scroll hero + list
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SahabahTab extends ConsumerWidget {
+  const _SahabahTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listAsync = ref.watch(sahabiListProvider);
+    return listAsync.when(
+      loading: () => const _LoadingView(),
+      error: (e, _) => _ErrorView(e.toString()),
+      data: (items) => ListView.builder(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        itemCount: items.length,
+        itemBuilder: (context, i) {
+          final item = items[i];
+          return _SahabiCard(
+            entry: item.entry,
+            layersRead: item.progress?.layersUnlocked ?? 0,
+            onTap: () => context.push('/discover/sahabi/${item.entry.id}'),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SahabiCard extends StatelessWidget {
+  final SahabiEntry entry;
+  final int layersRead;
+  final VoidCallback onTap;
+
+  const _SahabiCard({
+    required this.entry,
+    required this.layersRead,
+    required this.onTap,
+  });
+
+  // Dark candlelight brown — per Minbar spec for Sahabi cards
+  static const _cardBg = Color(0xFF1C1108);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: _cardBg,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: layersRead > 0
+                ? AppColors.gold.withValues(alpha: 0.4)
+                : AppColors.gold.withValues(alpha: 0.1),
+            width: 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Kunyah badge
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      entry.kunyah.isNotEmpty ? entry.kunyah : entry.tribe,
+                      style: AppTypography.labelSmall(color: AppColors.gold),
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      color: AppColors.gold.withValues(alpha: 0.4), size: 14),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                entry.nameArabic,
+                style: AppTypography.arabicDisplay(
+                    color: AppColors.gold, size: 24),
+              ),
+              Text(
+                entry.nameEnglish,
+                style: AppTypography.displaySmall(color: AppColors.parchment),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                entry.era,
+                style: AppTypography.labelSmall(
+                    color: AppColors.muted.withValues(alpha: 0.6)),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                entry.teaser,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.bodySmall(color: AppColors.muted),
+              ),
+              const SizedBox(height: 12),
+              // Layer dots
+              Row(
+                children: List.generate(5, (i) {
+                  final filled = i < layersRead;
+                  return Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    width: filled ? 24 : 8,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: filled
+                          ? AppColors.gold
+                          : AppColors.gold.withValues(alpha: 0.2),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  );
+                }),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 99 Names Tab — Grid layout, compact cards
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _NamesTab extends ConsumerWidget {
+  const _NamesTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listAsync = ref.watch(nameListProvider);
+    return listAsync.when(
+      loading: () => const _LoadingView(),
+      error: (e, _) => _ErrorView(e.toString()),
+      data: (items) => GridView.builder(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 0.85,
+        ),
+        itemCount: items.length,
+        itemBuilder: (context, i) {
+          final item = items[i];
+          return _NameCard(
+            entry: item.entry,
+            layersRead: item.progress?.layersUnlocked ?? 0,
+            onTap: () => context.push('/discover/name/${item.entry.id}'),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NameCard extends StatelessWidget {
+  final DivineName entry;
+  final int layersRead;
+  final VoidCallback onTap;
+
+  const _NameCard({
+    required this.entry,
+    required this.layersRead,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF0A0A0A),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: layersRead > 0
+                ? AppColors.gold.withValues(alpha: 0.5)
+                : AppColors.gold.withValues(alpha: 0.15),
+            width: 1,
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Background watermark calligraphy
+            Positioned(
+              right: -8,
+              bottom: -8,
+              child: Text(
+                entry.arabic,
+                style: TextStyle(
+                  fontFamily: 'Amiri',
+                  fontSize: 72,
+                  color: AppColors.gold.withValues(alpha: 0.06),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Number badge
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: AppColors.gold.withValues(alpha: 0.15),
+                      border: Border.all(
+                          color: AppColors.gold.withValues(alpha: 0.4)),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${entry.number}',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.gold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  // Arabic name
+                  Text(
+                    entry.arabic,
+                    style: AppTypography.arabicDisplay(
+                        color: AppColors.gold, size: 22),
+                  ),
+                  const SizedBox(height: 4),
+                  // Transliteration
+                  Text(
+                    entry.translit,
+                    style: AppTypography.labelSmall(color: AppColors.goldSoft),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  // Meaning
+                  Text(
+                    entry.meaningBrief,
+                    style: AppTypography.bodySmall(color: AppColors.parchment2),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
+                  // Progress dots
+                  Row(
+                    children: List.generate(5, (i) {
+                      return Container(
+                        margin: const EdgeInsets.only(right: 4),
+                        width: i < layersRead ? 14 : 6,
+                        height: 3,
+                        decoration: BoxDecoration(
+                          color: i < layersRead
+                              ? AppColors.gold
+                              : AppColors.gold.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Seerah Tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SeerahTab extends ConsumerWidget {
+  const _SeerahTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final listAsync = ref.watch(seerahListProvider);
+    return listAsync.when(
+      loading: () => const _LoadingView(),
+      error: (e, _) => _ErrorView(e.toString()),
+      data: (items) {
+        if (items.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('ﷺ',
+                    style: TextStyle(fontSize: 56, color: AppColors.gold)),
+                const SizedBox(height: 20),
+                Text('The Seerah',
+                    style: AppTypography.displayMedium(
+                        color: AppColors.parchment)),
+                const SizedBox(height: 12),
+                Text(
+                  'Coming soon — the chronological\nlife of the Prophet ﷺ',
+                  textAlign: TextAlign.center,
+                  style: AppTypography.bodyMedium(color: AppColors.muted),
+                ),
+              ],
+            ),
+          );
+        }
+        return ListView.builder(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          itemCount: items.length,
+          itemBuilder: (context, i) {
+            final item = items[i];
+            return _SeerahCard(
+              entry: item.entry,
+              layersRead: item.progress?.layersUnlocked ?? 0,
+              onTap: () => context.push('/discover/seerah/${item.entry.id}'),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _SeerahCard extends StatelessWidget {
+  final SeerahEntry entry;
+  final int layersRead;
+  final VoidCallback onTap;
+
+  const _SeerahCard({
+    required this.entry,
+    required this.layersRead,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0E0B07),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color:
+                AppColors.gold.withValues(alpha: layersRead > 0 ? 0.4 : 0.12),
+            width: 1,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.gold.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(entry.year,
+                        style: AppTypography.labelSmall(color: AppColors.gold)),
+                  ),
+                  const Spacer(),
+                  Text('#${entry.sequenceNumber}',
+                      style: AppTypography.labelSmall(
+                          color: AppColors.muted.withValues(alpha: 0.4))),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(entry.titleArabic,
+                  style: AppTypography.arabicDisplay(
+                      color: AppColors.gold, size: 22)),
+              Text(entry.title,
+                  style:
+                      AppTypography.displaySmall(color: AppColors.parchment)),
+              const SizedBox(height: 4),
+              Text(entry.era,
+                  style: AppTypography.labelSmall(
+                      color: AppColors.muted.withValues(alpha: 0.6))),
+              const SizedBox(height: 8),
+              Text(entry.teaser,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTypography.bodySmall(color: AppColors.muted)),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Text('\$layersRead / 5 layers',
+                      style: AppTypography.labelSmall(
+                          color: AppColors.muted.withValues(alpha: 0.5))),
+                  const Spacer(),
+                  Icon(Icons.arrow_forward_ios_rounded,
+                      size: 12, color: AppColors.gold.withValues(alpha: 0.4)),
+                ],
+              ),
+              const SizedBox(height: 6),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(3),
+                child: LinearProgressIndicator(
+                  value: layersRead / 5,
+                  backgroundColor: AppColors.gold.withValues(alpha: 0.1),
+                  valueColor: AlwaysStoppedAnimation(AppColors.gold),
+                  minHeight: 3,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: CircularProgressIndicator(
+        valueColor: AlwaysStoppedAnimation(AppColors.gold),
+        strokeWidth: 2,
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final String message;
+  const _ErrorView(this.message);
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: AppTypography.bodySmall(color: AppColors.error),
+        ),
+      ),
+    );
+  }
+}

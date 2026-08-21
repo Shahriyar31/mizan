@@ -1,11 +1,14 @@
 /// App Router — Single source of truth for all navigation
 library;
-
 import 'package:go_router/go_router.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/quran/presentation/quran_screen.dart';
 import '../../features/quran/presentation/ayah_detail_screen.dart';
 import '../../features/discover/presentation/discover_screen.dart';
+import '../../features/discover/screens/prophet_detail_screen.dart';
+import '../../features/discover/screens/sahabi_detail_screen.dart';
+import '../../features/discover/screens/seerah_detail_screen.dart';
+import '../../features/discover/screens/divine_name_detail_screen.dart';
 import '../../features/halaqa/presentation/halaqa_screen.dart';
 import '../../features/growth/presentation/growth_screen.dart';
 import '../../features/growth/presentation/vocab_bank_screen.dart';
@@ -51,6 +54,36 @@ class AppRouter {
             pageBuilder: (context, state) => const NoTransitionPage(
               child: DiscoverScreen(),
             ),
+            routes: [
+              GoRoute(
+                path: 'prophet/:prophetId',
+                builder: (context, state) {
+                  final prophetId = state.pathParameters['prophetId']!;
+                  return ProphetDetailScreen(prophetId: prophetId);
+                },
+              ),
+              GoRoute(
+                path: 'sahabi/:sahabiId',
+                builder: (context, state) {
+                  final sahabiId = state.pathParameters['sahabiId']!;
+                  return SahabiDetailScreen(sahabiId: sahabiId);
+                },
+              ),
+              GoRoute(
+                path: 'seerah/:seerahId',
+                builder: (context, state) {
+                  final seerahId = state.pathParameters['seerahId']!;
+                  return SeerahDetailScreen(seerahId: seerahId);
+                },
+              ),
+              GoRoute(
+                path: 'name/:nameId',
+                builder: (context, state) {
+                  final nameId = state.pathParameters['nameId']!;
+                  return DivineNameDetailScreen(nameId: nameId);
+                },
+              ),
+            ],
           ),
           GoRoute(
             path: '/halaqa',
@@ -64,12 +97,10 @@ class AppRouter {
               child: GrowthScreen(),
             ),
             routes: [
-              // Vocabulary Bank — nested under Growth
               GoRoute(
                 path: 'vocab',
                 builder: (context, state) => const VocabBankScreen(),
               ),
-              // Muhasabah — private evening reckoning
               GoRoute(
                 path: 'muhasabah',
                 builder: (context, state) => const MuhasabahScreen(),

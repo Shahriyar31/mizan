@@ -298,7 +298,7 @@ class _SaveButton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
           color: isSaved ? AppColors.jade : AppColors.night,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(99),
           border: Border.all(
             color: isSaved
                 ? AppColors.jade
