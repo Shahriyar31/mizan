@@ -53,7 +53,7 @@ class _SeerahDetailScreenState extends ConsumerState<SeerahDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading)
-      return const Scaffold(
+      return  Scaffold(
           backgroundColor: AppColors.night,
           body: Center(
               child: CircularProgressIndicator(
@@ -78,7 +78,7 @@ class _SeerahDetailScreenState extends ConsumerState<SeerahDetailScreen> {
           MaterialPageRoute(
               builder: (_) => QuizScreen(
                     entryId: entry.id,
-                    entryType: EntryType.prophet,
+                    entryType: EntryType.seerah,
                     entryName: entry.title,
                     questions: entry.quiz,
                   ))),

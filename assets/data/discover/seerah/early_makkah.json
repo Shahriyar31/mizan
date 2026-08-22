@@ -1,11 +1,12 @@
 {
   "id": "early_makkah",
   "type": "seerah",
-  "sequence_number": 3,
+  "sequence_number": 7,
   "title": "Early Islam in Makkah",
   "title_arabic": "الإِسْلَامُ فِي مَكَّة",
   "year": "610–615 CE",
   "era": "The First Three Years of Islam",
+  "group": "The Makkan Years",
   "teaser": "Seven people stood up first. Seven against the world. Then came the persecution.",
   "layers": [
     {

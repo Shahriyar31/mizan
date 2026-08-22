@@ -213,6 +213,15 @@ class DivineNameCard extends StatelessWidget {
     this.onTap,
   });
 
+  // The unlocked card is deliberately always-black ("per Minbar spec"),
+  // regardless of app theme — so its accent/text colors must be pinned
+  // too, not pulled from the theme-reactive AppColors tokens (those
+  // assume they're sitting on the *current theme's* background, which in
+  // light mode is no longer true here).
+  static const _onBlackAccent = Color(0xFF7FB7D0);
+  static const _onBlackText = Colors.white;
+  static const _onBlackMuted = Color(0xFFC0CCD1);
+
   @override
   Widget build(BuildContext context) {
     final layersUnlocked = progress?.layersUnlocked ?? 0;
@@ -245,7 +254,7 @@ class DivineNameCard extends StatelessWidget {
                 style: TextStyle(
                   fontFamily: 'Amiri',
                   fontSize: 80,
-                  color: AppColors.gold.withValues(alpha: 0.08),
+                  color: _onBlackAccent.withValues(alpha: 0.08),
                 ),
               ),
             ),
@@ -258,12 +267,12 @@ class DivineNameCard extends StatelessWidget {
                 height: 36,
                 decoration: BoxDecoration(
                   color: isUnlocked
-                      ? AppColors.gold.withValues(alpha: 0.15)
+                      ? _onBlackAccent.withValues(alpha: 0.15)
                       : AppColors.surfaceDim,
                   shape: BoxShape.circle,
                   border: Border.all(
                     color: isUnlocked
-                        ? AppColors.gold
+                        ? _onBlackAccent
                         : AppColors.muted.withValues(alpha: 0.3),
                     width: 1,
                   ),
@@ -273,7 +282,7 @@ class DivineNameCard extends StatelessWidget {
                     '${entry.number}',
                     style: AppTypography.labelSmall(
                         color: isUnlocked
-                            ? AppColors.gold
+                            ? _onBlackAccent
                             : AppColors.muted.withValues(alpha: 0.5)),
                   ),
                 ),
@@ -286,20 +295,21 @@ class DivineNameCard extends StatelessWidget {
                     Text(
                       entry.arabic,
                       style: AppTypography.arabicDisplay(
-                          color: isUnlocked ? AppColors.gold : AppColors.muted,
+                          color:
+                              isUnlocked ? _onBlackAccent : AppColors.muted,
                           size: 24),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       entry.translit,
-                      style: AppTypography.bodySmall(color: AppColors.muted),
+                      style: AppTypography.bodySmall(
+                          color: isUnlocked ? _onBlackMuted : AppColors.muted),
                     ),
                     const SizedBox(height: 2),
                     Text(
                       entry.meaningBrief,
                       style: AppTypography.bodyMedium(
-                          color:
-                              isUnlocked ? AppColors.white : AppColors.muted),
+                          color: isUnlocked ? _onBlackText : AppColors.muted),
                     ),
                     if (isUnlocked) ...[
                       const SizedBox(height: 10),
@@ -394,12 +404,13 @@ class _SequenceBadge extends StatelessWidget {
         color: isCompleted
             ? AppColors.gold
             : isUnlocked
-                ? AppColors.gold.withValues(alpha: 0.12)
+                ? AppColors.clay.withValues(alpha: 0.14)
                 : AppColors.surfaceDim,
         shape: BoxShape.circle,
         border: Border.all(
           color: isUnlocked
-              ? AppColors.gold.withValues(alpha: 0.5)
+              ? (isCompleted ? AppColors.gold : AppColors.clay)
+                  .withValues(alpha: 0.5)
               : Colors.transparent,
           width: 1,
         ),
@@ -408,10 +419,12 @@ class _SequenceBadge extends StatelessWidget {
         child: Text(
           '$number',
           style: AppTypography.labelSmall(
+              // ink, not night: this text sits on the solid gold fill when
+              // completed, so it must stay dark in both themes.
               color: isCompleted
-                  ? AppColors.night
+                  ? AppColors.ink
                   : isUnlocked
-                      ? AppColors.gold
+                      ? AppColors.clay
                       : AppColors.muted),
         ),
       ),
@@ -465,7 +478,7 @@ class _CheckIcon extends StatelessWidget {
     return Container(
       width: 24,
       height: 24,
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.gold,
         shape: BoxShape.circle,
       ),

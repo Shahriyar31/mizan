@@ -1,11 +1,12 @@
 {
   "id": "hijra",
   "type": "seerah",
-  "sequence_number": 4,
+  "sequence_number": 16,
   "title": "The Hijra to Madinah",
   "title_arabic": "الْهِجْرَةُ إِلَى الْمَدِينَة",
   "year": "622 CE — Year 1 of the Islamic Calendar",
   "era": "The Migration That Changed History",
+  "group": "The Madinan Years",
   "teaser": "They plotted to kill him on the night he was to leave. He recited a verse of Surah Ya-Sin and walked past them unseen.",
   "layers": [
     {

@@ -101,7 +101,7 @@ final muhasabahDoneProvider = FutureProvider<bool>((ref) async {
   final lastMuhasabah = prefs.getString('last_muhasabah_date');
   if (lastMuhasabah == null) return false;
   final today = DateTime.now();
-  final todayStr = '${today.year}-${today.month}-${today.day}';
+  final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
   return lastMuhasabah == todayStr;
 });
 

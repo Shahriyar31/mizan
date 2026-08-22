@@ -17,36 +17,51 @@ class AppTheme {
 
   /// The sole dark theme — matte, warm, immersive.
   /// Every screen in the app uses this.
-  static ThemeData get dark => ThemeData(
+  static ThemeData get dark => build(Brightness.dark);
+
+  static ThemeData get light => build(Brightness.light);
+
+  /// Builds the theme for either brightness. AppColors is switched first so
+  /// every token read below resolves against the right palette.
+  static ThemeData build(Brightness brightness) {
+    AppColors.applyBrightness(brightness);
+    final isLight = brightness == Brightness.light;
+    return ThemeData(
         useMaterial3: true,
-        brightness: Brightness.dark,
+        brightness: brightness,
 
         // ── Core Colors ─────────────────────────────────────────────
         scaffoldBackgroundColor: AppColors.night,
         primaryColor: AppColors.jade,
-        colorScheme: const ColorScheme.dark(
+        colorScheme: ColorScheme(
+          brightness: brightness,
           primary: AppColors.jade,
           secondary: AppColors.gold,
           surface: AppColors.surface,
           error: AppColors.error,
-          onPrimary: AppColors.night,
-          onSecondary: AppColors.night,
+          // ink, not night: this is text/icons drawn ON TOP of the jade/gold
+          // fill, so it must stay near-black in both themes — night is the
+          // *app background* token and flips to cream in light mode, which
+          // would make this text vanish against a still-mid-tone accent fill.
+          onPrimary: AppColors.ink,
+          onSecondary: AppColors.ink,
           onSurface: AppColors.textPrimary,
           onError: AppColors.white,
         ),
 
         // ── AppBar ──────────────────────────────────────────────────
         // All screens that use AppBar get this automatically
-        appBarTheme: const AppBarTheme(
+        appBarTheme:  AppBarTheme(
           backgroundColor: AppColors.night,
           foregroundColor: AppColors.textPrimary,
           elevation: 0,
           centerTitle: false,
-          systemOverlayStyle: SystemUiOverlayStyle.light,
+          systemOverlayStyle:
+              isLight ? SystemUiOverlayStyle.dark : SystemUiOverlayStyle.light,
         ),
 
         // ── Bottom Navigation ────────────────────────────────────────
-        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+        bottomNavigationBarTheme:  BottomNavigationBarThemeData(
           backgroundColor: AppColors.navBg,
           selectedItemColor: AppColors.gold,
           unselectedItemColor: AppColors.navInactive,
@@ -92,7 +107,7 @@ class AppTheme {
           labelStyle: AppTypography.labelMedium(color: AppColors.textSecondary),
           secondaryLabelStyle:
               AppTypography.labelMedium(color: AppColors.jadeLight),
-          side: const BorderSide(color: AppColors.border),
+          side:  BorderSide(color: AppColors.border),
           shape: const StadiumBorder(),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         ),
@@ -111,7 +126,7 @@ class AppTheme {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(99),
-            borderSide: const BorderSide(color: AppColors.jade, width: 1.5),
+            borderSide:  BorderSide(color: AppColors.jade, width: 1.5),
           ),
           contentPadding: const EdgeInsets.symmetric(
             horizontal: 20,
@@ -123,7 +138,7 @@ class AppTheme {
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.jade,
-            foregroundColor: AppColors.night,
+            foregroundColor: AppColors.ink,
             elevation: 0,
             padding: const EdgeInsets.symmetric(
               horizontal: 28,
@@ -138,7 +153,7 @@ class AppTheme {
         outlinedButtonTheme: OutlinedButtonThemeData(
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColors.jade,
-            side: const BorderSide(color: AppColors.jade, width: 1.5),
+            side:  BorderSide(color: AppColors.jade, width: 1.5),
             padding: const EdgeInsets.symmetric(
               horizontal: 28,
               vertical: 16,
@@ -170,13 +185,13 @@ class AppTheme {
           ),
         ),
 
-        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        floatingActionButtonTheme:  FloatingActionButtonThemeData(
           backgroundColor: AppColors.gold,
           foregroundColor: AppColors.night,
           shape: StadiumBorder(),
         ),
 
-        bottomSheetTheme: const BottomSheetThemeData(
+        bottomSheetTheme:  BottomSheetThemeData(
           backgroundColor: AppColors.surface,
           modalBackgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
@@ -185,7 +200,7 @@ class AppTheme {
         ),
 
         // ── Divider ──────────────────────────────────────────────────
-        dividerTheme: const DividerThemeData(
+        dividerTheme:  DividerThemeData(
           color: AppColors.border,
           thickness: 1,
           space: 1,
@@ -220,12 +235,10 @@ class AppTheme {
         ),
 
         // ── Progress Indicator ──────────────────────────────────────
-        progressIndicatorTheme: const ProgressIndicatorThemeData(
+        progressIndicatorTheme:  ProgressIndicatorThemeData(
           color: AppColors.gold,
-          linearTrackColor: Color(0xFF1E2A3A),
+          linearTrackColor: AppColors.surfaceElevated,
         ),
       );
-
-  /// Legacy accessor — redirects to dark theme
-  static ThemeData get light => dark;
+  }
 }

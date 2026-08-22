@@ -27,7 +27,7 @@ class InitialAvatar extends StatelessWidget {
   final bool dimmed;
 
   // A small palette of identity colours, all from the app's tokens.
-  static const List<Color> _palette = [
+  static List<Color> get _palette => [
     AppColors.gold,
     AppColors.jade,
     AppColors.jadeLight,

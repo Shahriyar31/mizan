@@ -186,7 +186,7 @@ class _CompactCitation extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 6),
-        const Icon(Icons.verified_rounded, size: 12, color: AppColors.success),
+         Icon(Icons.verified_rounded, size: 12, color: AppColors.success),
       ],
     );
   }

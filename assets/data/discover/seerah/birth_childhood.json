@@ -6,6 +6,7 @@
   "title_arabic": "الْمَوْلِدُ وَالطُّفُولَة",
   "year": "571 CE",
   "era": "The Year of the Elephant",
+  "group": "Before Prophethood",
   "teaser": "Born on a Monday morning in the Bani Hashim quarter of Makkah. His mother saw a light that illuminated the palaces of Syria.",
   "layers": [
     {
@@ -60,10 +61,22 @@
       "type": "factual",
       "prompt": "In which year and on which day of the week was the Prophet Muhammad ﷺ born?",
       "options": [
-        {"id": "a", "text": "570 CE, Friday"},
-        {"id": "b", "text": "571 CE, Monday"},
-        {"id": "c", "text": "572 CE, Thursday"},
-        {"id": "d", "text": "569 CE, Monday"}
+        {
+          "id": "a",
+          "text": "570 CE, Friday"
+        },
+        {
+          "id": "b",
+          "text": "571 CE, Monday"
+        },
+        {
+          "id": "c",
+          "text": "572 CE, Thursday"
+        },
+        {
+          "id": "d",
+          "text": "569 CE, Monday"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Al-Mubarakpuri, The Sealed Nectar — citing Nata'ijul-Afham by Al-Fulki",
@@ -74,10 +87,22 @@
       "type": "factual",
       "prompt": "What did Halimah's husband say after the first night with the infant Muhammad ﷺ?",
       "options": [
-        {"id": "a", "text": "'He is a difficult child, we should return him'"},
-        {"id": "b", "text": "'By Allah, O Halimah, you must understand that you have got a blessed child'"},
-        {"id": "c", "text": "'Let us keep him until he is weaned'"},
-        {"id": "d", "text": "'Something extraordinary happened in the night'"}
+        {
+          "id": "a",
+          "text": "'He is a difficult child, we should return him'"
+        },
+        {
+          "id": "b",
+          "text": "'By Allah, O Halimah, you must understand that you have got a blessed child'"
+        },
+        {
+          "id": "c",
+          "text": "'Let us keep him until he is weaned'"
+        },
+        {
+          "id": "d",
+          "text": "'Something extraordinary happened in the night'"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Ibn Hisham 1/162-164 — narration of Halimah As-Sa'diyah",
@@ -88,10 +113,22 @@
       "type": "factual",
       "prompt": "What did Gabriel say when he opened the Prophet's chest and extracted the blood-clot?",
       "options": [
-        {"id": "a", "text": "'This is your heart, purified for prophethood'"},
-        {"id": "b", "text": "'That was the part of Satan in thee'"},
-        {"id": "c", "text": "'We have purified you for the message'"},
-        {"id": "d", "text": "'Your Lord commands you to be pure'"}
+        {
+          "id": "a",
+          "text": "'This is your heart, purified for prophethood'"
+        },
+        {
+          "id": "b",
+          "text": "'That was the part of Satan in thee'"
+        },
+        {
+          "id": "c",
+          "text": "'We have purified you for the message'"
+        },
+        {
+          "id": "d",
+          "text": "'Your Lord commands you to be pure'"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Sahih Muslim 1/92 — narration of Anas ibn Malik",
@@ -102,10 +139,22 @@
       "type": "factual",
       "prompt": "What did Abd al-Muttalib say when his children tried to remove the young Muhammad ﷺ from his mattress?",
       "options": [
-        {"id": "a", "text": "'He is my grandson and he sits where I sit'"},
-        {"id": "b", "text": "'Leave my grandson. I swear by Allah that this boy will hold a significant position'"},
-        {"id": "c", "text": "'This child has been blessed since birth'"},
-        {"id": "d", "text": "'He is more dear to me than all of you'"}
+        {
+          "id": "a",
+          "text": "'He is my grandson and he sits where I sit'"
+        },
+        {
+          "id": "b",
+          "text": "'Leave my grandson. I swear by Allah that this boy will hold a significant position'"
+        },
+        {
+          "id": "c",
+          "text": "'This child has been blessed since birth'"
+        },
+        {
+          "id": "d",
+          "text": "'He is more dear to me than all of you'"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Ibn Hisham 1/168 — account of Abd al-Muttalib",
@@ -116,10 +165,22 @@
       "type": "factual",
       "prompt": "What did the monk Bahirah say when he recognised the twelve-year-old Muhammad ﷺ?",
       "options": [
-        {"id": "a", "text": "'This boy carries the signs of a great king'"},
-        {"id": "b", "text": "'This is the master of all humans. Allah will send him with a Message which will be a mercy to all beings'"},
-        {"id": "c", "text": "'Protect this child from the Romans and the Jews'"},
-        {"id": "d", "text": "'I have read of this one in our books of prophecy'"}
+        {
+          "id": "a",
+          "text": "'This boy carries the signs of a great king'"
+        },
+        {
+          "id": "b",
+          "text": "'This is the master of all humans. Allah will send him with a Message which will be a mercy to all beings'"
+        },
+        {
+          "id": "c",
+          "text": "'Protect this child from the Romans and the Jews'"
+        },
+        {
+          "id": "d",
+          "text": "'I have read of this one in our books of prophecy'"
+        }
       ],
       "correct_option_id": "b",
       "citation": "At-Tirmidhi no. 3620 — narration of Bahirah",
@@ -131,10 +192,22 @@
       "prompt": "The Prophet ﷺ lost his father before birth, his mother at six, and his grandfather at eight. How do you understand profound loss being part of Allah's plan for the greatest person who ever lived?",
       "slider_label": "How do you relate to loss in your own life?",
       "options": [
-        {"id": "a", "text": "Loss removes attachments that would have prevented his mission"},
-        {"id": "b", "text": "Every deprivation was replaced with something greater from Allah"},
-        {"id": "c", "text": "It taught him the suffering of those he would later console"},
-        {"id": "d", "text": "Allah's plan cannot be measured by what appears as loss"}
+        {
+          "id": "a",
+          "text": "Loss removes attachments that would have prevented his mission"
+        },
+        {
+          "id": "b",
+          "text": "Every deprivation was replaced with something greater from Allah"
+        },
+        {
+          "id": "c",
+          "text": "It taught him the suffering of those he would later console"
+        },
+        {
+          "id": "d",
+          "text": "Allah's plan cannot be measured by what appears as loss"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 93:6-8 — reflections on the Prophet's early life",
@@ -146,10 +219,22 @@
       "prompt": "Halimah almost did not take the infant Muhammad ﷺ because he was an orphan and no reward seemed likely. She took him only because no other option remained. What does this tell you about how Allah brings His plan about?",
       "slider_label": "How often do you see Allah's plan in what seemed like a last resort?",
       "options": [
-        {"id": "a", "text": "Allah's greatest gifts sometimes come through reluctant vessels"},
-        {"id": "b", "text": "When all options close except one, that one is often the right door"},
-        {"id": "c", "text": "Human calculation fails to see what Allah has arranged"},
-        {"id": "d", "text": "The blessing came to Halimah precisely because she had no expectations"}
+        {
+          "id": "a",
+          "text": "Allah's greatest gifts sometimes come through reluctant vessels"
+        },
+        {
+          "id": "b",
+          "text": "When all options close except one, that one is often the right door"
+        },
+        {
+          "id": "c",
+          "text": "Human calculation fails to see what Allah has arranged"
+        },
+        {
+          "id": "d",
+          "text": "The blessing came to Halimah precisely because she had no expectations"
+        }
       ],
       "correct_option_id": null,
       "citation": "Ibn Hisham 1/162-164 — Halimah's narration",
@@ -161,10 +246,22 @@
       "prompt": "The Quran was revealed to a man who had memorised no scripture, studied under no teacher, and had no formal education. What does this tell you about the nature of divine knowledge?",
       "slider_label": "How much does your understanding of knowledge come from its source?",
       "options": [
-        {"id": "a", "text": "Divine knowledge does not require human preparation to exist"},
-        {"id": "b", "text": "The absence of prior learning proves the revelation could not have been invented"},
-        {"id": "c", "text": "Allah chose someone uncontaminated by existing traditions"},
-        {"id": "d", "text": "All of these — each reason points to the same source"}
+        {
+          "id": "a",
+          "text": "Divine knowledge does not require human preparation to exist"
+        },
+        {
+          "id": "b",
+          "text": "The absence of prior learning proves the revelation could not have been invented"
+        },
+        {
+          "id": "c",
+          "text": "Allah chose someone uncontaminated by existing traditions"
+        },
+        {
+          "id": "d",
+          "text": "All of these — each reason points to the same source"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 29:48 — 'You did not recite before it any scripture, nor did you write one with your right hand'",
@@ -176,10 +273,22 @@
       "prompt": "Bahirah saw the Prophet's greatness in the way stones and trees prostrated. What in your daily life might be pointing to something greater that you are not trained to read?",
       "slider_label": "How attentive are you to signs in your daily life?",
       "options": [
-        {"id": "a", "text": "The signs are there — I lack the knowledge to read them"},
-        {"id": "b", "text": "Tafakkur — reflection — is the skill that makes signs visible"},
-        {"id": "c", "text": "Most people miss signs because they are looking for what they expect"},
-        {"id": "d", "text": "The Quran itself is the sign that remains when all others are missed"}
+        {
+          "id": "a",
+          "text": "The signs are there — I lack the knowledge to read them"
+        },
+        {
+          "id": "b",
+          "text": "Tafakkur — reflection — is the skill that makes signs visible"
+        },
+        {
+          "id": "c",
+          "text": "Most people miss signs because they are looking for what they expect"
+        },
+        {
+          "id": "d",
+          "text": "The Quran itself is the sign that remains when all others are missed"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 3:190 — 'In the creation of the heavens and earth are signs for those of understanding'",
@@ -191,10 +300,22 @@
       "prompt": "The Prophet's grandfather said: 'This boy will hold a significant position' — about an eight-year-old orphan with no visible greatness. How do you see potential in people who appear to have nothing?",
       "slider_label": "How much do you judge people by their current circumstances?",
       "options": [
-        {"id": "a", "text": "Circumstances are temporary — character is the real measure"},
-        {"id": "b", "text": "The orphan had qualities Abd al-Muttalib could see that others missed"},
-        {"id": "c", "text": "Allah's chosen people rarely look chosen by worldly standards"},
-        {"id": "d", "text": "Potential is invisible until someone with wisdom notices it"}
+        {
+          "id": "a",
+          "text": "Circumstances are temporary — character is the real measure"
+        },
+        {
+          "id": "b",
+          "text": "The orphan had qualities Abd al-Muttalib could see that others missed"
+        },
+        {
+          "id": "c",
+          "text": "Allah's chosen people rarely look chosen by worldly standards"
+        },
+        {
+          "id": "d",
+          "text": "Potential is invisible until someone with wisdom notices it"
+        }
       ],
       "correct_option_id": null,
       "citation": "Ibn Hisham 1/168 — Abd al-Muttalib's words about the Prophet",

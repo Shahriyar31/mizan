@@ -10,23 +10,25 @@ import '../../core/theme/app_typography.dart';
 /// Five descriptive labels cannot stay legible as equal-width items on a
 /// phone, so each remains a full tap target while the row scrolls naturally.
 class PillLayerNavigation extends StatelessWidget {
-  const PillLayerNavigation({
+   PillLayerNavigation({
     super.key,
     required this.labels,
     required this.selectedIndex,
     required this.onSelected,
-    this.accent = AppColors.gold,
-  });
+    Color? accent,
+  })  : _accent = accent;
 
   final List<String> labels;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
-  final Color accent;
+  final Color? _accent;
+
+  Color get accent => _accent ?? AppColors.gold;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.navBg,
         border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),

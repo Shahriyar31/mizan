@@ -4,7 +4,10 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData, HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../domain/quran_providers.dart';
+import '../domain/audio_providers.dart';
+import '../../settings/domain/reading_preferences_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../shared/models/ayah.dart';
 import '../../../shared/models/surah.dart';
@@ -15,6 +18,7 @@ import '../../../core/theme/app_typography.dart';
 import '../data/ayah_share_mapper.dart';
 import '../../sharing/share_target_sheet.dart';
 import 'layer_screen.dart';
+import '../../../shared/widgets/tactile.dart';
 
 class AyahDetailScreen extends ConsumerStatefulWidget {
   const AyahDetailScreen({
@@ -177,7 +181,7 @@ class _PageViewReader extends StatelessWidget {
 }
 
 // ── Fixed Header ──────────────────────────────────────────────
-class _SurahHeader extends StatelessWidget {
+class _SurahHeader extends ConsumerWidget {
   const _SurahHeader({
     required this.surahAsync,
     required this.currentPage,
@@ -191,7 +195,11 @@ class _SurahHeader extends StatelessWidget {
   final int surahNumber;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final audio = ref.watch(quranAudioProvider);
+    final showError =
+        audio.status == QuranAudioStatus.error && audio.surahNumber == surahNumber;
+
     return Container(
       color: AppColors.night,
       padding: EdgeInsets.only(
@@ -200,13 +208,16 @@ class _SurahHeader extends StatelessWidget {
         right: 20,
         bottom: 14,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pop(),
-            child: const Icon(
+            child:  Icon(
               Icons.arrow_back_ios_rounded,
-              color: AppColors.white,
+              color: AppColors.textPrimary,
               size: 20,
             ),
           ),
@@ -220,13 +231,15 @@ class _SurahHeader extends StatelessWidget {
                 children: [
                   Text(
                     surah.englishName,
-                    style: AppTypography.displaySmall(color: AppColors.white),
+                    style: AppTypography.displaySmall(color: AppColors.textPrimary),
                   ),
                   Text(surah.translatedName, style: AppTypography.caption()),
                 ],
               ),
             ),
           ),
+          _ListenButton(surahNumber: surahNumber),
+          const SizedBox(width: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
@@ -239,13 +252,81 @@ class _SurahHeader extends StatelessWidget {
             ),
           ),
         ],
+          ),
+          if (showError) ...[
+            const SizedBox(height: 8),
+            Text(
+              audio.errorMessage ?? 'Playback failed.',
+              style: AppTypography.caption(color: AppColors.error),
+            ),
+          ],
+        ],
       ),
     );
   }
 }
 
+// ── Listen/Play control ─────────────────────────────────────────
+class _ListenButton extends ConsumerWidget {
+  const _ListenButton({required this.surahNumber});
+  final int surahNumber;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final audio = ref.watch(quranAudioProvider);
+    final pair = ref.watch(selectedMoshafProvider);
+    final isThisSurah = audio.surahNumber == surahNumber;
+    final loading = isThisSurah && audio.status == QuranAudioStatus.loading;
+    final playing = isThisSurah && audio.status == QuranAudioStatus.playing;
+
+    return TactileChip(
+      baseColor: AppColors.slate,
+      borderRadius: 99,
+      strength: 0.7,
+      padding: const EdgeInsets.all(6),
+      onTap: () async {
+        if (pair == null) {
+          try {
+            context.push('/settings/audio');
+          } catch (e) {
+            if (context.mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Could not open Audio settings: $e')),
+              );
+            }
+          }
+          return;
+        }
+        final (reciter, moshaf) = pair;
+        final notifier = ref.read(quranAudioProvider.notifier);
+        if (playing) {
+          await notifier.pause();
+        } else if (isThisSurah && audio.status == QuranAudioStatus.paused) {
+          await notifier.resume();
+        } else {
+          await notifier.playSurah(surahNumber, reciter: reciter, moshaf: moshaf);
+        }
+      },
+      child: loading
+          ? SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.gold),
+            )
+          : Icon(
+              playing
+                  ? Icons.pause_circle_filled_rounded
+                  : Icons.play_circle_fill_rounded,
+              color: pair == null ? AppColors.muted : AppColors.gold,
+              size: 30,
+            ),
+    );
+  }
+}
+
 // ── Single Ayah Page ──────────────────────────────────────────
-class _AyahPage extends StatelessWidget {
+class _AyahPage extends ConsumerWidget {
   const _AyahPage({
     required this.ayah,
     required this.surah,
@@ -271,7 +352,8 @@ class _AyahPage extends StatelessWidget {
   };
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final prefs = ref.watch(readingPreferencesProvider);
     final screenHeight = MediaQuery.of(context).size.height;
     final hasScene = isFirst && _scenes.containsKey(surahNumber);
     final tappableWords = ayah.tappableWords;
@@ -299,13 +381,16 @@ class _AyahPage extends StatelessWidget {
                 surahNumber: surahNumber,
                 ayahNumber: ayah.ayahNumber,
                 surahName: surahName,
+                font: prefs.arabicFont,
+                fontSize: prefs.arabicTextSize,
               )
             else
               Text(
                 ayah.arabicText,
-                style: AppTypography.arabicHero(
-                  color: AppColors.white,
-                  size: 30,
+                style: prefs.arabicFont.style(
+                  size: prefs.arabicTextSize + 2,
+                  color: AppColors.textPrimary,
+                  height: 1.9,
                 ),
                 textAlign: TextAlign.center,
                 textDirection: TextDirection.rtl,
@@ -321,7 +406,7 @@ class _AyahPage extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                   Icon(
                     Icons.touch_app_rounded,
                     size: 12,
                     color: AppColors.muted,
@@ -335,12 +420,22 @@ class _AyahPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
             ],
-            if (ayah.translation.isNotEmpty)
+            if (prefs.showTransliteration &&
+                (ayah.transliteration ?? '').isNotEmpty) ...[
+              Text(
+                ayah.transliteration!,
+                style: AppTypography.quoteItalic(color: AppColors.gold)
+                    .copyWith(fontSize: prefs.translationTextSize),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 10),
+            ],
+            if (prefs.showTranslation && ayah.translation.isNotEmpty)
               Text(
                 ayah.translation,
                 style: AppTypography.quoteItalic(
                   color: AppColors.quranMuted,
-                ),
+                ).copyWith(fontSize: prefs.translationTextSize),
                 textAlign: TextAlign.center,
               ),
             const SizedBox(height: 32),
@@ -398,12 +493,16 @@ class _TappableArabicText extends StatelessWidget {
     required this.surahNumber,
     required this.ayahNumber,
     required this.surahName,
+    this.font = ArabicFont.amiri,
+    this.fontSize = 28,
   });
 
   final List<AyahWord> words;
   final int surahNumber;
   final int ayahNumber;
   final String surahName;
+  final ArabicFont font;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -419,6 +518,8 @@ class _TappableArabicText extends StatelessWidget {
                   surahNumber: surahNumber,
                   ayahNumber: ayahNumber,
                   surahName: surahName,
+                  font: font,
+                  fontSize: fontSize,
                 ))
             .toList(),
       ),
@@ -433,12 +534,16 @@ class _TappableWord extends StatefulWidget {
     required this.surahNumber,
     required this.ayahNumber,
     required this.surahName,
+    this.font = ArabicFont.amiri,
+    this.fontSize = 28,
   });
 
   final AyahWord word;
   final int surahNumber;
   final int ayahNumber;
   final String surahName;
+  final ArabicFont font;
+  final double fontSize;
 
   @override
   State<_TappableWord> createState() => _TappableWordState();
@@ -477,10 +582,9 @@ class _TappableWordState extends State<_TappableWord> {
         ),
         child: Text(
           widget.word.arabic,
-          style: TextStyle(
-            fontFamily: 'Amiri',
-            fontSize: 28,
-            color: _pressed ? AppColors.gold : AppColors.white,
+          style: widget.font.style(
+            size: widget.fontSize,
+            color: _pressed ? AppColors.gold : AppColors.textPrimary,
             height: 1.9,
           ),
           textDirection: TextDirection.rtl,
@@ -502,13 +606,13 @@ class _SceneSetting extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.slate,
         borderRadius: BorderRadius.circular(12),
-        border: const Border(
-          left: const BorderSide(color: AppColors.gold, width: 3),
+        border:  Border(
+          left:  BorderSide(color: AppColors.gold, width: 3),
         ),
       ),
       child: Text(
         text,
-        style: AppTypography.bodySmall(color: const Color(0xFFB0C4C0)),
+        style: AppTypography.bodySmall(color: AppColors.textSecondary),
       ),
     );
   }
@@ -516,40 +620,45 @@ class _SceneSetting extends StatelessWidget {
 
 // ── Action Button ─────────────────────────────────────────────
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({
+   _ActionButton({
     required this.icon,
     required this.label,
     required this.onTap,
-    this.iconColor = AppColors.muted,
+    Color? iconColor,
     this.labelColor,
-  });
+  })  : _iconColor = iconColor;
 
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Color iconColor;
+  final Color? _iconColor;
+
+  Color get iconColor => _iconColor ?? AppColors.muted;
   final Color? labelColor;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+    return Column(
+      children: [
+        Tactile(
+          onTap: onTap,
+          baseColor: AppColors.slate,
+          borderRadius: 12,
+          strength: 0.8,
+          child: Container(
             width: 48,
             height: 48,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
               color: AppColors.slate,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Icon(icon, color: iconColor, size: 20),
           ),
-          const SizedBox(height: 5),
-          Text(label, style: AppTypography.caption(color: labelColor ?? AppColors.muted)),
-        ],
-      ),
+        ),
+        const SizedBox(height: 5),
+        Text(label, style: AppTypography.caption(color: labelColor ?? AppColors.muted)),
+      ],
     );
   }
 }
@@ -740,7 +849,11 @@ class _PageControls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          GestureDetector(
+          Tactile(
+            baseColor: AppColors.slate,
+            borderRadius: 99,
+            strength: 0.7,
+            enabled: !_isLastAyah || !_isLastSurah,
             onTap: !_isLastAyah
                 ? () => pageController.nextPage(
                       duration: const Duration(milliseconds: 300),
@@ -772,7 +885,7 @@ class _PageControls extends StatelessWidget {
                     Icons.arrow_back_ios_rounded,
                     size: 14,
                     color: (!_isLastAyah || !_isLastSurah)
-                        ? AppColors.white
+                        ? AppColors.textPrimary
                         : AppColors.muted,
                   ),
                   const SizedBox(width: 4),
@@ -780,7 +893,7 @@ class _PageControls extends StatelessWidget {
                     _isLastAyah && !_isLastSurah ? 'Next Surah' : 'Next',
                     style: AppTypography.labelSmall(
                       color: (!_isLastAyah || !_isLastSurah)
-                          ? AppColors.white
+                          ? AppColors.textPrimary
                           : AppColors.muted,
                     ),
                   ),
@@ -792,7 +905,11 @@ class _PageControls extends StatelessWidget {
             currentPage: currentPage,
             totalPages: totalPages,
           ),
-          GestureDetector(
+          Tactile(
+            baseColor: AppColors.slate,
+            borderRadius: 99,
+            strength: 0.7,
+            enabled: !_isFirstAyah,
             onTap: !_isFirstAyah
                 ? () => pageController.previousPage(
                       duration: const Duration(milliseconds: 300),
@@ -813,14 +930,14 @@ class _PageControls extends StatelessWidget {
                   Text(
                     'Prev',
                     style: AppTypography.labelSmall(
-                      color: !_isFirstAyah ? AppColors.white : AppColors.muted,
+                      color: !_isFirstAyah ? AppColors.textPrimary : AppColors.muted,
                     ),
                   ),
                   const SizedBox(width: 4),
                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 14,
-                    color: !_isFirstAyah ? AppColors.white : AppColors.muted,
+                    color: !_isFirstAyah ? AppColors.textPrimary : AppColors.muted,
                   ),
                 ],
               ),
@@ -876,7 +993,7 @@ class _LoadingPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return  Center(
       child: CircularProgressIndicator(color: AppColors.gold, strokeWidth: 2),
     );
   }
@@ -892,11 +1009,11 @@ class _ErrorPage extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.wifi_off_rounded, color: AppColors.muted, size: 48),
+           Icon(Icons.wifi_off_rounded, color: AppColors.muted, size: 48),
           const SizedBox(height: 16),
           Text(
             'Could not load ayat',
-            style: AppTypography.labelLarge(color: AppColors.white),
+            style: AppTypography.labelLarge(color: AppColors.textPrimary),
           ),
           const SizedBox(height: 16),
           ElevatedButton(onPressed: onRetry, child: const Text('Retry')),

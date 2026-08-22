@@ -72,7 +72,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
   Future<void> _shareToMinbar() async {
     setState(() => _busy = true);
     try {
-      final user = await ref.read(currentUserProvider.future);
+      final user = await ref.read(effectiveUserProvider.future);
       await ref
           .read(minbarRepositoryProvider)
           .shareToMinbar(user: user, content: widget.content);
@@ -89,7 +89,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
   Future<void> _shareToCircle(Halaqa circle) async {
     setState(() => _busy = true);
     try {
-      final user = await ref.read(currentUserProvider.future);
+      final user = await ref.read(effectiveUserProvider.future);
       final note = _note.text.trim();
       await ref.read(halaqaRepositoryProvider).shareToHalaqa(
             halaqaId: circle.id,
@@ -125,7 +125,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        decoration: const BoxDecoration(
+        decoration:  BoxDecoration(
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
@@ -180,7 +180,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
             style: AppTypography.labelSmall(color: AppColors.muted)),
         const SizedBox(height: 10),
         circles.when(
-          loading: () => const Padding(
+          loading: () =>  Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Center(
                 child: SizedBox(
@@ -226,7 +226,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
             InkWell(
               onTap: _busy ? null : () => setState(() => _selected = null),
               borderRadius: BorderRadius.circular(99),
-              child: const Padding(
+              child:  Padding(
                 padding: EdgeInsets.all(4),
                 child: Icon(Icons.arrow_back_rounded,
                     size: 20, color: AppColors.textPrimary),
@@ -263,11 +263,11 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
                 const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide:  BorderSide(color: AppColors.border),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.gold, width: 1.5),
+              borderSide:  BorderSide(color: AppColors.gold, width: 1.5),
             ),
           ),
         ),
@@ -284,7 +284,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
                   RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             child: _busy
-                ? const SizedBox(
+                ?  SizedBox(
                     width: 18,
                     height: 18,
                     child: CircularProgressIndicator(
@@ -396,7 +396,7 @@ class _DestinationTile extends StatelessWidget {
                 ),
               ),
               if (showChevron)
-                const Icon(Icons.chevron_right_rounded,
+                 Icon(Icons.chevron_right_rounded,
                     color: AppColors.muted, size: 20),
             ],
           ),

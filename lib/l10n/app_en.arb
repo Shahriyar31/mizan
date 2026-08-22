@@ -1,0 +1,13 @@
+{
+  "@@locale": "en",
+  "settingsTitle": "Settings",
+  "@settingsTitle": {"description": "Title of the Settings screen"},
+  "languageTitle": "Language",
+  "@languageTitle": {"description": "Title of the Language screen"},
+  "languageCurrent": "Current",
+  "@languageCurrent": {"description": "Section label for the active language"},
+  "languageEnglishOnly": "The app is English-only for now",
+  "@languageEnglishOnly": {"description": "Subtitle shown under English"},
+  "languageNotTranslated": "Not yet translated",
+  "@languageNotTranslated": {"description": "Subtitle for unavailable languages"}
+}

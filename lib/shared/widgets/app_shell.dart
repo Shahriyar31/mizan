@@ -12,6 +12,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
+import 'tactile.dart';
+import 'responsive.dart';
 
 class AppShell extends StatelessWidget {
   const AppShell({
@@ -29,11 +31,10 @@ class AppShell extends StatelessWidget {
     '/quran',
     '/discover',
     '/halaqa',
-    '/growth',
     '/minbar',
   ];
 
-  // Gets the current tab index from the current route
+  // Gets the current tab index from the current route.
   int _currentIndex(BuildContext context) {
     final location = GoRouterState.of(context).uri.toString();
     final index = _routes.indexWhere(
@@ -52,8 +53,11 @@ class AppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // child is the current tab screen
-      body: child,
+      // child is the current tab screen. On phones this is unconstrained
+      // (identical to before); on tablets it's capped to a comfortable
+      // reading width and centered, so content never just stretches
+      // edge-to-edge. See ResponsiveCenter.
+      body: ResponsiveCenter(child: child),
 
       // Bottom navigation bar
       bottomNavigationBar: _TadabburBottomNav(
@@ -78,53 +82,53 @@ class _TadabburBottomNav extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.navBg,
-        border: const Border(
+        border: Border(
           top: BorderSide(color: AppColors.border, width: 0.5),
         ),
       ),
       child: SafeArea(
         child: SizedBox(
           height: 64,
-          child: Row(
-            children: [
-              _NavItem(
-                icon: Icons.home_rounded,
-                label: 'HOME',
-                isActive: currentIndex == 0,
-                onTap: () => onTap(0),
-              ),
-              _NavItem(
-                // Using book icon for Quran
-                icon: Icons.menu_book_rounded,
-                label: 'QURAN',
-                isActive: currentIndex == 1,
-                onTap: () => onTap(1),
-              ),
-              _NavItem(
-                icon: Icons.explore_rounded,
-                label: 'DISCOVER',
-                isActive: currentIndex == 2,
-                onTap: () => onTap(2),
-              ),
-              _NavItem(
-                icon: Icons.people_rounded,
-                label: 'HALAQA',
-                isActive: currentIndex == 3,
-                onTap: () => onTap(3),
-              ),
-              _NavItem(
-                icon: Icons.auto_graph_rounded,
-                label: 'GROWTH',
-                isActive: currentIndex == 4,
-                onTap: () => onTap(4),
-              ),
-              _NavItem(
-                icon: Icons.campaign_rounded,
-                label: 'MINBAR',
-                isActive: currentIndex == 5,
-                onTap: () => onTap(5),
-              ),
-            ],
+          child: ResponsiveCenter(
+            // Keeps the tabs from spreading edge-to-edge with huge gaps on
+            // a wide tablet — capped narrower than page content since 5
+            // icons don't need as much room.
+            maxWidth: 480,
+            child: Row(
+              children: [
+                _NavItem(
+                  icon: Icons.home_rounded,
+                  label: 'HOME',
+                  isActive: currentIndex == 0,
+                  onTap: () => onTap(0),
+                ),
+                _NavItem(
+                  // Using book icon for Quran
+                  icon: Icons.menu_book_rounded,
+                  label: 'QURAN',
+                  isActive: currentIndex == 1,
+                  onTap: () => onTap(1),
+                ),
+                _NavItem(
+                  icon: Icons.explore_rounded,
+                  label: 'DISCOVER',
+                  isActive: currentIndex == 2,
+                  onTap: () => onTap(2),
+                ),
+                _NavItem(
+                  icon: Icons.people_rounded,
+                  label: 'HALAQA',
+                  isActive: currentIndex == 3,
+                  onTap: () => onTap(3),
+                ),
+                _NavItem(
+                  icon: Icons.campaign_rounded,
+                  label: 'MINBAR',
+                  isActive: currentIndex == 4,
+                  onTap: () => onTap(4),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -154,12 +158,16 @@ class _NavItem extends StatelessWidget {
         button: true,
         selected: isActive,
         label: label,
-        child: InkWell(
+        child: Tactile(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(99),
+          baseColor: AppColors.gold,
+          borderRadius: 99,
+          strength: 0.6,
+          // Only the selected tab is raised — the other four stay flat.
+          raised: isActive,
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
+            margin: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
             decoration: BoxDecoration(
               color: isActive
                   ? AppColors.gold.withValues(alpha: 0.14)
@@ -169,15 +177,17 @@ class _NavItem extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, color: color, size: 22),
+                Icon(icon, color: color, size: 20),
                 const SizedBox(height: 3),
                 Text(
                   label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 8,
+                    fontSize: 7,
                     fontWeight: isActive ? FontWeight.w800 : FontWeight.w600,
                     color: color,
-                    letterSpacing: 0.4,
+                    letterSpacing: 0.2,
                     fontFamily: 'Inter',
                   ),
                 ),

@@ -67,7 +67,7 @@ class _QuranHeader extends StatelessWidget {
           // Title
           Text('Quran',
               style: AppTypography.displayLarge(
-                color: AppColors.white,
+                color: AppColors.textPrimary,
               )),
           Text(
             'Al-Fatihah to An-Nas · Every ayah interactive',
@@ -94,13 +94,13 @@ class _SearchField extends StatelessWidget {
         // Update search query provider when user types
         ref.read(surahSearchQueryProvider.notifier).state = value;
       },
-      style: AppTypography.bodyMedium(color: AppColors.white),
+      style: AppTypography.bodyMedium(color: AppColors.textPrimary),
       decoration: InputDecoration(
         hintText: 'Search surah name or number…',
         hintStyle: AppTypography.bodyMedium(
           color: AppColors.muted,
         ),
-        prefixIcon: const Icon(
+        prefixIcon:  Icon(
           Icons.search_rounded,
           color: AppColors.muted,
           size: 20,
@@ -117,7 +117,7 @@ class _SearchField extends StatelessWidget {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(99),
-          borderSide: const BorderSide(
+          borderSide:  BorderSide(
             color: AppColors.jade,
             width: 1.5,
           ),
@@ -221,7 +221,7 @@ class _ResumeReadingCardState extends State<_ResumeReadingCard> {
                     color: AppColors.gold.withValues(alpha: 0.15),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.auto_stories_rounded,
+                  child:  Icon(Icons.auto_stories_rounded,
                       color: AppColors.gold, size: 18),
                 ),
                 const SizedBox(width: 14),
@@ -234,13 +234,13 @@ class _ResumeReadingCardState extends State<_ResumeReadingCard> {
                       const SizedBox(height: 2),
                       Text(
                         '${lastRead.surahName} — ${lastRead.surahNumber}:${lastRead.ayahNumber}',
-                        style: AppTypography.bodyMedium(color: AppColors.white),
+                        style: AppTypography.bodyMedium(color: AppColors.textPrimary),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_ios_rounded,
+                 Icon(Icons.arrow_forward_ios_rounded,
                     color: AppColors.gold, size: 14),
               ],
             ),
@@ -355,13 +355,13 @@ class _SurahItem extends StatelessWidget {
                             ),
                             if (surah.isFridaySurah) ...[
                               const SizedBox(width: 6),
-                              const _Badge(
+                               _Badge(
                                 label: '📅 Friday',
                                 color: AppColors.jade,
                               ),
                             ] else if (surah.isRecitedInSalah) ...[
                               const SizedBox(width: 6),
-                              const _Badge(
+                               _Badge(
                                 label: '🕌 Salah',
                                 color: AppColors.gold,
                               ),
@@ -497,7 +497,7 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(
+             Icon(
               Icons.wifi_off_rounded,
               color: AppColors.muted,
               size: 48,
@@ -506,7 +506,7 @@ class _ErrorState extends StatelessWidget {
             Text(
               'Could not load surahs',
               style: AppTypography.labelLarge(
-                color: AppColors.white,
+                color: AppColors.textPrimary,
               ),
             ),
             const SizedBox(height: 8),
@@ -535,7 +535,7 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(
+           Icon(
             Icons.search_off_rounded,
             color: AppColors.muted,
             size: 48,
@@ -544,7 +544,7 @@ class _EmptyState extends StatelessWidget {
           Text(
             'No surahs found',
             style: AppTypography.labelLarge(
-              color: AppColors.white,
+              color: AppColors.textPrimary,
             ),
           ),
           const SizedBox(height: 8),

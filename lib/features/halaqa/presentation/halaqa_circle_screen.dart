@@ -35,7 +35,7 @@ class HalaqaCircleScreen extends ConsumerWidget {
       backgroundColor: AppColors.night,
       body: SafeArea(
         child: halaqaAsync.when(
-          loading: () => const Center(
+          loading: () =>  Center(
             child: CircularProgressIndicator(color: AppColors.gold),
           ),
           error: (e, _) =>
@@ -118,7 +118,7 @@ class _CircleBody extends ConsumerWidget {
     final membersAsync = ref.watch(halaqaMembersProvider(halaqa.id));
     final quietAsync = ref.watch(quietMembersProvider(halaqa.id));
     final feedAsync = ref.watch(halaqaFeedProvider(halaqa.id));
-    final myId = ref.watch(currentUserProvider).value?.id ?? '';
+    final myId = ref.watch(effectiveUserProvider).value?.id ?? '';
 
     return RefreshIndicator(
       color: AppColors.gold,
@@ -195,7 +195,7 @@ class _CircleBody extends ConsumerWidget {
 
           // ── Feed ───────────────────────────────────────────
           feedAsync.when(
-            loading: () => const Padding(
+            loading: () =>  Padding(
               padding: EdgeInsets.only(top: 40),
               child: Center(
                   child: CircularProgressIndicator(color: AppColors.gold)),
@@ -235,7 +235,7 @@ class _CircleBody extends ConsumerWidget {
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
+        decoration:  BoxDecoration(
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
@@ -253,7 +253,7 @@ class _CircleBody extends ConsumerWidget {
             ),
             const SizedBox(height: 14),
             ListTile(
-              leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+              leading:  Icon(Icons.logout_rounded, color: AppColors.error),
               title: Text('Leave circle',
                   style: AppTypography.labelLarge(color: AppColors.error)),
               onTap: () {
@@ -304,7 +304,7 @@ class _InviteCard extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              const Icon(Icons.copy_rounded, size: 18, color: AppColors.gold),
+               Icon(Icons.copy_rounded, size: 18, color: AppColors.gold),
             ],
           ),
         ),
@@ -358,7 +358,7 @@ class _EmptyFeed extends StatelessWidget {
               color: AppColors.gold.withValues(alpha: 0.10),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.auto_stories_rounded,
+            child:  Icon(Icons.auto_stories_rounded,
                 color: AppColors.gold, size: 28),
           ),
           const SizedBox(height: 16),
@@ -421,7 +421,7 @@ class _MissingCircle extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          const Icon(Icons.search_off_rounded,
+           Icon(Icons.search_off_rounded,
               color: AppColors.muted, size: 40),
           const SizedBox(height: 12),
           Text(message,

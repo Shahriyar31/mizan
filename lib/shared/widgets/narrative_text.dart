@@ -14,15 +14,17 @@ import 'fade_slide_in.dart';
 /// fades/slides in with a short stagger so a layer feels like it's being
 /// told rather than dumped on screen.
 class NarrativeText extends StatelessWidget {
-  const NarrativeText({
+   NarrativeText({
     super.key,
     required this.content,
-    this.accent = AppColors.gold,
+    Color? accent,
     this.momentLabel = 'THE MOMENT',
-  });
+  })  : _accent = accent;
 
   final String content;
-  final Color accent;
+  final Color? _accent;
+
+  Color get accent => _accent ?? AppColors.gold;
 
   /// Label for the opening framing box — pass the layer's own title
   /// (e.g. "THE CALL", "THE TRIAL") so five layers don't all say the same
@@ -210,14 +212,16 @@ class _ClosingBeat extends StatelessWidget {
 }
 
 class ReflectionCard extends StatelessWidget {
-  const ReflectionCard({
+   ReflectionCard({
     super.key,
     required this.subtitle,
-    this.accent = AppColors.gold,
-  });
+    Color? accent,
+  })  : _accent = accent;
 
   final String subtitle;
-  final Color accent;
+  final Color? _accent;
+
+  Color get accent => _accent ?? AppColors.gold;
 
   @override
   Widget build(BuildContext context) {

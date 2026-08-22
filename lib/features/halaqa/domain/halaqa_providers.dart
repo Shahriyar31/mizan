@@ -16,12 +16,15 @@ import '../../../shared/models/shared_content.dart';
 import '../../identity/domain/identity_providers.dart';
 import '../data/halaqa_repository.dart';
 import '../data/local_halaqa_repository.dart';
+import '../data/supabase_halaqa_repository.dart';
 import '../models/halaqa_models.dart';
 
 // ── Repository ────────────────────────────────────────────────────
-// Swap this single line for a SupabaseHalaqaRepository when you add a backend.
+// Signed in (Supabase Auth) → real backend. Signed out → on-device SQLite,
+// unchanged from before real auth existed.
 final halaqaRepositoryProvider = Provider<HalaqaRepository>((ref) {
-  return LocalHalaqaRepository();
+  final online = ref.watch(isOnlineIdentityProvider);
+  return online ? SupabaseHalaqaRepository() : LocalHalaqaRepository();
 });
 
 // ── My circles ────────────────────────────────────────────────────
@@ -35,7 +38,7 @@ final myHalaqasProvider =
 class MyHalaqasNotifier extends AsyncNotifier<List<Halaqa>> {
   @override
   Future<List<Halaqa>> build() async {
-    final user = await ref.watch(currentUserProvider.future);
+    final user = await ref.watch(effectiveUserProvider.future);
     final repo = ref.watch(halaqaRepositoryProvider);
     return repo.getHalaqasForUser(user.id);
   }
@@ -43,14 +46,14 @@ class MyHalaqasNotifier extends AsyncNotifier<List<Halaqa>> {
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final user = await ref.read(currentUserProvider.future);
+      final user = await ref.read(effectiveUserProvider.future);
       return ref.read(halaqaRepositoryProvider).getHalaqasForUser(user.id);
     });
   }
 
   /// Create a new circle. Returns it so the UI can navigate straight in.
   Future<Halaqa> create(String name) async {
-    final user = await ref.read(currentUserProvider.future);
+    final user = await ref.read(effectiveUserProvider.future);
     final halaqa =
         await ref.read(halaqaRepositoryProvider).createHalaqa(
               name: name,
@@ -63,7 +66,7 @@ class MyHalaqasNotifier extends AsyncNotifier<List<Halaqa>> {
   /// Join a circle by invite code. Throws [HalaqaException] on failure so the
   /// UI can show the precise reason (not found / full / already a member).
   Future<Halaqa> join(String inviteCode) async {
-    final user = await ref.read(currentUserProvider.future);
+    final user = await ref.read(effectiveUserProvider.future);
     final halaqa = await ref.read(halaqaRepositoryProvider).joinHalaqa(
           inviteCode: inviteCode,
           user: user,
@@ -73,7 +76,7 @@ class MyHalaqasNotifier extends AsyncNotifier<List<Halaqa>> {
   }
 
   Future<void> leave(String halaqaId) async {
-    final user = await ref.read(currentUserProvider.future);
+    final user = await ref.read(effectiveUserProvider.future);
     await ref
         .read(halaqaRepositoryProvider)
         .leaveHalaqa(halaqaId: halaqaId, userId: user.id);
@@ -109,7 +112,7 @@ final halaqaMembersProvider =
 final quietMembersProvider =
     FutureProvider.family<List<HalaqaMember>, String>((ref, halaqaId) async {
   ref.watch(halaqaFeedProvider(halaqaId));
-  final user = await ref.read(currentUserProvider.future);
+  final user = await ref.read(effectiveUserProvider.future);
   return ref.read(halaqaRepositoryProvider).quietMembers(
         halaqaId: halaqaId,
         excludeUserId: user.id,
@@ -130,7 +133,7 @@ class HalaqaFeedNotifier
 
   @override
   Future<List<HalaqaShareView>> build(String arg) async {
-    final user = await ref.watch(currentUserProvider.future);
+    final user = await ref.watch(effectiveUserProvider.future);
     final repo = ref.watch(halaqaRepositoryProvider);
     // Opening the circle counts as activity.
     await repo.touchMember(halaqaId: arg, userId: user.id);
@@ -140,7 +143,7 @@ class HalaqaFeedNotifier
   Future<void> refresh() async {
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final user = await ref.read(currentUserProvider.future);
+      final user = await ref.read(effectiveUserProvider.future);
       return ref
           .read(halaqaRepositoryProvider)
           .getFeed(halaqaId: _halaqaId, currentUserId: user.id);
@@ -152,7 +155,7 @@ class HalaqaFeedNotifier
     required SharedContent content,
     String? personalNote,
   }) async {
-    final user = await ref.read(currentUserProvider.future);
+    final user = await ref.read(effectiveUserProvider.future);
     await ref.read(halaqaRepositoryProvider).shareToHalaqa(
           halaqaId: _halaqaId,
           user: user,
@@ -172,7 +175,7 @@ class HalaqaFeedNotifier
     state = AsyncValue.data(_applyToggle(current, shareId, reaction));
 
     try {
-      final user = await ref.read(currentUserProvider.future);
+      final user = await ref.read(effectiveUserProvider.future);
       await ref.read(halaqaRepositoryProvider).toggleReaction(
             shareId: shareId,
             userId: user.id,

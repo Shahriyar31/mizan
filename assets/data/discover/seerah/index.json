@@ -1,7 +1,16 @@
 [
   "birth_childhood.json",
+  "orphan_years.json",
+  "youth_and_trade.json",
   "first_revelation.json",
   "early_makkah.json",
+  "public_call.json",
+  "persecution.json",
+  "abyssinia.json",
+  "two_conversions.json",
+  "boycott.json",
+  "year_of_sorrow.json",
   "hijra.json",
-  "battle_badr.json"
+  "battle_badr.json",
+  "khandaq.json"
 ]

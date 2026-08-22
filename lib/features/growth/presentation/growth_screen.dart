@@ -53,15 +53,14 @@ class GrowthScreen extends ConsumerWidget {
 
                 const SizedBox(height: 12),
 
-                // Growth Map — coming Phase 5
-                const _GrowthCard(
+                // Growth Map — the night-sky view of real progress
+                _GrowthCard(
                   icon: Icons.auto_awesome_rounded,
                   iconColor: AppColors.gold,
                   title: 'Growth Map',
                   subtitle:
-                      'Visual constellation of your knowledge — coming soon',
-                  isLocked: true,
-                  onTap: null,
+                      'Your knowledge and practice, drawn as a night sky',
+                  onTap: () => context.push('/growth/map'),
                 ),
 
                 const SizedBox(height: 12),
@@ -79,27 +78,25 @@ class GrowthScreen extends ConsumerWidget {
 
                 const SizedBox(height: 12),
 
-                // Muhasabah record — coming Phase 3
-                const _GrowthCard(
+                // Muhasabah — nightly private self-reckoning (screen live)
+                _GrowthCard(
                   icon: Icons.nights_stay_rounded,
-                  iconColor: AppColors.navInactive,
+                  iconColor: AppColors.violet,
                   title: 'Muhasabah',
                   subtitle:
                       'Nightly 3-question self-reckoning — private forever',
-                  isLocked: true,
-                  onTap: null,
+                  onTap: () => context.push('/growth/muhasabah'),
                 ),
 
                 const SizedBox(height: 12),
 
-                // Al-Meezan — coming Phase 3
+                // Al-Meezan — the Scale (life-measure reflection)
                 _GrowthCard(
                   icon: Icons.balance_rounded,
                   iconColor: AppColors.amber,
                   title: 'Al-Meezan',
                   subtitle: 'Days lived, Fridays passed, Ramadans witnessed',
-                  isLocked: true,
-                  onTap: null,
+                  onTap: () => context.push('/growth/meezan'),
                 ),
               ]),
             ),
@@ -243,7 +240,7 @@ class _GrowthCard extends StatelessWidget {
                           ],
                           if (isLocked) ...[
                             const SizedBox(width: 6),
-                            const Icon(
+                             Icon(
                               Icons.lock_rounded,
                               size: 12,
                               color: AppColors.navInactive,
@@ -264,7 +261,7 @@ class _GrowthCard extends StatelessWidget {
 
                 // Arrow — only for unlocked cards
                 if (!isLocked)
-                  const Icon(
+                   Icon(
                     Icons.arrow_forward_ios_rounded,
                     size: 14,
                     color: AppColors.muted,

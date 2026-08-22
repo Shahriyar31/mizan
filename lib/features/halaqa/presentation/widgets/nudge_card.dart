@@ -50,7 +50,7 @@ class NudgeCard extends StatelessWidget {
               color: AppColors.amber.withValues(alpha: 0.14),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.favorite_border_rounded,
+            child:  Icon(Icons.favorite_border_rounded,
                 size: 18, color: AppColors.amber),
           ),
           const SizedBox(width: 12),

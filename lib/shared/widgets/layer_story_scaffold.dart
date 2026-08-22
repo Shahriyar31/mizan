@@ -15,19 +15,19 @@ import 'pill_layer_navigation.dart';
 /// progress dots, paragraph typography) lands on all four at once instead
 /// of being rebuilt four times.
 class LayerStoryScaffold extends StatefulWidget {
-  const LayerStoryScaffold({
+   LayerStoryScaffold({
     super.key,
     required this.layers,
     required this.navLabels,
     required this.headerTitle,
     required this.headerSubtitle,
     this.headerTrailing,
-    this.backgroundColor = AppColors.night,
-    this.accent = AppColors.gold,
+    Color? backgroundColor,
+    Color? accent,
     this.onBeginQuiz,
     this.onShare,
     this.initialLayer = 0,
-  });
+  })  : _accent = accent, _backgroundColor = backgroundColor;
 
   final List<DiscoverLayer> layers;
   final List<String> navLabels;
@@ -41,8 +41,12 @@ class LayerStoryScaffold extends StatefulWidget {
   /// Optional small trailing label in the header (e.g. "#12").
   final String? headerTrailing;
 
-  final Color backgroundColor;
-  final Color accent;
+  final Color? _backgroundColor;
+
+  Color get backgroundColor => _backgroundColor ?? AppColors.night;
+  final Color? _accent;
+
+  Color get accent => _accent ?? AppColors.gold;
 
   /// Called when "Begin Quiz" is tapped on the final layer. Null hides it.
   final VoidCallback? onBeginQuiz;
@@ -317,7 +321,7 @@ class _LayerBody extends StatelessWidget {
         ReflectionCard(subtitle: layer.subtitle, accent: accent),
         const SizedBox(height: 20),
         Row(children: [
-          const Icon(Icons.info_outline_rounded, size: 12, color: AppColors.muted),
+           Icon(Icons.info_outline_rounded, size: 12, color: AppColors.muted),
           const SizedBox(width: 6),
           Flexible(
               child: Text(layer.source,

@@ -7,17 +7,19 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 
 class ArabicText extends StatelessWidget {
-  const ArabicText(
+   ArabicText(
     this.text, {
     super.key,
     this.fontSize = 24,
-    this.color = AppColors.textPrimary,
+    Color? color,
     this.textAlign = TextAlign.right,
-  });
+  })  : _color = color;
 
   final String text;
   final double fontSize;
-  final Color color;
+  final Color? _color;
+
+  Color get color => _color ?? AppColors.textPrimary;
   final TextAlign textAlign;
 
   @override

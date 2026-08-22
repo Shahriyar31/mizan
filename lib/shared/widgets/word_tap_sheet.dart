@@ -63,7 +63,7 @@ class WordTapSheet extends ConsumerWidget {
     final isSavedAsync = ref.watch(isWordSavedProvider(word.arabic));
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.slate,
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -91,7 +91,7 @@ class WordTapSheet extends ConsumerWidget {
             child: Text(
               word.arabic,
               style: AppTypography.arabicHero(
-                color: AppColors.white,
+                color: AppColors.textPrimary,
                 size: 48,
               ),
               textDirection: TextDirection.rtl,
@@ -131,7 +131,7 @@ class WordTapSheet extends ConsumerWidget {
                   _InfoRow(
                     label: 'MEANING',
                     value: word.translation,
-                    valueColor: AppColors.white,
+                    valueColor: AppColors.textPrimary,
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -149,7 +149,7 @@ class WordTapSheet extends ConsumerWidget {
                   _InfoRow(
                     label: 'ROOT MEANING',
                     value: rootData!.meaning,
-                    valueColor: AppColors.white,
+                    valueColor: AppColors.textPrimary,
                   ),
                   const SizedBox(height: 20),
                 ],
@@ -159,10 +159,10 @@ class WordTapSheet extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.night,
+                      color: AppColors.surfaceDim,
                       borderRadius: BorderRadius.circular(12),
-                      border: const Border(
-                        left: const BorderSide(color: AppColors.jade, width: 3),
+                      border:  Border(
+                        left:  BorderSide(color: AppColors.jade, width: 3),
                       ),
                     ),
                     child: Column(
@@ -176,7 +176,7 @@ class WordTapSheet extends ConsumerWidget {
                         Text(
                           rootData!.insight,
                           style: AppTypography.bodySmall(
-                            color: const Color(0xFF9CADB8),
+                            color: AppColors.textSecondary,
                           ),
                         ),
                       ],
@@ -309,7 +309,7 @@ class _SaveButton extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             if (isLoading)
-              const SizedBox(
+               SizedBox(
                 width: 16,
                 height: 16,
                 child: CircularProgressIndicator(

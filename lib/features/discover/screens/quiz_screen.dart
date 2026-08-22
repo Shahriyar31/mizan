@@ -505,7 +505,7 @@ class _QuizHeader extends StatelessWidget {
         children: [
           GestureDetector(
             onTap: onClose,
-            child: const Icon(Icons.close_rounded,
+            child:  Icon(Icons.close_rounded,
                 color: AppColors.muted, size: 22),
           ),
           const SizedBox(width: 16),
@@ -542,7 +542,7 @@ class _QuizProgressBar extends StatelessWidget {
           value: (current + 1) / total,
           backgroundColor: AppColors.gold.withValues(alpha: 0.15),
           valueColor:
-              const AlwaysStoppedAnimation<Color>(AppColors.gold),
+               AlwaysStoppedAnimation<Color>(AppColors.gold),
         ),
       ),
     );

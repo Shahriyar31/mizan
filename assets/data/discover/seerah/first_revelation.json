@@ -1,11 +1,12 @@
 {
   "id": "first_revelation",
   "type": "seerah",
-  "sequence_number": 3,
+  "sequence_number": 6,
   "title": "The First Revelation",
   "title_arabic": "أَوَّلُ الْوَحْي",
   "year": "610 CE — Ramadan 21",
   "era": "Cave of Hira'",
+  "group": "The Makkan Years",
   "teaser": "He was forty years old. Alone in a cave. Then an angel said: Read. And everything changed.",
   "layers": [
     {

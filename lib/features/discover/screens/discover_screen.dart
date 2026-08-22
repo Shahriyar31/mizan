@@ -9,6 +9,35 @@ import 'package:taddabur/core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/discover_providers.dart';
 import '../models/discover_models.dart';
+import '../widgets/discover_browser.dart';
+
+/// Reading state used by the browser's filter chips. Kept in one place so all
+/// four sections classify entries identically.
+DiscoverItemStatus _statusOf(DiscoverProgress? p) {
+  if (p == null || p.layersUnlocked == 0) return DiscoverItemStatus.fresh;
+  if (p.entryCompleted) return DiscoverItemStatus.complete;
+  return DiscoverItemStatus.reading;
+}
+
+/// Rail bucket for an alphabetical section: 'A'–'Z', or '#' for anything that
+/// does not start with a Latin letter (e.g. an Arabic-only English field).
+String _alphaGroup(String name) {
+  final trimmed = name.trimLeft();
+  if (trimmed.isEmpty) return '#';
+  final c = trimmed[0].toUpperCase();
+  return (c.codeUnitAt(0) >= 65 && c.codeUnitAt(0) <= 90) ? c : '#';
+}
+
+const List<String> _alphabet = [
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', //
+  'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '#',
+];
+
+/// Decade bucket for the 99 Names — '1–10', '11–20', … so the rail is short.
+String _decadeGroup(int number) {
+  final start = ((number - 1) ~/ 10) * 10 + 1;
+  return '$start–${start + 9}';
+}
 
 class DiscoverScreen extends ConsumerStatefulWidget {
   const DiscoverScreen({super.key});
@@ -161,7 +190,7 @@ class _DiscoverBottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.navBg,
         border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
       ),
@@ -243,18 +272,26 @@ class _ProphetsTab extends ConsumerWidget {
     return listAsync.when(
       loading: () => const _LoadingView(),
       error: (e, _) => _ErrorView(e.toString()),
-      data: (items) => ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        itemCount: items.length,
-        itemBuilder: (context, i) {
-          final item = items[i];
-          return _ProphetCard(
-            entry: item.entry,
-            isUnlocked: item.isUnlocked,
-            layersRead: item.progress?.layersUnlocked ?? 0,
-            onTap: () => context.push('/discover/prophet/${item.entry.id}'),
-          );
-        },
+      data: (items) => DiscoverBrowser<ProphetListItem>(
+        items: items,
+        searchHint: 'Search 25 prophets',
+        // Entries arrive sorted by sequenceNumber, so first-seen group order is
+        // already chronological — no explicit groupOrder needed.
+        groupOf: (i) => i.entry.group ?? i.entry.era,
+        searchTerms: (i) => [
+          i.entry.nameEnglish,
+          i.entry.nameTranslit,
+          i.entry.nameArabic,
+          i.entry.era,
+          i.entry.teaser,
+        ],
+        statusOf: (i) => _statusOf(i.progress),
+        itemBuilder: (context, i) => _ProphetCard(
+          entry: i.entry,
+          isUnlocked: i.isUnlocked,
+          layersRead: i.progress?.layersUnlocked ?? 0,
+          onTap: () => context.push('/discover/prophet/${i.entry.id}'),
+        ),
       ),
     );
   }
@@ -278,7 +315,6 @@ class _ProphetCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
           color: AppColors.slate,
           borderRadius: BorderRadius.circular(20),
@@ -421,17 +457,28 @@ class _SahabahTab extends ConsumerWidget {
     return listAsync.when(
       loading: () => const _LoadingView(),
       error: (e, _) => _ErrorView(e.toString()),
-      data: (items) => ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-        itemCount: items.length,
-        itemBuilder: (context, i) {
-          final item = items[i];
-          return _SahabiCard(
-            entry: item.entry,
-            layersRead: item.progress?.layersUnlocked ?? 0,
-            onTap: () => context.push('/discover/sahabi/${item.entry.id}'),
-          );
-        },
+      data: (items) => DiscoverBrowser<SahabiListItem>(
+        items: items,
+        searchHint: 'Search by name, kunyah or tribe',
+        // A–Z is the only grouping that scales to 100 entries: the rail turns
+        // "scroll to the 100th" into one tap.
+        groupOf: (i) => _alphaGroup(i.entry.nameEnglish),
+        groupOrder: _alphabet,
+        showRail: true,
+        searchTerms: (i) => [
+          i.entry.nameEnglish,
+          i.entry.nameArabic,
+          i.entry.kunyah,
+          i.entry.tribe,
+          i.entry.era,
+          i.entry.teaser,
+        ],
+        statusOf: (i) => _statusOf(i.progress),
+        itemBuilder: (context, i) => _SahabiCard(
+          entry: i.entry,
+          layersRead: i.progress?.layersUnlocked ?? 0,
+          onTap: () => context.push('/discover/sahabi/${i.entry.id}'),
+        ),
       ),
     );
   }
@@ -448,17 +495,15 @@ class _SahabiCard extends StatelessWidget {
     required this.onTap,
   });
 
-  // Dark candlelight brown — per Minbar spec for Sahabi cards
-  static const _cardBg = Color(0xFF1C1108);
-
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: _cardBg,
+          // Same neutral card material Prophet cards use — no per-category
+          // brown/gold tint.
+          color: AppColors.slate,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: layersRead > 0
@@ -555,23 +600,31 @@ class _NamesTab extends ConsumerWidget {
     return listAsync.when(
       loading: () => const _LoadingView(),
       error: (e, _) => _ErrorView(e.toString()),
-      data: (items) => GridView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
+      data: (items) => DiscoverBrowser<NameListItem>(
+        items: items,
+        searchHint: 'Search a Name or its meaning',
+        groupOf: (i) => _decadeGroup(i.entry.number),
+        showRail: true,
+        // '1–10' is too wide for a 34px rail — show only the upper bound.
+        railLabelFor: (g) => g.split('–').last,
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: 2,
           crossAxisSpacing: 12,
           mainAxisSpacing: 12,
           childAspectRatio: 0.85,
         ),
-        itemCount: items.length,
-        itemBuilder: (context, i) {
-          final item = items[i];
-          return _NameCard(
-            entry: item.entry,
-            layersRead: item.progress?.layersUnlocked ?? 0,
-            onTap: () => context.push('/discover/name/${item.entry.id}'),
-          );
-        },
+        searchTerms: (i) => [
+          i.entry.translit,
+          i.entry.arabic,
+          i.entry.meaningBrief,
+          '${i.entry.number}',
+        ],
+        statusOf: (i) => _statusOf(i.progress),
+        itemBuilder: (context, i) => _NameCard(
+          entry: i.entry,
+          layersRead: i.progress?.layersUnlocked ?? 0,
+          onTap: () => context.push('/discover/name/${i.entry.id}'),
+        ),
       ),
     );
   }
@@ -594,7 +647,7 @@ class _NameCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF0A0A0A),
+          color: AppColors.cardNameBg,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
             color: layersRead > 0
@@ -729,17 +782,23 @@ class _SeerahTab extends ConsumerWidget {
             ),
           );
         }
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
-          itemCount: items.length,
-          itemBuilder: (context, i) {
-            final item = items[i];
-            return _SeerahCard(
-              entry: item.entry,
-              layersRead: item.progress?.layersUnlocked ?? 0,
-              onTap: () => context.push('/discover/seerah/${item.entry.id}'),
-            );
-          },
+        return DiscoverBrowser<SeerahListItem>(
+          items: items,
+          searchHint: 'Search the Seerah',
+          groupOf: (i) => i.entry.group ?? i.entry.era,
+          searchTerms: (i) => [
+            i.entry.title,
+            i.entry.titleArabic,
+            i.entry.year,
+            i.entry.era,
+            i.entry.teaser,
+          ],
+          statusOf: (i) => _statusOf(i.progress),
+          itemBuilder: (context, i) => _SeerahCard(
+            entry: i.entry,
+            layersRead: i.progress?.layersUnlocked ?? 0,
+            onTap: () => context.push('/discover/seerah/${i.entry.id}'),
+          ),
         );
       },
     );
@@ -762,9 +821,8 @@ class _SeerahCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF0E0B07),
+          color: AppColors.cardSeerahBg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color:
@@ -778,18 +836,25 @@ class _SeerahCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.gold.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.gold.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(entry.year,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              AppTypography.labelSmall(color: AppColors.gold)),
                     ),
-                    child: Text(entry.year,
-                        style: AppTypography.labelSmall(color: AppColors.gold)),
                   ),
-                  const Spacer(),
+                  const SizedBox(width: 8),
                   Text('#${entry.sequenceNumber}',
                       style: AppTypography.labelSmall(
                           color: AppColors.muted.withValues(alpha: 0.4))),
@@ -814,7 +879,7 @@ class _SeerahCard extends StatelessWidget {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Text('\$layersRead / 5 layers',
+                  Text('$layersRead / 5 layers',
                       style: AppTypography.labelSmall(
                           color: AppColors.muted.withValues(alpha: 0.5))),
                   const Spacer(),
@@ -849,7 +914,7 @@ class _LoadingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
+    return  Center(
       child: CircularProgressIndicator(
         valueColor: AlwaysStoppedAnimation(AppColors.gold),
         strokeWidth: 2,

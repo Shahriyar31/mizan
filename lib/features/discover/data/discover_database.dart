@@ -132,7 +132,7 @@ class DiscoverDatabase {
     return DiscoverProgress(
       entryId: entryId,
       entryType: type,
-      layersUnlocked: 0,
+      layersUnlocked: 5, // must mirror the inserted value above
       quizPassed: false,
       entryCompleted: false,
     );
@@ -255,6 +255,7 @@ class DiscoverDatabase {
       _typeStr(EntryType.prophet),
       _typeStr(EntryType.sahabi),
       _typeStr(EntryType.divineName),
+      _typeStr(EntryType.seerah),
     ]) {
       final rows = await db.rawQuery('''
         SELECT COUNT(*) as cnt FROM $_tProgress
@@ -275,16 +276,27 @@ class DiscoverDatabase {
         return 'sahabi';
       case EntryType.divineName:
         return 'divine_name';
+      case EntryType.seerah:
+        return 'seerah';
+    }
+  }
+
+  static EntryType _typeFromStr(String s) {
+    switch (s) {
+      case 'prophet':
+        return EntryType.prophet;
+      case 'sahabi':
+        return EntryType.sahabi;
+      case 'seerah':
+        return EntryType.seerah;
+      case 'divine_name':
+      default:
+        return EntryType.divineName;
     }
   }
 
   static DiscoverProgress _progressFromRow(Map<String, dynamic> row) {
-    final typeStr = row['entry_type'] as String;
-    final type = typeStr == 'prophet'
-        ? EntryType.prophet
-        : typeStr == 'sahabi'
-            ? EntryType.sahabi
-            : EntryType.divineName;
+    final type = _typeFromStr(row['entry_type'] as String);
 
     return DiscoverProgress(
       entryId: row['entry_id'] as String,

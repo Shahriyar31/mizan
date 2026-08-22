@@ -27,7 +27,7 @@ class CitationBlock extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(10),
-        border: const Border(
+        border:  Border(
           left: BorderSide(color: AppColors.gold, width: 3),
         ),
       ),
@@ -41,7 +41,7 @@ class CitationBlock extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.verified, size: 12, color: AppColors.success),
+                 Icon(Icons.verified, size: 12, color: AppColors.success),
                 const SizedBox(width: 4),
                 Text(
                   'Verified source',

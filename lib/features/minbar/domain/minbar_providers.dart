@@ -15,12 +15,15 @@ import '../../../shared/models/shared_content.dart';
 import '../../identity/domain/identity_providers.dart';
 import '../data/local_minbar_repository.dart';
 import '../data/minbar_repository.dart';
+import '../data/supabase_minbar_repository.dart';
 import '../models/minbar_models.dart';
 
 // ── Repository ────────────────────────────────────────────────────
-// Swap this single line for a SupabaseMinbarRepository when you add a backend.
+// Signed in (Supabase Auth) → real backend. Signed out → on-device SQLite,
+// unchanged from before real auth existed.
 final minbarRepositoryProvider = Provider<MinbarRepository>((ref) {
-  return LocalMinbarRepository();
+  final online = ref.watch(isOnlineIdentityProvider);
+  return online ? SupabaseMinbarRepository() : LocalMinbarRepository();
 });
 
 // ── The public feed ───────────────────────────────────────────────
@@ -38,7 +41,7 @@ class MinbarFeedNotifier extends AsyncNotifier<List<MinbarShareView>> {
 
   @override
   Future<List<MinbarShareView>> build() async {
-    final user = await ref.watch(currentUserProvider.future);
+    final user = await ref.watch(effectiveUserProvider.future);
     final repo = ref.watch(minbarRepositoryProvider);
     final firstPage = await repo.getFeed(
       currentUserId: user.id,
@@ -56,7 +59,7 @@ class MinbarFeedNotifier extends AsyncNotifier<List<MinbarShareView>> {
     _hasMore = true;
     state = const AsyncValue.loading();
     state = await AsyncValue.guard(() async {
-      final user = await ref.read(currentUserProvider.future);
+      final user = await ref.read(effectiveUserProvider.future);
       final page = await ref.read(minbarRepositoryProvider).getFeed(
             currentUserId: user.id,
             limit: _pageSize,
@@ -75,7 +78,7 @@ class MinbarFeedNotifier extends AsyncNotifier<List<MinbarShareView>> {
     final current = state.value;
     if (current == null) return;
 
-    final user = await ref.read(currentUserProvider.future);
+    final user = await ref.read(effectiveUserProvider.future);
     final next = await ref.read(minbarRepositoryProvider).getFeed(
           currentUserId: user.id,
           limit: _pageSize,
@@ -88,7 +91,7 @@ class MinbarFeedNotifier extends AsyncNotifier<List<MinbarShareView>> {
 
   /// Publish content to the public feed, then reload from the top.
   Future<void> share(SharedContent content) async {
-    final user = await ref.read(currentUserProvider.future);
+    final user = await ref.read(effectiveUserProvider.future);
     await ref
         .read(minbarRepositoryProvider)
         .shareToMinbar(user: user, content: content);
@@ -103,7 +106,7 @@ class MinbarFeedNotifier extends AsyncNotifier<List<MinbarShareView>> {
     state = AsyncValue.data(_applyToggle(current, shareId, reaction));
 
     try {
-      final user = await ref.read(currentUserProvider.future);
+      final user = await ref.read(effectiveUserProvider.future);
       await ref.read(minbarRepositoryProvider).toggleReaction(
             shareId: shareId,
             userId: user.id,

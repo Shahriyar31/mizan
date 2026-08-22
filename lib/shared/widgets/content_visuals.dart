@@ -32,32 +32,32 @@ class ContentVisuals {
   final IconData icon;
 
   static ContentVisuals of(ContentType type) => switch (type) {
-        ContentType.quran => const ContentVisuals(
+        ContentType.quran =>  ContentVisuals(
             background: AppColors.cardQuranBg,
             accent: AppColors.gold,
             icon: Icons.menu_book_rounded,
           ),
-        ContentType.hadith => const ContentVisuals(
+        ContentType.hadith =>  ContentVisuals(
             background: AppColors.cardHadithBg,
             accent: AppColors.jadeLight,
             icon: Icons.format_quote_rounded,
           ),
-        ContentType.sahabi => const ContentVisuals(
-            background: AppColors.cardSahabiBg,
-            accent: AppColors.amber,
+        ContentType.sahabi =>  ContentVisuals(
+            background: AppColors.slate,
+            accent: AppColors.gold,
             icon: Icons.person_outline_rounded,
           ),
-        ContentType.name => const ContentVisuals(
+        ContentType.name =>  ContentVisuals(
             background: AppColors.cardNameBg,
             accent: AppColors.goldSoft,
             icon: Icons.auto_awesome_rounded,
           ),
-        ContentType.prophet => const ContentVisuals(
+        ContentType.prophet =>  ContentVisuals(
             background: AppColors.cardProphetBg,
             accent: AppColors.success,
             icon: Icons.auto_stories_rounded,
           ),
-        ContentType.seerah => const ContentVisuals(
+        ContentType.seerah =>  ContentVisuals(
             background: AppColors.cardSeerahBg,
             accent: AppColors.violet,
             icon: Icons.history_edu_rounded,

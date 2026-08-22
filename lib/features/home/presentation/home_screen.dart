@@ -9,8 +9,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../domain/home_providers.dart';
+import '../../growth/domain/vocab_providers.dart';
+import '../data/todays_encounter.dart';
+import '../../identity/domain/identity_providers.dart';
+import 'thread_detail_screen.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/tactile.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -39,7 +44,7 @@ class HomeScreen extends ConsumerWidget {
 class _HomeLoading extends StatelessWidget {
   const _HomeLoading();
   @override
-  Widget build(BuildContext context) => const Scaffold(
+  Widget build(BuildContext context) =>  Scaffold(
         backgroundColor: AppColors.night,
         body: Center(
           child:
@@ -62,97 +67,264 @@ class _WirdState extends ConsumerWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            // ── Top bar with streak ──────────────────────────────────────
+            // ── Greeting ─────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'الوِرْدُ الصَّبَاحِيّ',
-                          style: AppTypography.arabicDisplay(
-                              color: AppColors.gold, size: 18),
-                        ),
-                        Text(
-                          'Morning Wird',
-                          style:
-                              AppTypography.labelSmall(color: AppColors.muted),
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    // Streak counter — THE identity element
+                    Expanded(child: _Greeting()),
                     _StreakBadge(),
+                    const SizedBox(width: 10),
+                    _HeaderIconButton(
+                      icon: Icons.settings_rounded,
+                      label: 'Settings',
+                      onTap: () => context.push('/settings'),
+                    ),
                   ],
                 ),
               ),
             ),
 
-            // ── Ayah of the Day — the hero ──────────────────────────────
+            // ── Today's Thread — signature feature ───────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
+                padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
+                child: _TodaysThreadCard(),
+              ),
+            ),
+
+            // ── Ayah to Sit With ─────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                 child: _AyahOfDayCard(),
               ),
             ),
 
-            // ── Section label ────────────────────────────────────────────
+            // ── Daily Dua ────────────────────────────────────────────────
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
-                child: Row(
-                  children: [
-                    Text(
-                      'Morning Dhikr',
-                      style:
-                          AppTypography.labelLarge(color: AppColors.parchment),
-                    ),
-                    const Spacer(),
-                    Text(
-                      'Tap each to count',
-                      style: AppTypography.labelSmall(
-                          color: AppColors.muted.withValues(alpha: 0.5)),
-                    ),
-                  ],
-                ),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: _DailyDuaCard(),
               ),
             ),
 
-            // ── 7 Dhikr cards ─────────────────────────────────────────
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: _DhikrList(),
+            // ── Your Growth ──────────────────────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                child: _GrowthGatewayCard(),
+              ),
+            ),
+
+            // ── A Moment to Weigh (Al-Meezan) ────────────────────────────
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
+                child: _MeezanGatewayCard(),
+              ),
             ),
 
             // ── Bottom spacer ────────────────────────────────────────────
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
+            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-            // ── Quick actions ────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-                child: Column(
-                  children: [
-                    _ActionCard(
-                      icon: Icons.menu_book_rounded,
-                      label: 'Open the Quran',
-                      color: AppColors.jade,
-                      onTap: () => context.go('/quran'),
+// ─────────────────────────────────────────────────────────────────────────────
+// Header icon button — used for the Growth/Settings shortcuts (not tabs).
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HeaderIconButton extends StatelessWidget {
+  const _HeaderIconButton({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: Tactile(
+        onTap: onTap,
+        baseColor: AppColors.slate,
+        borderRadius: 99,
+        strength: 0.7,
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.slate,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Icon(icon, size: 18, color: AppColors.muted),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Greeting — replaces the old "Morning Wird" heading. Time-independent.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Greeting extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(effectiveUserProvider).valueOrNull;
+    final name = user?.displayName.trim();
+    final showName = name != null && name.isNotEmpty && name != 'You';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'السلام عليكم',
+          style: AppTypography.arabicDisplay(color: AppColors.gold, size: 24),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          showName ? 'Assalamu Alaikum, $name' : 'Assalamu Alaikum',
+          style: AppTypography.labelSmall(color: AppColors.muted),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Today's Thread — the signature feature. A curated, verified Discover
+// entry, deterministic by day. Strongest visual treatment on the screen.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _TodaysThreadCard extends StatefulWidget {
+  @override
+  State<_TodaysThreadCard> createState() => _TodaysThreadCardState();
+}
+
+class _TodaysThreadCardState extends State<_TodaysThreadCard> {
+  int _stage = 0; // 0: question, 1: reveal, 2: source, 3: sit with this
+
+  late final Encounter _encounter = encounterForToday();
+
+  void _advance() {
+    if (_stage < 3) {
+      setState(() => _stage++);
+    } else {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ThreadDetailScreen(encounter: _encounter),
+        ),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stageLabels = const ['THE QUESTION', 'THE REVEAL', 'THE SOURCE', 'SIT WITH THIS'];
+
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: AppColors.night,
+        borderRadius: BorderRadius.circular(28),
+        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(26, 28, 26, 26),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text("TODAY'S THREAD",
+                    style: AppTypography.labelSmall(color: AppColors.gold)
+                        .copyWith(letterSpacing: 3)),
+                Text(encounterIndexForToday().toString().padLeft(2, '0'),
+                    style: AppTypography.labelSmall(
+                        color: AppColors.gold.withValues(alpha: 0.5))),
+              ],
+            ),
+            const SizedBox(height: 8),
+            // Progress: 01 → 02 → 03 → 04
+            Row(
+              children: [
+                for (var i = 0; i < 4; i++) ...[
+                  if (i > 0)
+                    Expanded(
+                      child: Container(
+                        height: 1,
+                        color: i <= _stage
+                            ? AppColors.gold.withValues(alpha: 0.5)
+                            : AppColors.border,
+                      ),
                     ),
-                    const SizedBox(height: 10),
-                    _ActionCard(
-                      icon: Icons.explore_rounded,
-                      label: 'Continue in Discover',
-                      color: AppColors.slate,
-                      labelColor: AppColors.parchment,
-                      onTap: () => context.go('/discover'),
+                  Container(
+                    width: 7,
+                    height: 7,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: i <= _stage
+                          ? AppColors.gold
+                          : AppColors.gold.withValues(alpha: 0.2),
                     ),
-                  ],
+                  ),
+                ],
+              ],
+            ),
+            const SizedBox(height: 22),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 450),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              transitionBuilder: (child, animation) => FadeTransition(
+                opacity: animation,
+                child: SlideTransition(
+                  position: Tween<Offset>(
+                    begin: const Offset(0, 0.06),
+                    end: Offset.zero,
+                  ).animate(animation),
+                  child: child,
                 ),
+              ),
+              child: _StageContent(
+                key: ValueKey(_stage),
+                stageLabel: stageLabels[_stage],
+                encounter: _encounter,
+                stage: _stage,
+              ),
+            ),
+            const SizedBox(height: 24),
+            TactilePill(
+              onTap: _advance,
+              baseColor: AppColors.surfaceElevated,
+              strength: 1.1,
+              borderRadius: 12,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _stage < 3 ? 'CONTINUE' : 'FOLLOW THE THREAD',
+                    style: AppTypography.labelMedium(color: AppColors.gold)
+                        .copyWith(letterSpacing: 1),
+                  ),
+                  const SizedBox(width: 8),
+                  Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.gold),
+                ],
               ),
             ),
           ],
@@ -161,6 +333,241 @@ class _WirdState extends ConsumerWidget {
     );
   }
 }
+
+class _StageContent extends StatelessWidget {
+  const _StageContent({
+    super.key,
+    required this.stageLabel,
+    required this.encounter,
+    required this.stage,
+  });
+
+  final String stageLabel;
+  final Encounter encounter;
+  final int stage;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(stageLabel,
+            style: AppTypography.labelSmall(color: AppColors.muted)
+                .copyWith(letterSpacing: 1.5)),
+        const SizedBox(height: 10),
+        if (stage == 0) ...[
+          Text(
+            encounter.hook,
+            style: AppTypography.displayLarge(color: AppColors.textPrimary)
+                .copyWith(height: 1.25, fontSize: 24),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            encounter.question,
+            style: AppTypography.quoteItalic(color: AppColors.textSecondary),
+          ),
+        ] else if (stage == 1) ...[
+          // The "aha" moment — the name, given weight.
+          Text(
+            encounter.subject,
+            style: AppTypography.displayLarge(color: AppColors.gold)
+                .copyWith(height: 1.2, fontSize: 28),
+          ),
+        ] else if (stage == 2) ...[
+          Text(
+            encounter.context,
+            style: AppTypography.bodyLarge(color: AppColors.textPrimary)
+                .copyWith(height: 1.6),
+          ),
+          const SizedBox(height: 14),
+          Text(encounter.reference,
+              style: AppTypography.labelSmall(color: AppColors.gold)),
+        ] else ...[
+          Text(
+            'Let this settle for a moment.',
+            style: AppTypography.displayMedium(color: AppColors.textPrimary)
+                .copyWith(height: 1.3, fontSize: 20),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            encounter.question,
+            style: AppTypography.quoteItalic(color: AppColors.textSecondary),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Daily Dua — one dua, deterministic by day. Full Dua tab is a future task.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DailyDuaCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final dua = duaForToday();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.slate,
+        borderRadius: BorderRadius.circular(20),
+        border: Border(left: BorderSide(color: AppColors.jade, width: 3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('DAILY DUA',
+              style: AppTypography.labelSmall(color: AppColors.jade)),
+          const SizedBox(height: 14),
+          Text(
+            dua['arabic']!,
+            style: AppTypography.arabicBody(color: AppColors.textPrimary),
+            textAlign: TextAlign.right,
+            textDirection: TextDirection.rtl,
+          ),
+          const SizedBox(height: 8),
+          Text(dua['translit']!,
+              style: AppTypography.quoteItalic(color: AppColors.textSecondary)),
+          const SizedBox(height: 6),
+          Text(dua['meaning']!,
+              style: AppTypography.bodySmall(color: AppColors.muted)),
+          const SizedBox(height: 6),
+          Text(dua['source']!,
+              style: AppTypography.labelSmall(color: AppColors.jade)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Your Growth — gateway to the existing Growth screen; no second dashboard.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GrowthGatewayCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vocabCount = ref.watch(vocabCountProvider).valueOrNull;
+    final subtitle = (vocabCount != null && vocabCount > 0)
+        ? '$vocabCount ${vocabCount == 1 ? 'word' : 'words'} saved — your knowledge is growing'
+        : 'Continue your learning and reflection journey.';
+
+    return Semantics(
+      button: true,
+      label: 'Open Growth',
+      child: Tactile(
+        onTap: () => context.push('/growth'),
+        baseColor: AppColors.surface,
+        borderRadius: 20,
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.gold),
+                  const SizedBox(width: 8),
+                  Text('YOUR GROWTH',
+                      style: AppTypography.labelSmall(color: AppColors.gold)),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(subtitle,
+                  style: AppTypography.bodyMedium(color: AppColors.textPrimary)),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerRight,
+                child: Text('OPEN GROWTH →',
+                    style: AppTypography.labelSmall(color: AppColors.gold)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// A Moment to Weigh — gateway to the existing Al-Meezan screen.
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _MeezanGatewayCard extends StatefulWidget {
+  @override
+  State<_MeezanGatewayCard> createState() => _MeezanGatewayCardState();
+}
+
+class _MeezanGatewayCardState extends State<_MeezanGatewayCard> {
+  int? _daysLived;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    final stored = prefs.getString('meezan_birth_date');
+    final birthDate = stored == null ? null : DateTime.tryParse(stored);
+    if (birthDate != null && mounted) {
+      setState(() => _daysLived = DateTime.now().difference(birthDate).inDays);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final preview = _daysLived != null
+        ? '$_daysLived days lived, and counting.'
+        : null;
+
+    return Tactile(
+      onTap: () => context.push('/growth/meezan'),
+      baseColor: AppColors.surface,
+      borderRadius: 20,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('A MOMENT TO WEIGH',
+                style: AppTypography.labelSmall(color: AppColors.violet)),
+            const SizedBox(height: 10),
+            Text(
+              'If today were placed on the scale,\nwhat would you want to see?',
+              style: AppTypography.quoteItalic(color: AppColors.textSecondary),
+            ),
+            if (preview != null) ...[
+              const SizedBox(height: 10),
+              Text(preview,
+                  style: AppTypography.bodySmall(color: AppColors.muted)),
+            ],
+            const SizedBox(height: 12),
+            Text('Reflect →',
+                style: AppTypography.labelSmall(color: AppColors.violet)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Streak Badge — the identity anchor
@@ -243,13 +650,17 @@ class _StreakBadgeState extends State<_StreakBadge> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _AyahOfDayCard extends StatelessWidget {
-  // Rotates daily — one ayah per day
+  // Rotates daily — one ayah per day. `surah` is the numeric surah number
+  // named in `reference`, added only to link "Read in context →" to the
+  // real Quran screen — not a new claim.
   static const _ayahs = [
     {
       'arabic': 'أَفَلَا يَتَدَبَّرُونَ الْقُرْآنَ',
       'translation': 'Will they not then ponder over the Quran?',
       'reference': 'Muhammad 47:24',
       'context': 'The ayah from which this app takes its name.',
+      'surah': 47,
+      'ayah': 24,
     },
     {
       'arabic': 'وَبِالْأَسْحَارِ هُمْ يَسْتَغْفِرُونَ',
@@ -258,6 +669,8 @@ class _AyahOfDayCard extends StatelessWidget {
       'reference': 'Adh-Dhariyat 51:18',
       'context':
           'Of those whom Allah praises — they sought forgiveness at Fajr.',
+      'surah': 51,
+      'ayah': 18,
     },
     {
       'arabic': 'إِنَّ فِي ذَٰلِكَ لَذِكْرَىٰ لِمَن كَانَ لَهُ قَلْبٌ',
@@ -265,24 +678,32 @@ class _AyahOfDayCard extends StatelessWidget {
       'reference': 'Qaf 50:37',
       'context':
           'The heart that receives. The Quran speaks to those who listen.',
+      'surah': 50,
+      'ayah': 37,
     },
     {
       'arabic': 'وَاذْكُر رَّبَّكَ فِي نَفْسِكَ تَضَرُّعًا وَخِيفَةً',
       'translation': 'Remember your Lord within yourself in humility and fear.',
       'reference': 'Al-A\'raf 7:205',
       'context': 'Remembrance that is real — felt inside, not only spoken.',
+      'surah': 7,
+      'ayah': 205,
     },
     {
       'arabic': 'فَاذْكُرُونِي أَذْكُرْكُمْ',
       'translation': 'Remember Me, and I will remember you.',
       'reference': 'Al-Baqarah 2:152',
       'context': 'The greatest exchange — your remembrance for His.',
+      'surah': 2,
+      'ayah': 152,
     },
     {
       'arabic': 'إِنَّ اللَّهَ مَعَ الصَّابِرِينَ',
       'translation': 'Indeed, Allah is with the patient.',
       'reference': 'Al-Baqarah 2:153',
       'context': 'Not a promise of ease. A promise of company.',
+      'surah': 2,
+      'ayah': 153,
     },
     {
       'arabic':
@@ -291,6 +712,8 @@ class _AyahOfDayCard extends StatelessWidget {
           'Our Lord, give us good in this world and good in the Hereafter.',
       'reference': 'Al-Baqarah 2:201',
       'context': 'The du\'a the Prophet ﷺ made most often — Sahih Bukhari.',
+      'surah': 2,
+      'ayah': 201,
     },
   ];
 
@@ -303,16 +726,9 @@ class _AyahOfDayCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            AppColors.gold.withValues(alpha: 0.12),
-            AppColors.gold.withValues(alpha: 0.04),
-          ],
-        ),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.25)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -320,66 +736,58 @@ class _AyahOfDayCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Label
-            Row(
-              children: [
-                Container(
-                  width: 6,
-                  height: 6,
-                  decoration: const BoxDecoration(
-                    color: AppColors.gold,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Ayah of the Day',
-                  style: AppTypography.labelSmall(color: AppColors.gold),
-                ),
-              ],
+            Text(
+              'AYAH TO SIT WITH',
+              style: AppTypography.labelSmall(color: AppColors.gold),
             ),
             const SizedBox(height: 20),
 
             // Arabic text — the centrepiece
             Text(
-              ayah['arabic']!,
-              style: AppTypography.arabicHero(color: AppColors.parchment),
+              ayah['arabic'] as String,
+              style: AppTypography.arabicHero(color: AppColors.textPrimary),
               textAlign: TextAlign.right,
               textDirection: TextDirection.rtl,
             ),
             const SizedBox(height: 16),
 
             // Divider
-            Container(
-              height: 1,
-              color: AppColors.gold.withValues(alpha: 0.15),
-            ),
+            Container(height: 1, color: AppColors.border),
             const SizedBox(height: 16),
 
             // Translation
             Text(
-              ayah['translation']!,
-              style: AppTypography.quoteItalic(color: AppColors.parchment2),
+              ayah['translation'] as String,
+              style: AppTypography.quoteItalic(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 8),
 
             // Reference
             Text(
-              ayah['reference']!,
+              ayah['reference'] as String,
               style: AppTypography.labelSmall(color: AppColors.gold),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 16),
 
-            // Context note
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.night.withValues(alpha: 0.5),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                ayah['context']!,
-                style: AppTypography.bodySmall(
-                    color: AppColors.muted.withValues(alpha: 0.8)),
+            // Quiet action — opens the real surah
+            TactileChip(
+              baseColor: AppColors.surfaceElevated,
+              strength: 0.6,
+              borderRadius: 10,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              onTap: () => context
+                  .push('/quran/${ayah['surah']}?ayah=${ayah['ayah']}'),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Read in context',
+                    style: AppTypography.labelMedium(color: AppColors.muted),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.arrow_forward_rounded,
+                      size: 14, color: AppColors.muted),
+                ],
               ),
             ),
           ],
@@ -401,50 +809,7 @@ class _DhikrList extends StatefulWidget {
 class _DhikrListState extends State<_DhikrList> {
   final List<bool> _done = List.filled(7, false);
 
-  static const _dhikr = [
-    {
-      'arabic': 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ',
-      'translit': 'Asbahna wa asbahal mulku lillah',
-      'meaning': 'We enter the morning, and all dominion belongs to Allah.',
-      'source': 'Abu Dawud',
-    },
-    {
-      'arabic': 'اللَّهُمَّ بِكَ أَصْبَحْنَا',
-      'translit': 'Allahumma bika asbahna',
-      'meaning': 'O Allah, by Your grace we have entered the morning.',
-      'source': 'Abu Dawud',
-    },
-    {
-      'arabic': 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ',
-      'translit': 'Subhan Allah wa bihamdihi',
-      'meaning': 'Glory be to Allah and all praise is His.',
-      'source': 'Sahih Muslim — 100 times in the morning',
-    },
-    {
-      'arabic': 'لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ',
-      'translit': 'La ilaha illallah wahdahu la sharika lah',
-      'meaning': 'There is no god but Allah, alone with no partner.',
-      'source': 'Sahih Bukhari — 10 times in the morning',
-    },
-    {
-      'arabic': 'أَعُوذُ بِاللَّهِ مِنَ الشَّيْطَانِ الرَّجِيمِ',
-      'translit': 'A\'udhu billahi minash-shaytanir-rajim',
-      'meaning': 'I seek refuge in Allah from the accursed Satan.',
-      'source': 'Morning Athkar',
-    },
-    {
-      'arabic': 'بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ',
-      'translit': 'Bismillahil-ladhi la yadurru ma\'as mihi shay\'',
-      'meaning': 'In the name of Allah with whose name nothing can cause harm.',
-      'source': 'Abu Dawud, Tirmidhi — 3 times in morning',
-    },
-    {
-      'arabic': 'رَضِيتُ بِاللَّهِ رَبًّا وَبِالْإِسْلَامِ دِينًا',
-      'translit': 'Raditu billahi rabban wa bil-islami dinan',
-      'meaning': 'I am pleased with Allah as my Lord and Islam as my religion.',
-      'source': 'Abu Dawud — 3 times in morning',
-    },
-  ];
+  static const _dhikr = kMorningAdhkar;
 
   @override
   Widget build(BuildContext context) {
@@ -489,7 +854,7 @@ class _DhikrListState extends State<_DhikrList> {
             ),
             child: Row(
               children: [
-                const Text('✓',
+                 Text('✓',
                     style: TextStyle(
                         fontSize: 20,
                         color: AppColors.jade,
@@ -786,10 +1151,10 @@ class _FridayState extends ConsumerWidget {
                       ),
                       child: Text(
                         question['question'] ?? '',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
-                          color: Color(0xFFF5F0E8),
+                          color: AppColors.textPrimary,
                           height: 1.5,
                           letterSpacing: -0.3,
                         ),
@@ -885,10 +1250,10 @@ class _ReturningState extends ConsumerWidget {
                   children: [
                     Text(
                       'The Quran was here\nwaiting for you.',
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w700,
-                        color: Color(0xFFF5F0E8),
+                        color: AppColors.textPrimary,
                         height: 1.3,
                       ),
                     ),
@@ -1044,10 +1409,10 @@ class _MuhasabahPrompt extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Three questions.\nAnswer honestly.',
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
-              color: Color(0xFFF5F0E8),
+              color: AppColors.textPrimary,
               height: 1.35,
             )),
         const SizedBox(height: 24),
@@ -1055,7 +1420,7 @@ class _MuhasabahPrompt extends StatelessWidget {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: const Color(0xFF120F1E),
+                color: AppColors.surfaceElevated,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: purple.withValues(alpha: 0.2)),
               ),
@@ -1107,13 +1472,13 @@ class _MuhasabahDone extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(28),
       decoration: BoxDecoration(
-        color: const Color(0xFF0D2A24),
+        color: AppColors.jade.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.jade.withValues(alpha: 0.4)),
       ),
       child: Column(
         children: [
-          const Text('✓',
+           Text('✓',
               style: TextStyle(
                   fontSize: 36,
                   color: AppColors.jade,

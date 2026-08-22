@@ -22,9 +22,6 @@ class _SahabiDetailScreenState extends ConsumerState<SahabiDetailScreen> {
   SahabiEntry? _entry;
   bool _loading = true;
 
-  static const _cardBg = Color(0xFF1C1108);
-  static const _candleGold = AppColors.gold;
-
   static const _layerTitles = [
     'Who',
     'The Conversion',
@@ -56,14 +53,14 @@ class _SahabiDetailScreenState extends ConsumerState<SahabiDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_loading)
-      return const Scaffold(
-          backgroundColor: _cardBg,
+      return Scaffold(
+          backgroundColor: AppColors.night,
           body: Center(
               child: CircularProgressIndicator(
-                  color: _candleGold, strokeWidth: 2)));
+                  color: AppColors.gold, strokeWidth: 2)));
     if (_entry == null)
       return Scaffold(
-          backgroundColor: _cardBg,
+          backgroundColor: AppColors.night,
           body: Center(
               child: Text('Not found',
                   style: AppTypography.bodyMedium(color: AppColors.muted))));
@@ -75,8 +72,8 @@ class _SahabiDetailScreenState extends ConsumerState<SahabiDetailScreen> {
       navLabels: _layerTitles,
       headerTitle: entry.nameArabic,
       headerSubtitle: '${entry.nameEnglish} — ${entry.era}',
-      backgroundColor: _cardBg,
-      accent: _candleGold,
+      backgroundColor: AppColors.night,
+      accent: AppColors.gold,
       onShare: () => showShareTargetSheet(context, entry.toSharedContent()),
       onBeginQuiz: () => Navigator.push(
           context,

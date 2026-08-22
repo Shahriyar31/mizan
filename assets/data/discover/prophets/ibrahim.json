@@ -6,8 +6,8 @@
   "name_translit": "Ibrāhīm",
   "quranic_mention": "Mentioned by name 69 times in the Quran — more than any prophet except Musa",
   "era": "The Khalil — Friend of Allah",
+  "group": "The House of Ibrahim",
   "teaser": "He was born into a family that made idols for a living. By the time he died, he had rebuilt the house of Allah, fathered two prophets, and argued down a king who claimed divinity — with a single sentence.",
-
   "layers": [
     {
       "layer_number": 1,
@@ -55,17 +55,28 @@
       "hadith_ref": "Sahih al-Bukhari — construction of the Ka'bah, narrated by Ibn Abbas"
     }
   ],
-
   "quiz": [
     {
       "number": 1,
       "type": "factual",
       "prompt": "When Ibrahim was thrown into the fire, angel Jibreel asked him if he wished for anything. What did Ibrahim reply?",
       "options": [
-        {"id": "a", "text": "He asked Jibreel to carry him safely out of the fire"},
-        {"id": "b", "text": "He said 'Nothing from you' — directing his need only to Allah"},
-        {"id": "c", "text": "He asked Jibreel to tell Allah he was ready to die"},
-        {"id": "d", "text": "He remained silent and did not answer"}
+        {
+          "id": "a",
+          "text": "He asked Jibreel to carry him safely out of the fire"
+        },
+        {
+          "id": "b",
+          "text": "He said 'Nothing from you' — directing his need only to Allah"
+        },
+        {
+          "id": "c",
+          "text": "He asked Jibreel to tell Allah he was ready to die"
+        },
+        {
+          "id": "d",
+          "text": "He remained silent and did not answer"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Ibn Kathir, Stories of the Prophets — the fire of Namrud",
@@ -76,10 +87,22 @@
       "type": "factual",
       "prompt": "How did Ibrahim argue against King Namrud when the king claimed he could also give life and cause death?",
       "options": [
-        {"id": "a", "text": "Ibrahim challenged him to create a bird from clay"},
-        {"id": "b", "text": "Ibrahim asked him to command the sun to rise from the west"},
-        {"id": "c", "text": "Ibrahim showed him the miracle of the four birds"},
-        {"id": "d", "text": "Ibrahim recited the names of Allah until the king fell silent"}
+        {
+          "id": "a",
+          "text": "Ibrahim challenged him to create a bird from clay"
+        },
+        {
+          "id": "b",
+          "text": "Ibrahim asked him to command the sun to rise from the west"
+        },
+        {
+          "id": "c",
+          "text": "Ibrahim showed him the miracle of the four birds"
+        },
+        {
+          "id": "d",
+          "text": "Ibrahim recited the names of Allah until the king fell silent"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Quran 2:258 — debate between Ibrahim and Namrud",
@@ -90,10 +113,22 @@
       "type": "factual",
       "prompt": "When Ibrahim asked to see how Allah gives life to the dead, Allah asked 'Do you not believe?' What was Ibrahim's reply?",
       "options": [
-        {"id": "a", "text": "'I believe, but I need proof for my people'"},
-        {"id": "b", "text": "'I believe completely — but I wanted to test my own faith'"},
-        {"id": "c", "text": "'Yes, I believe — but to be stronger in Faith'"},
-        {"id": "d", "text": "'Forgive me, my Lord — I should not have asked'"}
+        {
+          "id": "a",
+          "text": "'I believe, but I need proof for my people'"
+        },
+        {
+          "id": "b",
+          "text": "'I believe completely — but I wanted to test my own faith'"
+        },
+        {
+          "id": "c",
+          "text": "'Yes, I believe — but to be stronger in Faith'"
+        },
+        {
+          "id": "d",
+          "text": "'Forgive me, my Lord — I should not have asked'"
+        }
       ],
       "correct_option_id": "c",
       "citation": "Quran 2:260 — Ibrahim and the four birds",
@@ -104,10 +139,22 @@
       "type": "factual",
       "prompt": "When Ibrahim and Ismail built the Ka'bah together, what were they saying as they raised the walls?",
       "options": [
-        {"id": "a", "text": "SubhanAllah — glorifying Allah with each stone laid"},
-        {"id": "b", "text": "'Our Lord! Accept this service from us. Verily, You are the All-Hearer, the All-Knower.'"},
-        {"id": "c", "text": "The first call to Hajj, inviting all humanity to come"},
-        {"id": "d", "text": "They worked in silence, as the work was ibaadah itself"}
+        {
+          "id": "a",
+          "text": "SubhanAllah — glorifying Allah with each stone laid"
+        },
+        {
+          "id": "b",
+          "text": "'Our Lord! Accept this service from us. Verily, You are the All-Hearer, the All-Knower.'"
+        },
+        {
+          "id": "c",
+          "text": "The first call to Hajj, inviting all humanity to come"
+        },
+        {
+          "id": "d",
+          "text": "They worked in silence, as the work was ibaadah itself"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Quran 2:127 — confirmed in Sahih al-Bukhari via Ibn Abbas",
@@ -118,10 +165,22 @@
       "type": "factual",
       "prompt": "What happened when Ibrahim smashed all the idols in the temple except the largest one?",
       "options": [
-        {"id": "a", "text": "He was immediately arrested by the priests who had stayed behind"},
-        {"id": "b", "text": "He hung the axe on the neck of the largest idol and left"},
-        {"id": "c", "text": "He placed a sign saying the biggest idol was responsible"},
-        {"id": "d", "text": "He burned the idols and scattered the ashes"}
+        {
+          "id": "a",
+          "text": "He was immediately arrested by the priests who had stayed behind"
+        },
+        {
+          "id": "b",
+          "text": "He hung the axe on the neck of the largest idol and left"
+        },
+        {
+          "id": "c",
+          "text": "He placed a sign saying the biggest idol was responsible"
+        },
+        {
+          "id": "d",
+          "text": "He burned the idols and scattered the ashes"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Quran 21:57-58, Ibn Kathir, Stories of the Prophets",
@@ -132,10 +191,22 @@
       "type": "reflective",
       "prompt": "Ibrahim was seven years old when he first questioned his father about the idols — and laughed. His rejection of falsehood was instinctive, before formal prophethood. Which of these best describes how your own fitrah speaks to you?",
       "options": [
-        {"id": "a", "text": "I feel it most in moments of beauty — something in creation points beyond itself"},
-        {"id": "b", "text": "I feel it in guilt — when I do wrong, something inside me knows before I reason it out"},
-        {"id": "c", "text": "I feel it in longing — a sense that this world is not enough"},
-        {"id": "d", "text": "I feel it in connection — when I am genuinely present with another person or in worship"}
+        {
+          "id": "a",
+          "text": "I feel it most in moments of beauty — something in creation points beyond itself"
+        },
+        {
+          "id": "b",
+          "text": "I feel it in guilt — when I do wrong, something inside me knows before I reason it out"
+        },
+        {
+          "id": "c",
+          "text": "I feel it in longing — a sense that this world is not enough"
+        },
+        {
+          "id": "d",
+          "text": "I feel it in connection — when I am genuinely present with another person or in worship"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 21:51 — 'Indeed We bestowed aforetime on Abraham his guidance'",
@@ -147,10 +218,22 @@
       "type": "reflective",
       "prompt": "When Ibrahim's father threatened to stone him, Ibrahim replied only: 'Peace be on you! I will ask forgiveness of my Lord for you.' How do you respond when family rejects or dismisses your deen?",
       "options": [
-        {"id": "a", "text": "I tend to argue back and feel frustrated when they don't understand"},
-        {"id": "b", "text": "I withdraw and stop sharing my faith to avoid conflict"},
-        {"id": "c", "text": "I try to model rather than argue — but I find it hard"},
-        {"id": "d", "text": "I make du'a for them privately while maintaining respect outwardly"}
+        {
+          "id": "a",
+          "text": "I tend to argue back and feel frustrated when they don't understand"
+        },
+        {
+          "id": "b",
+          "text": "I withdraw and stop sharing my faith to avoid conflict"
+        },
+        {
+          "id": "c",
+          "text": "I try to model rather than argue — but I find it hard"
+        },
+        {
+          "id": "d",
+          "text": "I make du'a for them privately while maintaining respect outwardly"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 19:47 — Ibrahim's response to his father's threat",
@@ -162,10 +245,22 @@
       "type": "reflective",
       "prompt": "Hajar was left in a barren valley with a nursing infant and almost no provisions. When she understood it was by Allah's command, she said: 'We are not going to be lost, since Allah Who commanded you is with us.' What does this kind of certainty look like for you?",
       "options": [
-        {"id": "a", "text": "I have moments of that certainty — but circumstances quickly crowd them out"},
-        {"id": "b", "text": "I find certainty easier in retrospect — I see Allah's hand after the difficulty, not during"},
-        {"id": "c", "text": "I struggle with certainty most when the difficulty involves others I love, not just myself"},
-        {"id": "d", "text": "I have seen enough of Allah's care to trust Him even in the moments I don't understand"}
+        {
+          "id": "a",
+          "text": "I have moments of that certainty — but circumstances quickly crowd them out"
+        },
+        {
+          "id": "b",
+          "text": "I find certainty easier in retrospect — I see Allah's hand after the difficulty, not during"
+        },
+        {
+          "id": "c",
+          "text": "I struggle with certainty most when the difficulty involves others I love, not just myself"
+        },
+        {
+          "id": "d",
+          "text": "I have seen enough of Allah's care to trust Him even in the moments I don't understand"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 14:37 — Ibrahim's du'a for Makkah after leaving Hajar",
@@ -177,10 +272,22 @@
       "type": "reflective",
       "prompt": "Ibrahim spent a lifetime calling people to tawhid — his father, his people, the king, every city he passed through. Only Sarah and Lot believed with him from his original community. Which of these most reflects your experience with dawah or sharing your faith?",
       "options": [
-        {"id": "a", "text": "I find it easy to talk about deen with strangers but hard with family"},
-        {"id": "b", "text": "The lack of response makes me question whether I'm saying the right things"},
-        {"id": "c", "text": "I've learned that I am responsible for delivery, not results — that belongs to Allah"},
-        {"id": "d", "text": "I mostly model rather than speak — I find words feel hollow without a lived example"}
+        {
+          "id": "a",
+          "text": "I find it easy to talk about deen with strangers but hard with family"
+        },
+        {
+          "id": "b",
+          "text": "The lack of response makes me question whether I'm saying the right things"
+        },
+        {
+          "id": "c",
+          "text": "I've learned that I am responsible for delivery, not results — that belongs to Allah"
+        },
+        {
+          "id": "d",
+          "text": "I mostly model rather than speak — I find words feel hollow without a lived example"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 29:26 — 'So Lut believed in him'",
@@ -192,10 +299,22 @@
       "type": "reflective",
       "prompt": "Allah called Ibrahim 'Khalilullah' — the intimate friend. A khalil is someone whose love permeates every part of a person, leaving no gap. If you were to name the biggest gap in your own love for Allah, what would it be?",
       "options": [
-        {"id": "a", "text": "In difficulty — my love wavers when I am in pain or loss"},
-        {"id": "b", "text": "In the mundane — I feel close to Allah in worship but far from Him in daily life"},
-        {"id": "c", "text": "In obedience — I love Allah but still choose what He has prohibited"},
-        {"id": "d", "text": "In trust — I love Him but I struggle to let go of control"}
+        {
+          "id": "a",
+          "text": "In difficulty — my love wavers when I am in pain or loss"
+        },
+        {
+          "id": "b",
+          "text": "In the mundane — I feel close to Allah in worship but far from Him in daily life"
+        },
+        {
+          "id": "c",
+          "text": "In obedience — I love Allah but still choose what He has prohibited"
+        },
+        {
+          "id": "d",
+          "text": "In trust — I love Him but I struggle to let go of control"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 4:125 — 'And Allah took Ibrahim as a Khalil'",

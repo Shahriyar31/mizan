@@ -12,9 +12,20 @@ import '../../features/discover/screens/divine_name_detail_screen.dart';
 import '../../features/halaqa/presentation/halaqa_screen.dart';
 import '../../features/halaqa/presentation/halaqa_circle_screen.dart';
 import '../../features/growth/presentation/growth_screen.dart';
+import '../../features/growth/presentation/growth_map_screen.dart';
+import '../../features/growth/presentation/al_meezan_screen.dart';
 import '../../features/growth/presentation/vocab_bank_screen.dart';
 import '../../features/growth/presentation/muhasabah_screen.dart';
 import '../../features/minbar/presentation/minbar_screen.dart';
+import '../../features/settings/presentation/settings_screen.dart';
+import '../../features/settings/presentation/auth_screen.dart';
+import '../../features/settings/presentation/notifications_screen.dart';
+import '../../features/settings/presentation/personalisation_screen.dart';
+import '../../features/settings/presentation/audio_screen.dart';
+import '../../features/settings/presentation/system_screen.dart';
+import '../../features/settings/presentation/language_screen.dart';
+import '../../features/settings/presentation/more_screen.dart';
+import '../../features/settings/presentation/more_content_screens.dart';
 import '../../shared/widgets/app_shell.dart';
 
 class AppRouter {
@@ -45,7 +56,12 @@ class AppRouter {
                         state.pathParameters['surahNumber'] ?? '1',
                       ) ??
                       1;
-                  return AyahDetailScreen(surahNumber: surahNumber);
+                  final ayahNumber =
+                      int.tryParse(state.uri.queryParameters['ayah'] ?? '');
+                  return AyahDetailScreen(
+                    surahNumber: surahNumber,
+                    initialAyahNumber: ayahNumber,
+                  );
                 },
               ),
             ],
@@ -108,6 +124,14 @@ class AppRouter {
             ),
             routes: [
               GoRoute(
+                path: 'map',
+                builder: (context, state) => const GrowthMapScreen(),
+              ),
+              GoRoute(
+                path: 'meezan',
+                builder: (context, state) => const AlMeezanScreen(),
+              ),
+              GoRoute(
                 path: 'vocab',
                 builder: (context, state) => const VocabBankScreen(),
               ),
@@ -121,6 +145,68 @@ class AppRouter {
             path: '/minbar',
             pageBuilder: (context, state) => const NoTransitionPage(
               child: MinbarScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/settings',
+            pageBuilder: (context, state) => const NoTransitionPage(
+              child: SettingsScreen(),
+            ),
+            routes: [
+              GoRoute(
+                path: 'notifications',
+                builder: (context, state) => const NotificationsScreen(),
+              ),
+              GoRoute(
+                path: 'personalisation',
+                builder: (context, state) => const PersonalisationScreen(),
+              ),
+              GoRoute(
+                path: 'audio',
+                builder: (context, state) => const AudioScreen(),
+              ),
+              GoRoute(
+                path: 'system',
+                builder: (context, state) => const SystemScreen(),
+              ),
+              GoRoute(
+                path: 'language',
+                builder: (context, state) => const LanguageScreen(),
+              ),
+              GoRoute(
+                path: 'more',
+                builder: (context, state) => const MoreScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'faq',
+                    builder: (context, state) => const FaqScreen(),
+                  ),
+                  GoRoute(
+                    path: 'how-it-works',
+                    builder: (context, state) => const HowItWorksScreen(),
+                  ),
+                  GoRoute(
+                    path: 'terms',
+                    builder: (context, state) => const TermsScreen(),
+                  ),
+                  GoRoute(
+                    path: 'privacy',
+                    builder: (context, state) => const PrivacyScreen(),
+                  ),
+                  GoRoute(
+                    path: 'about',
+                    builder: (context, state) => const AboutTaddaburScreen(),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          GoRoute(
+            path: '/auth',
+            pageBuilder: (context, state) => NoTransitionPage(
+              child: AuthScreen(
+                startOnLogin: state.uri.queryParameters['login'] == '1',
+              ),
             ),
           ),
         ],

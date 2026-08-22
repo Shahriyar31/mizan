@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/models/user_profile.dart';
+import '../../settings/domain/settings_providers.dart';
 import '../data/identity_repository.dart';
 
 final identityRepositoryProvider = Provider<IdentityRepository>((ref) {
@@ -33,3 +34,27 @@ class CurrentUserNotifier extends AsyncNotifier<UserProfile> {
     state = await AsyncValue.guard(() => repo.updateDisplayName(name));
   }
 }
+
+// ── Effective identity for Halaqa / Al-Minbar ───────────────────────
+//
+// Signed in via Supabase Auth → the real account (id = auth.uid(), so
+// ownership checks under RLS work). Signed out → the local on-device
+// profile, unchanged — Halaqa/Minbar keep working offline exactly as
+// before real auth existed.
+
+/// True when Halaqa/Al-Minbar should talk to Supabase instead of SQLite.
+final isOnlineIdentityProvider = Provider<bool>((ref) {
+  return ref.watch(authControllerProvider).account != null;
+});
+
+final effectiveUserProvider = FutureProvider<UserProfile>((ref) async {
+  final account = ref.watch(authControllerProvider).account;
+  if (account != null) {
+    return UserProfile(
+      id: account.id,
+      displayName: account.name,
+      createdAt: DateTime.now(),
+    );
+  }
+  return ref.watch(currentUserProvider.future);
+});

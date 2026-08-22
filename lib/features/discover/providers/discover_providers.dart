@@ -229,10 +229,8 @@ final nameListProvider = Provider<AsyncValue<List<NameListItem>>>((ref) {
         loading: () => const AsyncValue.loading(),
         error: (e, st) => AsyncValue.error(e, st),
         data: (progressMap) {
-          final orderedIds = names.map((n) => n.id).toList();
           return AsyncValue.data(names.map((name) {
             final progress = progressMap[name.id];
-            final notifier = ref.read(nameProgressProvider.notifier);
             const unlocked = true; // Names are all unlocked — not sequential
             return NameListItem(
               entry: name,
@@ -368,6 +366,8 @@ class QuizNotifier extends StateNotifier<QuizState> {
         return _ref.read(sahabiProgressProvider.notifier);
       case EntryType.divineName:
         return _ref.read(nameProgressProvider.notifier);
+      case EntryType.seerah:
+        return _ref.read(seerahProgressProvider.notifier);
     }
   }
 }
@@ -392,7 +392,7 @@ final seerahProvider = FutureProvider<List<SeerahEntry>>((ref) async {
 final seerahProgressProvider =
     StateNotifierProvider<DiscoverProgressNotifier,
         AsyncValue<Map<String, DiscoverProgress>>>(
-  (ref) => DiscoverProgressNotifier(EntryType.prophet), // reuse prophet type for now
+  (ref) => DiscoverProgressNotifier(EntryType.seerah),
 );
 
 final seerahListProvider = Provider<AsyncValue<List<SeerahListItem>>>((ref) {

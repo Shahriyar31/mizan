@@ -89,8 +89,8 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.of(context).pop(),
-                    child: const Icon(Icons.arrow_back_ios_new_rounded,
-                        color: AppColors.white, size: 20),
+                    child:  Icon(Icons.arrow_back_ios_new_rounded,
+                        color: AppColors.textPrimary, size: 20),
                   ),
                   const SizedBox(width: 16),
                   Column(
@@ -151,7 +151,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
                     ),
                     child: Center(
                       child: _saving
-                          ? const CircularProgressIndicator(
+                          ?  CircularProgressIndicator(
                               color: AppColors.white, strokeWidth: 2)
                           : Text('Save Muhasabah',
                               style: AppTypography.labelLarge(
@@ -208,7 +208,7 @@ class _QuestionField extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(question,
-                  style: AppTypography.bodyMedium(color: AppColors.white)
+                  style: AppTypography.bodyMedium(color: AppColors.textPrimary)
                       .copyWith(height: 1.5)),
             ),
           ],
@@ -217,13 +217,13 @@ class _QuestionField extends StatelessWidget {
         TextField(
           controller: controller,
           maxLines: 4,
-          style: AppTypography.bodyMedium(color: AppColors.white)
+          style: AppTypography.bodyMedium(color: AppColors.textPrimary)
               .copyWith(height: 1.6),
           decoration: InputDecoration(
             hintText: hint,
             hintStyle: AppTypography.bodySmall(color: AppColors.muted),
             filled: true,
-            fillColor: const Color(0xFF1A2535),
+            fillColor: AppColors.surfaceElevated,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide.none,
@@ -252,7 +252,7 @@ class _SavedState extends StatelessWidget {
               const Text('🤲', style: TextStyle(fontSize: 48)),
               const SizedBox(height: 20),
               Text('May Allah accept it.',
-                  style: AppTypography.displaySmall(color: AppColors.white),
+                  style: AppTypography.displaySmall(color: AppColors.textPrimary),
                   textAlign: TextAlign.center),
               const SizedBox(height: 12),
               Text(
@@ -268,7 +268,7 @@ class _SavedState extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 32, vertical: 16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1A2535),
+                    color: AppColors.surfaceElevated,
                     borderRadius: BorderRadius.circular(99),
                   ),
                   child: Text('Return home',

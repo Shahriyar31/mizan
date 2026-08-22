@@ -74,7 +74,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
           // ── Tab content ──────────────────────────────────────
           Expanded(
             child: contentAsync.when(
-              loading: () => const Center(
+              loading: () =>  Center(
                 child: CircularProgressIndicator(
                     color: AppColors.gold, strokeWidth: 2),
               ),
@@ -124,7 +124,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
             children: [
               GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
-                child: const Icon(Icons.close_rounded,
+                child:  Icon(Icons.close_rounded,
                     color: AppColors.muted, size: 20),
               ),
               const SizedBox(width: 12),
@@ -148,7 +148,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
           const SizedBox(height: 12),
           Text(
             widget.arabicText,
-            style: AppTypography.arabicBody(color: AppColors.white),
+            style: AppTypography.arabicBody(color: AppColors.textPrimary),
             textDirection: ui.TextDirection.rtl,
           ),
           const SizedBox(height: 6),
@@ -156,7 +156,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
             widget.translation,
             style: AppTypography.quoteItalic(color: AppColors.quranMuted),
           ),
-          const Divider(color: AppColors.quranSurface, height: 24),
+           Divider(color: AppColors.quranSurface, height: 24),
         ],
       ),
     );
@@ -164,7 +164,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
 
   Widget _buildBottomTabBar() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration:  BoxDecoration(
         color: AppColors.quranSurfaceDim,
         border: Border(top: BorderSide(color: AppColors.quranSurface, width: 1)),
       ),
@@ -263,7 +263,7 @@ class _WordsLayerState extends State<_WordsLayer> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Word by word',
-              style: AppTypography.displaySmall(color: AppColors.white)),
+              style: AppTypography.displaySmall(color: AppColors.textPrimary)),
           const SizedBox(height: 4),
           Text('Tap each word to reveal its meaning',
               style: AppTypography.bodySmall(color: AppColors.muted)),
@@ -287,7 +287,7 @@ class _WordsLayerState extends State<_WordsLayer> {
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: BoxDecoration(
                     color: isRevealed
-                        ? const Color(0xFF0D2A24)
+                        ? AppColors.jade.withValues(alpha: 0.12)
                         : AppColors.quranSurface,
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(
@@ -305,7 +305,7 @@ class _WordsLayerState extends State<_WordsLayer> {
                                 flex: 2,
                                 child: Text(
                                   arabic,
-                                  style: const TextStyle(
+                                  style:  TextStyle(
                                     fontFamily: 'Amiri',
                                     fontSize: 24,
                                     color: AppColors.gold,
@@ -317,14 +317,14 @@ class _WordsLayerState extends State<_WordsLayer> {
                               Container(
                                   width: 1,
                                   height: 40,
-                                  color: const Color(0xFF2B3A4A)),
+                                  color: AppColors.quranBorder),
                               const SizedBox(width: 14),
                               Expanded(
                                 flex: 3,
                                 child: Text(
                                   meaning,
                                   style: AppTypography.bodyMedium(
-                                      color: AppColors.white),
+                                      color: AppColors.textPrimary),
                                 ),
                               ),
                             ],
@@ -334,15 +334,15 @@ class _WordsLayerState extends State<_WordsLayer> {
                             children: [
                               Text(
                                 arabic,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontFamily: 'Amiri',
                                   fontSize: 24,
-                                  color: Colors.white,
+                                  color: AppColors.gold.withValues(alpha: 0.7),
                                   height: 1.6,
                                 ),
                                 textDirection: ui.TextDirection.rtl,
                               ),
-                              const Icon(Icons.touch_app_rounded,
+                               Icon(Icons.touch_app_rounded,
                                   color: AppColors.muted, size: 18),
                             ],
                           ),
@@ -390,7 +390,7 @@ class _ContextLayer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Context',
-              style: AppTypography.displaySmall(color: AppColors.white)),
+              style: AppTypography.displaySmall(color: AppColors.textPrimary)),
           const SizedBox(height: 4),
           if (theme.isNotEmpty)
             Text(theme, style: AppTypography.bodySmall(color: AppColors.muted)),
@@ -451,12 +451,12 @@ class _ContextLayer extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   theme.isNotEmpty ? theme : content!.context,
-                  style: AppTypography.bodyMedium(color: AppColors.white)
+                  style: AppTypography.bodyMedium(color: AppColors.textPrimary)
                       .copyWith(height: 1.7),
                 ),
                 if (content!.context.isNotEmpty && theme.isNotEmpty) ...[
                   const SizedBox(height: 14),
-                  const Divider(color: AppColors.quranBorder),
+                   Divider(color: AppColors.quranBorder),
                   const SizedBox(height: 14),
                   Text("Ibn Kathir's Introduction",
                       style: AppTypography.caption(color: AppColors.muted)
@@ -464,7 +464,7 @@ class _ContextLayer extends StatelessWidget {
                   const SizedBox(height: 8),
                   _ParagraphFlow(
                     text: _contextIntro(content!.context),
-                    style: AppTypography.bodySmall(color: AppColors.white)
+                    style: AppTypography.bodySmall(color: AppColors.textPrimary)
                         .copyWith(height: 1.7),
                   ),
                 ],
@@ -573,7 +573,7 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Scholar insight',
-              style: AppTypography.displaySmall(color: AppColors.white)),
+              style: AppTypography.displaySmall(color: AppColors.textPrimary)),
           const SizedBox(height: 20),
 
           // Scholar card
@@ -606,7 +606,7 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
                     children: [
                       Text(scholar.scholarName,
                           style:
-                              AppTypography.labelLarge(color: AppColors.white)),
+                              AppTypography.labelLarge(color: AppColors.textPrimary)),
                       Text('${scholar.scholarEra} · ${scholar.work}',
                           style: AppTypography.caption()),
                     ],
@@ -639,7 +639,7 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
                           ? scholar.insight.substring(0, 500)
                           : scholar.insight),
                   style: AppTypography.bodyMedium(
-                      color: const Color(0xFFD4DDE4)),
+                      color: AppColors.textPrimary),
                 ),
               ],
             ),
@@ -651,12 +651,12 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF110D1E),
+                color: AppColors.surfaceDim,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
                 scholar.arabicQuote,
-                style: const TextStyle(
+                style:  TextStyle(
                   fontFamily: 'Amiri',
                   fontSize: 20,
                   color: AppColors.gold,
@@ -720,7 +720,7 @@ class _IsnadLayer extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Hadith & narration',
-              style: AppTypography.displaySmall(color: AppColors.white)),
+              style: AppTypography.displaySmall(color: AppColors.textPrimary)),
           const SizedBox(height: 20),
           if (isnad.hadithText.isNotEmpty) ...[
             Container(
@@ -735,7 +735,7 @@ class _IsnadLayer extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('"${isnad.hadithText}"',
-                      style: AppTypography.quoteItalic(color: AppColors.white)),
+                      style: AppTypography.quoteItalic(color: AppColors.textPrimary)),
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -835,7 +835,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
         children: [
           // Header
           Text('Your reflection',
-              style: AppTypography.displaySmall(color: AppColors.white)),
+              style: AppTypography.displaySmall(color: AppColors.textPrimary)),
           const SizedBox(height: 4),
           Text('Private — only you will ever read this.',
               style: AppTypography.bodySmall(color: AppColors.muted)),
@@ -849,8 +849,8 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  const Color(0xFF0D2218),
-                  AppColors.quranSurface,
+                  AppColors.jade.withValues(alpha: 0.16),
+                  AppColors.jade.withValues(alpha: 0.05),
                 ],
               ),
               borderRadius: BorderRadius.circular(14),
@@ -867,7 +867,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                   'and the narrations. Write one sentence — what does '
                   'this ayah mean for your life right now?',
                   style:
-                      AppTypography.bodySmall(color: AppColors.quranMuted),
+                      AppTypography.bodySmall(color: AppColors.textSecondary),
                 ),
               ],
             ),
@@ -887,7 +887,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                   TextField(
                     controller: _controller,
                     maxLines: 6,
-                    style: AppTypography.bodyMedium(color: AppColors.white),
+                    style: AppTypography.bodyMedium(color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       hintText:
                           'Write your reflection here — even one sentence is enough...',
@@ -902,7 +902,7 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(14),
                         borderSide:
-                            const BorderSide(color: AppColors.jade, width: 1.5),
+                             BorderSide(color: AppColors.jade, width: 1.5),
                       ),
                     ),
                     onChanged: (_) => setState(() => _saved = false),
@@ -1028,7 +1028,7 @@ class _RichArabicText extends StatelessWidget {
   Widget build(BuildContext context) {
     final segments = _split(text);
     final baseStyle =
-        style ?? AppTypography.bodyMedium(color: const Color(0xFFD4DDE4));
+        style ?? AppTypography.bodyMedium(color: AppColors.textPrimary);
     return RichText(
       softWrap: true,
       overflow: TextOverflow.visible,
@@ -1037,7 +1037,7 @@ class _RichArabicText extends StatelessWidget {
           if (seg['type'] == 'arabic') {
             return TextSpan(
               text: '  ${seg['text']}  ',
-              style: const TextStyle(
+              style:  TextStyle(
                 fontFamily: 'Amiri',
                 fontSize: 20,
                 color: AppColors.gold,
@@ -1149,7 +1149,7 @@ class _NoCuratedContent extends StatelessWidget {
             const Text('📖', style: TextStyle(fontSize: 48)),
             const SizedBox(height: 16),
             Text('${LayerMeta.names[layerIndex]} layer',
-                style: AppTypography.labelLarge(color: AppColors.white)),
+                style: AppTypography.labelLarge(color: AppColors.textPrimary)),
             const SizedBox(height: 8),
             Text(
               'Content for this ayah is being prepared.',

@@ -55,7 +55,7 @@ class _DivineNameDetailScreenState
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Scaffold(
+      return  Scaffold(
         backgroundColor: AppColors.night,
         body: Center(
             child: CircularProgressIndicator(

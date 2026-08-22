@@ -45,7 +45,7 @@ class _SheetShell extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
-        decoration: const BoxDecoration(
+        decoration:  BoxDecoration(
           color: AppColors.surfaceElevated,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
@@ -291,11 +291,11 @@ class _SheetTextField extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide:  BorderSide(color: AppColors.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.gold, width: 1.5),
+          borderSide:  BorderSide(color: AppColors.gold, width: 1.5),
         ),
       ),
     );
@@ -327,7 +327,7 @@ class _PrimaryButton extends StatelessWidget {
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
         child: busy
-            ? const SizedBox(
+            ?  SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(

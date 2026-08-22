@@ -120,4 +120,40 @@ class LayerRepository {
     if (maps.isEmpty) return null;
     return maps.first['reflection'] as String;
   }
+
+  // ── Aggregate stats (for the Growth Map) ──────────────────────
+  // Read-only roll-ups over the same tables. Kept here (rather than in a
+  // separate stats class) so the SQL lives next to the schema it depends on.
+
+  /// Total tafseer layers the user has opened across every ayah — one row per
+  /// (surah, ayah, layer) that was ever unlocked. This is the "depth of
+  /// engagement" signal: reading five layers of one ayah counts as five.
+  Future<int> countUnlocks() async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS c FROM layer_unlocks',
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
+  /// Distinct ayahs the user has opened at least one tafseer layer on — the
+  /// "breadth" companion to [countUnlocks], used only for the stat-card detail.
+  Future<int> countAyahsTouched() async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      "SELECT COUNT(DISTINCT surah_number || ':' || ayah_number) AS c "
+      'FROM layer_unlocks',
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
+  /// Personal ayah reflections written. Excludes the Muhasabah sentinel row,
+  /// which the Muhasabah screen stores at (surah_number = 0, ayah_number = 0).
+  Future<int> countReflections() async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(*) AS c FROM reflections WHERE surah_number != 0',
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
 }

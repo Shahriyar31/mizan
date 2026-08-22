@@ -76,7 +76,7 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
             const SizedBox(height: 8),
             Expanded(
               child: feed.when(
-                loading: () => const Center(
+                loading: () =>  Center(
                   child: CircularProgressIndicator(color: AppColors.gold),
                 ),
                 error: (e, _) => _ErrorState(
@@ -111,7 +111,7 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
           i < count - 1 ? const SizedBox(height: 22) : const SizedBox.shrink(),
       itemBuilder: (context, i) {
         if (i >= count) {
-          return const Padding(
+          return  Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: SizedBox(
@@ -179,7 +179,7 @@ class _EmptyFeed extends StatelessWidget {
                   border:
                       Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
                 ),
-                child: const Icon(Icons.campaign_rounded,
+                child:  Icon(Icons.campaign_rounded,
                     color: AppColors.gold, size: 38),
               ),
               const SizedBox(height: 24),
@@ -211,7 +211,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline_rounded,
+           Icon(Icons.error_outline_rounded,
               color: AppColors.error, size: 40),
           const SizedBox(height: 12),
           Text('Could not load the feed',

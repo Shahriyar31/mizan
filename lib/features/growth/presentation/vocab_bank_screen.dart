@@ -27,7 +27,7 @@ class VocabBankScreen extends ConsumerWidget {
           // ── Word List ────────────────────────────────────────
           Expanded(
             child: wordsAsync.when(
-              loading: () => const Center(
+              loading: () =>  Center(
                 child: CircularProgressIndicator(
                   color: AppColors.gold,
                   strokeWidth: 2,
@@ -87,16 +87,16 @@ class _VocabHeader extends StatelessWidget {
             children: [
               GestureDetector(
                 onTap: () => Navigator.of(context).pop(),
-                child: const Icon(
+                child:  Icon(
                   Icons.arrow_back_ios_rounded,
-                  color: AppColors.white,
+                  color: AppColors.textPrimary,
                   size: 20,
                 ),
               ),
               const SizedBox(width: 12),
               Text(
                 'Vocabulary Bank',
-                style: AppTypography.displaySmall(color: AppColors.white),
+                style: AppTypography.displaySmall(color: AppColors.textPrimary),
               ),
             ],
           ),
@@ -163,7 +163,7 @@ class _VocabWordCard extends StatelessWidget {
                 children: [
                   Text(
                     word.arabic,
-                    style: AppTypography.arabicBody(color: AppColors.white),
+                    style: AppTypography.arabicBody(color: AppColors.textPrimary),
                     textDirection: TextDirection.rtl,
                   ),
                   Text(
@@ -189,7 +189,7 @@ class _VocabWordCard extends StatelessWidget {
                 children: [
                   Text(
                     word.meaning,
-                    style: AppTypography.labelMedium(color: AppColors.white),
+                    style: AppTypography.labelMedium(color: AppColors.textPrimary),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -276,7 +276,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'No words saved yet',
-              style: AppTypography.labelLarge(color: AppColors.white),
+              style: AppTypography.labelLarge(color: AppColors.textPrimary),
             ),
             const SizedBox(height: 8),
             Text(

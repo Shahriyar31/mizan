@@ -1,11 +1,12 @@
 {
   "id": "battle_badr",
   "type": "seerah",
-  "sequence_number": 5,
+  "sequence_number": 18,
   "title": "The Battle of Badr",
   "title_arabic": "غَزْوَةُ بَدْر",
   "year": "17 Ramadan, 2 AH — 13 March 624 CE",
   "era": "The Day of Criterion",
+  "group": "The Madinan Years",
   "teaser": "313 men. 2 horses. 70 camels. Against an army of 1,000. And Allah called it 'The Day of Criterion.'",
   "layers": [
     {

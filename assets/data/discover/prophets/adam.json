@@ -6,8 +6,8 @@
   "name_translit": "Ādam",
   "quranic_mention": "Mentioned by name 25 times in the Quran",
   "era": "The First Human",
+  "group": "The First Generations",
   "teaser": "Before he was a prophet, he was clay. Before he spoke, Allah taught him the names of all things. His first act of consciousness was a sneeze — and his first word was praise.",
-
   "layers": [
     {
       "layer_number": 1,
@@ -55,17 +55,28 @@
       "hadith_ref": "Sahih al-Bukhari — argument between Adam and Moses"
     }
   ],
-
   "quiz": [
     {
       "number": 1,
       "type": "factual",
       "prompt": "What made the Angel of Death different from Gabriel and Michael when sent to collect clay for Adam's creation?",
       "options": [
-        {"id": "a", "text": "He was stronger than the other angels"},
-        {"id": "b", "text": "He refused to take any clay at all"},
-        {"id": "c", "text": "He took the clay despite the earth seeking refuge with Allah"},
-        {"id": "d", "text": "He took clay only from Mecca"}
+        {
+          "id": "a",
+          "text": "He was stronger than the other angels"
+        },
+        {
+          "id": "b",
+          "text": "He refused to take any clay at all"
+        },
+        {
+          "id": "c",
+          "text": "He took the clay despite the earth seeking refuge with Allah"
+        },
+        {
+          "id": "d",
+          "text": "He took clay only from Mecca"
+        }
       ],
       "correct_option_id": "c",
       "citation": "Ibn Kathir, Stories of the Prophets — Angel of Death narration",
@@ -76,10 +87,22 @@
       "type": "factual",
       "prompt": "According to the hadith narrated by Abu Musa al-Ash'ari, why are the children of Adam of different colours and temperaments?",
       "options": [
-        {"id": "a", "text": "Because Adam and Eve had many children over centuries"},
-        {"id": "b", "text": "Because Allah created them from clay taken from different lands"},
-        {"id": "c", "text": "Because Iblis influenced some of Adam's children"},
-        {"id": "d", "text": "Because Adam prayed for diversity among his progeny"}
+        {
+          "id": "a",
+          "text": "Because Adam and Eve had many children over centuries"
+        },
+        {
+          "id": "b",
+          "text": "Because Allah created them from clay taken from different lands"
+        },
+        {
+          "id": "c",
+          "text": "Because Iblis influenced some of Adam's children"
+        },
+        {
+          "id": "d",
+          "text": "Because Adam prayed for diversity among his progeny"
+        }
       ],
       "correct_option_id": "b",
       "citation": "Sahih al-Bukhari — narrated by Abu Musa al-Ash'ari",
@@ -90,10 +113,22 @@
       "type": "factual",
       "prompt": "What was the first thing Adam said after Allah breathed the spirit into him?",
       "options": [
-        {"id": "a", "text": "He called out to Eve"},
-        {"id": "b", "text": "He asked Allah what he had been created for"},
-        {"id": "c", "text": "He sneezed, then said 'All praise belongs to Allah'"},
-        {"id": "d", "text": "He looked at the fruits of Paradise and reached for them"}
+        {
+          "id": "a",
+          "text": "He called out to Eve"
+        },
+        {
+          "id": "b",
+          "text": "He asked Allah what he had been created for"
+        },
+        {
+          "id": "c",
+          "text": "He sneezed, then said 'All praise belongs to Allah'"
+        },
+        {
+          "id": "d",
+          "text": "He looked at the fruits of Paradise and reached for them"
+        }
       ],
       "correct_option_id": "c",
       "citation": "Sahih al-Bukhari — narrated by Abu Hurairah",
@@ -104,10 +139,22 @@
       "type": "factual",
       "prompt": "When Moses blamed Adam for causing mankind to be expelled from Paradise, how did Adam respond?",
       "options": [
-        {"id": "a", "text": "Adam admitted the mistake and asked Moses for forgiveness"},
-        {"id": "b", "text": "Adam said the expulsion was Iblis's fault, not his"},
-        {"id": "c", "text": "Adam asked Moses why he blamed him for something written in fate before his creation"},
-        {"id": "d", "text": "Adam said Paradise was never truly meant for mankind"}
+        {
+          "id": "a",
+          "text": "Adam admitted the mistake and asked Moses for forgiveness"
+        },
+        {
+          "id": "b",
+          "text": "Adam said the expulsion was Iblis's fault, not his"
+        },
+        {
+          "id": "c",
+          "text": "Adam asked Moses why he blamed him for something written in fate before his creation"
+        },
+        {
+          "id": "d",
+          "text": "Adam said Paradise was never truly meant for mankind"
+        }
       ],
       "correct_option_id": "c",
       "citation": "Sahih al-Bukhari — Adam and Moses debate, narrated by Abu Hurairah and Umar ibn al-Khattab",
@@ -118,10 +165,22 @@
       "type": "factual",
       "prompt": "Who did Adam appoint as his successor before he died, and what did that person receive from Allah?",
       "options": [
-        {"id": "a", "text": "Cain — he received the Book of Allah"},
-        {"id": "b", "text": "Abel — he received prophethood"},
-        {"id": "c", "text": "Seth (Shiith) — he received fifty of the one hundred and four psalms"},
-        {"id": "d", "text": "Idris — he received the first written revelation"}
+        {
+          "id": "a",
+          "text": "Cain — he received the Book of Allah"
+        },
+        {
+          "id": "b",
+          "text": "Abel — he received prophethood"
+        },
+        {
+          "id": "c",
+          "text": "Seth (Shiith) — he received fifty of the one hundred and four psalms"
+        },
+        {
+          "id": "d",
+          "text": "Idris — he received the first written revelation"
+        }
       ],
       "correct_option_id": "c",
       "citation": "Sahih al-Bukhari — Abu Dhar narration on the psalms of Seth",
@@ -132,10 +191,22 @@
       "type": "reflective",
       "prompt": "Adam forgot. He was explicitly warned about Iblis, yet the whispers over time wore down his resolve. Which of these most resonates with how you experience spiritual drift?",
       "options": [
-        {"id": "a", "text": "I know what is right but I let it slide gradually, not all at once"},
-        {"id": "b", "text": "I am most vulnerable when I convince myself the harm is small"},
-        {"id": "c", "text": "I drift when I lose the daily habits that keep me connected"},
-        {"id": "d", "text": "External pressures — people, environment — pull me more than internal temptation"}
+        {
+          "id": "a",
+          "text": "I know what is right but I let it slide gradually, not all at once"
+        },
+        {
+          "id": "b",
+          "text": "I am most vulnerable when I convince myself the harm is small"
+        },
+        {
+          "id": "c",
+          "text": "I drift when I lose the daily habits that keep me connected"
+        },
+        {
+          "id": "d",
+          "text": "External pressures — people, environment — pull me more than internal temptation"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 20:115 — 'Indeed We made a covenant with Adam before, but he forgot'",
@@ -147,10 +218,22 @@
       "type": "reflective",
       "prompt": "Allah told the angels about Adam's creation — He did not ask their opinion. Yet they expressed concern. Allah answered: 'I know what you do not know.' Where in your life do you most need this reminder?",
       "options": [
-        {"id": "a", "text": "When a trial I did not choose is forcing me to grow"},
-        {"id": "b", "text": "When I see suffering in the world and cannot understand its purpose"},
-        {"id": "c", "text": "When my own plans are disrupted by something I cannot control"},
-        {"id": "d", "text": "When I see someone else being given what I think I deserve more"}
+        {
+          "id": "a",
+          "text": "When a trial I did not choose is forcing me to grow"
+        },
+        {
+          "id": "b",
+          "text": "When I see suffering in the world and cannot understand its purpose"
+        },
+        {
+          "id": "c",
+          "text": "When my own plans are disrupted by something I cannot control"
+        },
+        {
+          "id": "d",
+          "text": "When I see someone else being given what I think I deserve more"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 2:30 — 'I know that which you do not know'",
@@ -162,10 +245,22 @@
       "type": "reflective",
       "prompt": "Adam's first words after receiving the spirit were praise. His last words before death were a longing for Paradise. What does this say about the human soul?",
       "options": [
-        {"id": "a", "text": "We begin in gratitude but spend our lives forgetting it"},
-        {"id": "b", "text": "We are always homesick for something we cannot quite name"},
-        {"id": "c", "text": "Paradise is not a reward — it is where we truly belong"},
-        {"id": "d", "text": "The soul knows its origin and always tries to return to it"}
+        {
+          "id": "a",
+          "text": "We begin in gratitude but spend our lives forgetting it"
+        },
+        {
+          "id": "b",
+          "text": "We are always homesick for something we cannot quite name"
+        },
+        {
+          "id": "c",
+          "text": "Paradise is not a reward — it is where we truly belong"
+        },
+        {
+          "id": "d",
+          "text": "The soul knows its origin and always tries to return to it"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 2:37 — 'Then Adam received from his Lord Words. His Lord pardoned him.'",
@@ -177,10 +272,22 @@
       "type": "reflective",
       "prompt": "Iblis's sin was not ignorance — he knew Allah, had worshipped for eons, and understood the command. His sin was pride. How does pride most often show up in your own spiritual life?",
       "options": [
-        {"id": "a", "text": "I find it hard to admit I was wrong, especially in religious matters"},
-        {"id": "b", "text": "I compare my practice to others and secretly feel superior"},
-        {"id": "c", "text": "I resist advice from others because I think I know better"},
-        {"id": "d", "text": "I struggle to make du'a because asking feels like admitting weakness"}
+        {
+          "id": "a",
+          "text": "I find it hard to admit I was wrong, especially in religious matters"
+        },
+        {
+          "id": "b",
+          "text": "I compare my practice to others and secretly feel superior"
+        },
+        {
+          "id": "c",
+          "text": "I resist advice from others because I think I know better"
+        },
+        {
+          "id": "d",
+          "text": "I struggle to make du'a because asking feels like admitting weakness"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 7:11-12 — 'He refused and was proud and was one of the disbelievers'",
@@ -192,10 +299,22 @@
       "type": "reflective",
       "prompt": "Adam and Eve's first words after the mistake were: 'Our Lord! We have wronged ourselves.' They did not blame each other or Iblis. What does this teach you about how you respond to your own failures?",
       "options": [
-        {"id": "a", "text": "I find it easier to blame circumstances than to take full ownership"},
-        {"id": "b", "text": "I take responsibility but then struggle to move past the guilt"},
-        {"id": "c", "text": "I oscillate between blaming myself too harshly and making excuses"},
-        {"id": "d", "text": "I have learned to own my mistakes quickly — the delay only makes things worse"}
+        {
+          "id": "a",
+          "text": "I find it easier to blame circumstances than to take full ownership"
+        },
+        {
+          "id": "b",
+          "text": "I take responsibility but then struggle to move past the guilt"
+        },
+        {
+          "id": "c",
+          "text": "I oscillate between blaming myself too harshly and making excuses"
+        },
+        {
+          "id": "d",
+          "text": "I have learned to own my mistakes quickly — the delay only makes things worse"
+        }
       ],
       "correct_option_id": null,
       "citation": "Quran 7:23 — 'Our Lord! We have wronged ourselves. If You forgive us not, and bestow not upon us Your Mercy, we shall certainly be of the losers.'",

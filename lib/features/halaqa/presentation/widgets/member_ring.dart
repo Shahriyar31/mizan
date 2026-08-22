@@ -55,11 +55,11 @@ class MemberRing extends StatelessWidget {
                         top: -2,
                         child: Container(
                           padding: const EdgeInsets.all(2),
-                          decoration: const BoxDecoration(
+                          decoration:  BoxDecoration(
                             color: AppColors.night,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(Icons.star_rounded,
+                          child:  Icon(Icons.star_rounded,
                               size: 13, color: AppColors.gold),
                         ),
                       ),

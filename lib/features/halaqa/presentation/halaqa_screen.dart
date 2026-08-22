@@ -48,7 +48,7 @@ class HalaqaScreen extends ConsumerWidget {
             _header(),
             Expanded(
               child: circles.when(
-                loading: () => const Center(
+                loading: () =>  Center(
                   child: CircularProgressIndicator(color: AppColors.gold),
                 ),
                 error: (e, _) => _ErrorState(
@@ -115,7 +115,7 @@ class _EmptyState extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(color: AppColors.jade.withValues(alpha: 0.3)),
               ),
-              child: const Icon(Icons.people_rounded,
+              child:  Icon(Icons.people_rounded,
                   color: AppColors.jade, size: 38),
             ),
             const SizedBox(height: 24),
@@ -149,7 +149,7 @@ class _EmptyState extends StatelessWidget {
               child: OutlinedButton(
                 onPressed: onJoin,
                 style: OutlinedButton.styleFrom(
-                  side: const BorderSide(color: AppColors.border),
+                  side:  BorderSide(color: AppColors.border),
                   padding: const EdgeInsets.symmetric(vertical: 15),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -280,7 +280,7 @@ class _CircleCard extends ConsumerWidget {
                   color: AppColors.gold.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.groups_rounded,
+                child:  Icon(Icons.groups_rounded,
                     color: AppColors.gold, size: 22),
               ),
               const SizedBox(width: 14),
@@ -302,7 +302,7 @@ class _CircleCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded,
+               Icon(Icons.chevron_right_rounded,
                   color: AppColors.muted, size: 22),
             ],
           ),
@@ -323,7 +323,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline_rounded,
+           Icon(Icons.error_outline_rounded,
               color: AppColors.error, size: 40),
           const SizedBox(height: 12),
           Text('Could not load your circles',

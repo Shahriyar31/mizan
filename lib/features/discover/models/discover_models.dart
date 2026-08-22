@@ -7,7 +7,10 @@
 
 enum DiscoverSection { prophets, sahabah, names, seerah }
 
-enum EntryType { prophet, sahabi, divineName }
+/// Persisted as a string in `discover_progress.entry_type`. Every value must
+/// have a case in DiscoverDatabase._typeStr and a branch in _progressFromRow,
+/// otherwise progress for that section silently lands under the wrong type.
+enum EntryType { prophet, sahabi, divineName, seerah }
 
 // ── Layer model (same 5-layer pattern as Quran tab) ──────────────────────────
 
@@ -126,10 +129,15 @@ class ProphetEntry {
   final String nameEnglish; // Adam
   final String nameTranslit; // Ādam
   final String quranicMention; // "Named 25 times in the Quran"
-  final String era; // "The First Human"
+  final String era; // "The First Human" — card badge, unique per prophet
   final String teaser; // One sentence hook shown before unlock
   final List<DiscoverLayer> layers; // Always 5
   final List<QuizQuestion> quiz; // Always 10 (5 factual + 5 reflective)
+
+  /// Browse-section heading, e.g. "The House of Ibrahim". Shared by several
+  /// entries, unlike [era] which is unique per entry. Optional so older
+  /// content still loads; the UI falls back to [era].
+  final String? group;
 
   const ProphetEntry({
     required this.id,
@@ -142,6 +150,7 @@ class ProphetEntry {
     required this.teaser,
     required this.layers,
     required this.quiz,
+    this.group,
   });
 
   factory ProphetEntry.fromJson(Map<String, dynamic> j) => ProphetEntry(
@@ -153,6 +162,7 @@ class ProphetEntry {
         quranicMention: j['quranic_mention'] as String,
         era: j['era'] as String,
         teaser: j['teaser'] as String,
+        group: j['group'] as String?,
         layers: (j['layers'] as List)
             .map((l) => DiscoverLayer.fromJson(l as Map<String, dynamic>))
             .toList(),
@@ -305,6 +315,9 @@ class SeerahEntry {
   final List<DiscoverLayer> layers;
   final List<QuizQuestion> quiz;
 
+  /// Browse-section heading, e.g. "The Makkan Years". See [ProphetEntry.group].
+  final String? group;
+
   const SeerahEntry({
     required this.id,
     required this.sequenceNumber,
@@ -315,6 +328,7 @@ class SeerahEntry {
     required this.teaser,
     required this.layers,
     required this.quiz,
+    this.group,
   });
 
   factory SeerahEntry.fromJson(Map<String, dynamic> j) => SeerahEntry(
@@ -325,6 +339,7 @@ class SeerahEntry {
         year: j['year'] as String,
         era: j['era'] as String,
         teaser: j['teaser'] as String,
+        group: j['group'] as String?,
         layers: (j['layers'] as List)
             .map((l) => DiscoverLayer.fromJson(l as Map<String, dynamic>))
             .toList(),
