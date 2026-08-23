@@ -40,7 +40,7 @@ class FaqScreen extends StatelessWidget {
         ),
         (
           'Can I change the Arabic font or text size?',
-          'Yes, in Settings → Personalisation. Changes apply to the Quran '
+          'Yes, in Settings → Appearance. Changes apply to the Quran '
               'reader immediately.',
         ),
       ],

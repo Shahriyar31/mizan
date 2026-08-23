@@ -1,6 +1,12 @@
-/// Personalisation — theme, Arabic font, translation/transliteration
+/// Appearance — theme, Arabic font, translation/transliteration
 /// toggles, text sizes. Wired to `reading_preferences_provider.dart`,
 /// which the Quran reader (ayah_detail_screen.dart) reads directly.
+///
+/// The class and the route are still called "personalisation" — that name is
+/// baked into the route path and a dozen doc comments, and a URL nobody sees is
+/// not worth a churn commit. The *title* says Appearance because that is what
+/// the Settings row you tapped to get here says, and a door and the room behind
+/// it must carry the same name.
 ///
 /// "Volume buttons" (page-turn via hardware volume keys) isn't offered —
 /// no such handling exists anywhere in the app and no plugin is wired up
@@ -14,11 +20,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/branding/mizan_brand.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/mizan_tokens.dart';
+import '../../../core/theme/mizan_typography.dart';
 import '../domain/settings_providers.dart';
 import '../domain/reading_preferences_provider.dart';
 import 'widgets/settings_row.dart';
 import '../../../shared/widgets/mizan/mizan_logo.dart';
-import '../../../shared/widgets/tactile.dart';
+import '../../../shared/widgets/mizan/mizan_pressable.dart';
 
 class PersonalisationScreen extends ConsumerWidget {
   const PersonalisationScreen({super.key});
@@ -31,31 +39,15 @@ class PersonalisationScreen extends ConsumerWidget {
     final controller = ref.read(readingPreferencesProvider.notifier);
 
     return SettingsSubScaffold(
-      title: 'Personalisation',
+      title: 'Appearance',
       children: [
         const SettingsSectionLabel('Theme'),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              for (final entry in const [
-                (ThemeMode.system, 'System', Icons.brightness_auto_rounded),
-                (ThemeMode.light, 'Light', Icons.light_mode_rounded),
-                (ThemeMode.dark, 'Dark', Icons.dark_mode_rounded),
-              ])
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: _ThemeTile(
-                      icon: entry.$3,
-                      label: entry.$2,
-                      selected: mode == entry.$1,
-                      onTap: () =>
-                          ref.read(themeModeProvider.notifier).set(entry.$1),
-                    ),
-                  ),
-                ),
-            ],
+          child: _ThemeSegmented(
+            mode: mode,
+            onSelect: (value) =>
+                ref.read(themeModeProvider.notifier).set(value),
           ),
         ),
 
@@ -171,8 +163,85 @@ class PersonalisationScreen extends ConsumerWidget {
   }
 }
 
-class _ThemeTile extends StatelessWidget {
-  const _ThemeTile({
+// ══════════════════════════════════════════════════════════════════════
+//  THEME — a segmented track, not three boxes
+// ══════════════════════════════════════════════════════════════════════
+
+/// Three big bordered boxes were the wrong *shape* for this control, which is
+/// why they needed a tint, a thicker border and a raised shadow before the
+/// chosen one read as chosen. Three equal boxes say "three separate buttons,
+/// press any of them". Theme mode is one choice out of three that exclude each
+/// other, and a segmented track says exactly that with no decoration at all:
+/// one sunk groove, one raised thumb, and the thumb is wherever you last tapped.
+///
+/// The thumb is the only part carrying depth. Mizan reserves shadow for things
+/// you press, and here the raised segment *is* a press made permanent;
+/// unselected segments paint nothing, so the row stays quiet.
+class _ThemeSegmented extends StatelessWidget {
+  const _ThemeSegmented({required this.mode, required this.onSelect});
+
+  final ThemeMode mode;
+  final ValueChanged<ThemeMode> onSelect;
+
+  static const _entries = <(ThemeMode, String, IconData)>[
+    (ThemeMode.system, 'System', Icons.brightness_auto_rounded),
+    (ThemeMode.light, 'Light', Icons.light_mode_rounded),
+    (ThemeMode.dark, 'Dark', Icons.dark_mode_rounded),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(5),
+          decoration: BoxDecoration(
+            color: p.sunk,
+            borderRadius: BorderRadius.circular(MizanGeometry.pillRadius),
+            border: Border.all(
+              color: p.hairline,
+              width: MizanGeometry.hairlineWidth,
+            ),
+          ),
+          child: Row(
+            children: [
+              for (final entry in _entries)
+                Expanded(
+                  child: _ThemeSegment(
+                    icon: entry.$3,
+                    label: entry.$2,
+                    selected: mode == entry.$1,
+                    onTap: () => onSelect(entry.$1),
+                  ),
+                ),
+            ],
+          ),
+        ),
+
+        // Shown for System only. "System" is the one option whose result the
+        // control cannot show you, so it says which way the device currently
+        // falls instead of leaving you to guess.
+        if (mode == ThemeMode.system) ...[
+          const SizedBox(height: 10),
+          Padding(
+            padding: const EdgeInsets.only(left: 6),
+            child: Text(
+              'Following your device — currently '
+              '${MediaQuery.platformBrightnessOf(context) == Brightness.light ? 'light' : 'dark'}.',
+              style: MizanType.body(color: p.muted).copyWith(fontSize: 13.5),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ThemeSegment extends StatelessWidget {
+  const _ThemeSegment({
     required this.icon,
     required this.label,
     required this.selected,
@@ -186,36 +255,44 @@ class _ThemeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Tactile(
+    final p = MizanPalette.of(context);
+    // Rule #1: the gold family may not be text on cream, so the selected label
+    // takes `accentText` — bronze on light, true gold on dark — never `accent`.
+    final color = selected ? p.accentText : p.muted;
+
+    return MizanPressable(
       onTap: onTap,
-      baseColor: AppColors.surface,
-      borderRadius: 16,
-      strength: 0.8,
-      // Only the selected tile is raised.
-      raised: selected,
+      // The pressable paints nothing itself; the thumb is the AnimatedContainer
+      // below so selection eases across instead of snapping. The 1px press
+      // nudge still comes from here.
+      fill: Colors.transparent,
+      shadowsEnabled: false,
+      borderRadius: BorderRadius.circular(MizanGeometry.pillRadius),
+      semanticLabel: selected ? '$label theme, selected' : '$label theme',
       child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        duration: MizanMotion.theme,
+        curve: Curves.easeOut,
+        // 13 + 18px icon + 13 clears the 44px tap target without the track
+        // needing a fixed height.
+        padding: const EdgeInsets.symmetric(vertical: 13),
         decoration: BoxDecoration(
-          color: selected
-              ? AppColors.gold.withValues(alpha: 0.14)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: selected
-                ? AppColors.gold.withValues(alpha: 0.6)
-                : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
+          color: selected ? p.card : Colors.transparent,
+          borderRadius: BorderRadius.circular(MizanGeometry.pillRadius),
+          boxShadow: selected ? p.restShadow : null,
         ),
-        child: Column(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon,
-                size: 22, color: selected ? AppColors.gold : AppColors.muted),
-            const SizedBox(height: 8),
-            Text(label,
-                style: AppTypography.labelMedium(
-                    color: selected ? AppColors.gold : AppColors.textSecondary)),
+            Icon(icon, size: 18, color: color),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: MizanType.button(color: color).copyWith(fontSize: 14),
+              ),
+            ),
           ],
         ),
       ),
