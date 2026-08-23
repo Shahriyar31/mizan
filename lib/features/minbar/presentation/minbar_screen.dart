@@ -4,14 +4,12 @@
 /// Behaviour carried over from the previous version unchanged: pull-to-refresh,
 /// infinite scroll off [MinbarFeedNotifier.loadMore], optimistic reactions.
 ///
-/// ── The three filter chips, and what happened to one of them ──────────
-/// The mockup draws "For you · Following · Most liked".
+/// ── The three filter chips, and what each one really is ───────────────
+/// The mockup draws "For you · Following · Most liked". All three are here, but
+/// two of them are renamed to match what the app can actually do:
 ///
-///   • **Following was dropped.** There is no follow graph anywhere in this app —
-///     no table, no repository method, nothing. A "Following" tab would have had
-///     to show the same posts as "For you", which quietly tells the user they
-///     follow everyone. Restoring it needs a real `follows` relation plus a
-///     `getFeed` that can filter by it.
+///   • **"For you" became "Recent"** — the feed is strictly newest-first, and
+///     "For you" implies a personalisation model that does not exist.
 ///
 ///   • **"Most liked" became "Most reactions"**, because there is no like here —
 ///     there are three reactions. It sorts client-side over the posts already
@@ -20,8 +18,22 @@
 ///     only `limit`/`offset`, so a true site-wide "top posts" needs a server-side
 ///     sort; until then the chip reorders what you can see.
 ///
-///   • **"For you" became "Recent"** — the feed is strictly newest-first, and
-///     "For you" implies a personalisation model that does not exist.
+///   • **"Following" became "Your circles"**, and this one is a change of
+///     meaning, not of wording. There is no follow graph in this app — no table,
+///     no repository method, nothing — so a "Following" tab could only have shown
+///     the same posts as Recent, quietly telling you that you follow everyone.
+///     Halaqa membership, though, is a real relationship that already exists in
+///     the schema, so the third feed filters the public feed down to people you
+///     share a circle with (see `circleMemberIdsProvider`). Same shape as the
+///     mockup, backed by a relation that is actually there.
+///
+/// ── What "filters what you can see" costs ─────────────────────────────
+/// Recent and Most reactions are orderings, so they always show every loaded
+/// post. Your circles is a *filter*, so it can come back empty even when the
+/// feed has posts — the first page simply may not contain anyone you know. That
+/// is why its empty state offers "Load more posts" while more pages exist,
+/// instead of claiming your circles have been quiet. A server-side filter would
+/// be better and needs `getFeed` to take an author list.
 ///
 /// ── Why the compose button does not open a text box ───────────────────
 /// You cannot write a post on Al-Minbar. Every share is a snapshot of content
@@ -38,18 +50,20 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
+import '../../halaqa/domain/halaqa_providers.dart';
 import '../../identity/domain/identity_providers.dart';
 import '../domain/minbar_providers.dart';
 import '../models/minbar_models.dart';
 import 'widgets/minbar_post_tile.dart';
 
-/// How the loaded feed is ordered. See the library comment for why there are two
-/// of these and not the mockup's three.
-enum _FeedSort {
+/// The three feeds. Two are orderings over everything loaded; the third is a
+/// filter. See the library comment for what that difference costs.
+enum _FeedView {
   recent('Recent'),
-  mostReactions('Most reactions');
+  mostReactions('Most reactions'),
+  circles('Your circles');
 
-  const _FeedSort(this.label);
+  const _FeedView(this.label);
   final String label;
 }
 
@@ -63,7 +77,7 @@ class MinbarScreen extends ConsumerStatefulWidget {
 class _MinbarScreenState extends ConsumerState<MinbarScreen> {
   final ScrollController _scroll = ScrollController();
   bool _loadingMore = false;
-  _FeedSort _sort = _FeedSort.recent;
+  _FeedView _view = _FeedView.recent;
 
   @override
   void initState() {
@@ -96,19 +110,34 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
     }
   }
 
-  /// Sorts a copy — the notifier's list is shared state.
-  List<MinbarShareView> _ordered(List<MinbarShareView> feed) {
-    if (_sort == _FeedSort.recent) return feed;
-    final copy = [...feed];
-    copy.sort((a, b) {
-      final byCount = b.totalReactions.compareTo(a.totalReactions);
-      // Ties fall back to newest-first so the order is stable rather than
-      // arbitrary between rebuilds.
-      return byCount != 0
-          ? byCount
-          : b.share.sharedAt.compareTo(a.share.sharedAt);
-    });
-    return copy;
+  /// Applies the selected feed to the loaded posts. Sorts a *copy* — the
+  /// notifier's list is shared state.
+  List<MinbarShareView> _visible(
+    List<MinbarShareView> feed,
+    Set<String> circleIds,
+  ) {
+    switch (_view) {
+      case _FeedView.recent:
+        return feed;
+
+      case _FeedView.mostReactions:
+        final copy = [...feed];
+        copy.sort((a, b) {
+          final byCount = b.totalReactions.compareTo(a.totalReactions);
+          // Ties fall back to newest-first so the order is stable rather than
+          // arbitrary between rebuilds.
+          return byCount != 0
+              ? byCount
+              : b.share.sharedAt.compareTo(a.share.sharedAt);
+        });
+        return copy;
+
+      case _FeedView.circles:
+        // Newest-first is kept: this chip changes *who* you see, not the order.
+        return feed
+            .where((v) => circleIds.contains(v.share.sharedBy))
+            .toList(growable: false);
+    }
   }
 
   @override
@@ -116,6 +145,16 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
     final p = MizanPalette.of(context);
     final feed = ref.watch(minbarFeedProvider);
     final myId = ref.watch(effectiveUserProvider).valueOrNull?.id;
+
+    // Only resolved when the circles chip is active, so belonging to no circle
+    // costs a Halaqa read on the other two feeds. `valueOrNull` treats "still
+    // loading" as "no one yet", which shows the load-more empty state for a
+    // moment rather than a spinner over a feed that is already on screen.
+    final circleIds = _view == _FeedView.circles
+        ? ref.watch(circleMemberIdsProvider).valueOrNull ?? const <String>{}
+        : const <String>{};
+    final inNoCircles = _view == _FeedView.circles &&
+        (ref.watch(myHalaqasProvider).valueOrNull?.isEmpty ?? false);
 
     return Scaffold(
       backgroundColor: p.page,
@@ -139,9 +178,9 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
             children: [
               const _Header(),
               const SizedBox(height: 16),
-              _SortChips(
-                sort: _sort,
-                onChanged: (s) => setState(() => _sort = s),
+              _ViewChips(
+                view: _view,
+                onChanged: (v) => setState(() => _view = v),
               ),
               const SizedBox(height: 18),
               MizanRule(color: p.hairline),
@@ -151,17 +190,8 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
                     _EmptyFeed(),
                   ],
                 AsyncData(:final value) => [
-                    for (final view in _ordered(value))
-                      MinbarPostTile(
-                        view: view,
-                        isMine: myId != null && view.share.sharedBy == myId,
-                        onReact: (r) => ref
-                            .read(minbarFeedProvider.notifier)
-                            .react(view.share.id, r),
-                        onOpen: view.share.content.routePath == null
-                            ? null
-                            : () => context.go(view.share.content.routePath!),
-                      ),
+                    ..._buildPosts(_visible(value, circleIds),
+                        myId: myId, inNoCircles: inNoCircles),
                     if (_loadingMore) const _LoadingMore(),
                   ],
                 AsyncError(:final error) => [
@@ -177,6 +207,41 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
         ),
       ),
     );
+  }
+
+  /// The posts, or the reason there are none. Reached only when the feed itself
+  /// is non-empty, so an empty list here means the circles filter removed
+  /// everything — never that Al-Minbar is quiet.
+  List<Widget> _buildPosts(
+    List<MinbarShareView> posts, {
+    required String? myId,
+    required bool inNoCircles,
+  }) {
+    if (posts.isEmpty) {
+      return [
+        _NoCirclePosts(
+          inNoCircles: inNoCircles,
+          // Read, not watched: `hasMore` is notifier state that changes only as
+          // a result of a load we just triggered, which rebuilds this anyway.
+          canLoadMore: ref.read(minbarFeedProvider.notifier).hasMore,
+          onLoadMore: _maybeLoadMore,
+          onOpenHalaqa: () => context.go('/halaqa'),
+        ),
+      ];
+    }
+
+    return [
+      for (final view in posts)
+        MinbarPostTile(
+          view: view,
+          isMine: myId != null && view.share.sharedBy == myId,
+          onReact: (r) =>
+              ref.read(minbarFeedProvider.notifier).react(view.share.id, r),
+          onOpen: view.share.content.routePath == null
+              ? null
+              : () => context.go(view.share.content.routePath!),
+        ),
+    ];
   }
 }
 
@@ -299,33 +364,46 @@ void _showComposeHint(BuildContext context) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  SORT CHIPS
+//  FEED CHIPS
 // ══════════════════════════════════════════════════════════════════════
 
-class _SortChips extends StatelessWidget {
-  const _SortChips({required this.sort, required this.onChanged});
+/// Three chips, and they must all be reachable — the whole reason the third one
+/// exists is that only two were visible.
+///
+/// At 13px they measure roughly 75 + 132 + 118 with gaps, which fits a 411dp
+/// phone but not a 360dp one, and not either at a large text scale. So the row
+/// scrolls horizontally: on a normal screen all three sit there with nothing to
+/// scroll, and on a narrow one you can reach the third instead of meeting a
+/// yellow overflow stripe. `clipBehavior: none` keeps the selected chip's shadow
+/// from being sliced off at the edges of the viewport.
+class _ViewChips extends StatelessWidget {
+  const _ViewChips({required this.view, required this.onChanged});
 
-  final _FeedSort sort;
-  final ValueChanged<_FeedSort> onChanged;
+  final _FeedView view;
+  final ValueChanged<_FeedView> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        for (final s in _FeedSort.values)
-          Padding(
-            padding: const EdgeInsets.only(right: 10),
-            child: MizanButton(
-              label: s.label,
-              // `chip` + `selected` gives the mockup's filled-navy active pill
-              // and outlined inactive pills, and the selected state reads
-              // through fill and label colour rather than depth.
-              kind: MizanButtonKind.chip,
-              selected: s == sort,
-              onPressed: () => onChanged(s),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          for (final v in _FeedView.values)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: MizanButton(
+                label: v.label,
+                // `chip` + `selected` gives the mockup's filled-navy active pill
+                // and outlined inactive pills, and the selected state reads
+                // through fill and label colour rather than depth.
+                kind: MizanButtonKind.chip,
+                selected: v == view,
+                onPressed: () => onChanged(v),
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -402,6 +480,68 @@ class _EmptyFeed extends StatelessWidget {
             style: MizanType.translation(color: p.muted),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Shown when the circles filter emptied a feed that does have posts. Says which
+/// of the two reasons applies rather than one vague line covering both, because
+/// the fix is different: join a circle, or keep reading.
+class _NoCirclePosts extends StatelessWidget {
+  const _NoCirclePosts({
+    required this.inNoCircles,
+    required this.canLoadMore,
+    required this.onLoadMore,
+    required this.onOpenHalaqa,
+  });
+
+  final bool inNoCircles;
+  final bool canLoadMore;
+  final VoidCallback onLoadMore;
+  final VoidCallback onOpenHalaqa;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 20),
+      child: MizanSurface(
+        tone: MizanTone.card,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              inNoCircles
+                  ? 'You are not in a circle yet.'
+                  : 'Nothing from your circles on this page.',
+              style: MizanType.cardHeadline(color: p.ink),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              inNoCircles
+                  ? 'A halaqa is two to eight people who read together. Once you '
+                      'are in one, whatever they share publicly collects here.'
+                  : 'This feed filters the posts already loaded, so the people '
+                      'you read with may be further down. Recent shows everyone.',
+              style: MizanType.translation(color: p.muted),
+            ),
+            const SizedBox(height: 16),
+            if (inNoCircles)
+              MizanButton(
+                label: 'Open Halaqa',
+                kind: MizanButtonKind.secondary,
+                onPressed: onOpenHalaqa,
+              )
+            else if (canLoadMore)
+              MizanButton(
+                label: 'Load more posts',
+                kind: MizanButtonKind.secondary,
+                onPressed: onLoadMore,
+              ),
+          ],
+        ),
       ),
     );
   }

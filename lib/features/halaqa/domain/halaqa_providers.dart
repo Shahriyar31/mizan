@@ -128,6 +128,45 @@ final quietMembersProvider =
       );
 });
 
+// ── Everyone who shares a circle with me ──────────────────────────
+/// Every user id that appears in any circle I belong to — **including my own**.
+///
+/// Al-Minbar's third feed ("Your circles") filters the public feed through this
+/// set. Mine is in it on purpose: a circle is a group I am a member of, not a
+/// list of people I follow, so a post of my own missing from "your circles"
+/// would read as a bug rather than as a rule.
+///
+/// It calls the repository directly instead of watching [halaqaMembersProvider],
+/// and that is not an oversight. That provider watches each circle's *feed*, and
+/// reading a circle's feed marks you active in it — see the note on
+/// [halaqaMemberCountProvider]. Building a filter for a different screen must
+/// never quietly reset your nudge state in every circle you belong to.
+///
+/// One unreachable circle logs and is skipped rather than emptying the whole
+/// filter, because a partial set still produces a truthful — if smaller — feed.
+final circleMemberIdsProvider = FutureProvider<Set<String>>((ref) async {
+  final me = await ref.watch(effectiveUserProvider.future);
+  final circles = await ref.watch(myHalaqasProvider.future);
+  if (circles.isEmpty) return const <String>{};
+
+  final repo = ref.watch(halaqaRepositoryProvider);
+  final ids = <String>{me.id};
+  for (final circle in circles) {
+    try {
+      for (final member in await repo.getMembers(circle.id)) {
+        ids.add(member.userId);
+      }
+    } catch (e) {
+      AppLogger.error(
+        'Could not read members of circle ${circle.id}',
+        error: e,
+        tag: 'Halaqa',
+      );
+    }
+  }
+  return ids;
+});
+
 // ── The circle feed ───────────────────────────────────────────────
 // AsyncNotifier.family keyed by halaqaId. Handles reactions optimistically so
 // a tap feels instant, then persists in the background.
