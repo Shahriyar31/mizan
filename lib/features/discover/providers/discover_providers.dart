@@ -69,11 +69,36 @@ class DiscoverProgressNotifier
 
   bool isEntryUnlockedAlways(String entryId) => true;
 
-  /// User opens a layer — unlock if today allows it.
-  Future<void> unlockLayer(String entryId) async {
-    final updated = await DiscoverDatabase.unlockNextLayer(entryId, entryType);
+  /// The reader opened this story. Creates the progress row with its first layer
+  /// open — and only its first — then returns it so the caller knows where to
+  /// resume.
+  Future<DiscoverProgress> start(String entryId) async {
+    final row = await DiscoverDatabase.ensureProgress(entryId, entryType);
+    _put(row);
+    return row;
+  }
+
+  /// The reader finished layer [layerIndex] (0-based) of a story with
+  /// [layerCount] layers, so the next layer opens.
+  ///
+  /// This is the completion gate: the key to layer N+1 is finishing layer N, not
+  /// waiting a day for it. Safe to call more than once — the write takes the
+  /// larger of the two counts, so nothing closes behind a reader who goes back.
+  Future<DiscoverProgress> recordLayerRead(
+    String entryId, {
+    required int layerIndex,
+    required int layerCount,
+  }) async {
+    final open = (layerIndex + 2).clamp(1, layerCount);
+    final row = await DiscoverDatabase.openLayersUpTo(entryId, entryType, open);
+    _put(row);
+    return row;
+  }
+
+  void _put(DiscoverProgress row) {
+    if (!mounted) return;
     final current = Map<String, DiscoverProgress>.from(state.valueOrNull ?? {});
-    current[entryId] = updated;
+    current[row.entryId] = row;
     state = AsyncValue.data(current);
   }
 
@@ -109,6 +134,20 @@ final nameProgressProvider = StateNotifierProvider<DiscoverProgressNotifier,
     AsyncValue<Map<String, DiscoverProgress>>>(
   (ref) => DiscoverProgressNotifier(EntryType.divineName),
 );
+
+/// The progress notifier for a given section.
+///
+/// There is one provider per section so they reload independently, which leaves
+/// anything that only knows an [EntryType] — the shared layer reader, Home's
+/// thread rail — switching on it inline. This is that switch, written once.
+StateNotifierProvider<DiscoverProgressNotifier,
+        AsyncValue<Map<String, DiscoverProgress>>>
+    discoverProgressProviderFor(EntryType type) => switch (type) {
+          EntryType.prophet => prophetProgressProvider,
+          EntryType.sahabi => sahabiProgressProvider,
+          EntryType.divineName => nameProgressProvider,
+          EntryType.seerah => seerahProgressProvider,
+        };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3.  Derived: list of (entry, progress, isUnlocked) for UI

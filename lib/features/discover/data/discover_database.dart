@@ -136,17 +136,32 @@ class DiscoverDatabase {
     return rows.map(_progressFromRow).toList();
   }
 
-  /// Creates progress row if not exists (called when user first taps an entry)
+  /// Creates the progress row if it does not exist, with the first layer open
+  /// and nothing else. Called the moment a story is opened.
+  ///
+  /// It used to seed `layers_unlocked: 5` under a "Dev mode" comment, which would
+  /// have opened every layer of every story on first tap. It also used to be
+  /// unreachable — its only caller was [openLayersUpTo]'s ancestor, which nothing
+  /// called — so in practice no row was ever written and three separate features
+  /// silently did nothing: the layer rail on Home, "Continue reading" on the
+  /// Discover index, and the Reading/Complete filter chips.
+  ///
+  /// `last_layer_unlocked_at` is stamped here too. Opening the first layer *is*
+  /// that layer becoming open, and "Continue reading" orders by this column — so
+  /// without the stamp a story you started but did not finish would never appear
+  /// there.
   static Future<DiscoverProgress> ensureProgress(
       String entryId, EntryType type) async {
     final existing = await getProgress(entryId, type);
     if (existing != null) return existing;
 
     final db = await database;
+    final now = DateTime.now();
     await db.insert(_tProgress, {
       'entry_id': entryId,
       'entry_type': _typeStr(type),
-      'layers_unlocked': 5, // Dev mode: all layers unlocked
+      'layers_unlocked': 1,
+      'last_layer_unlocked_at': now.toIso8601String(),
       'quiz_passed': 0,
       'entry_completed': 0,
     });
@@ -154,45 +169,59 @@ class DiscoverDatabase {
     return DiscoverProgress(
       entryId: entryId,
       entryType: type,
-      layersUnlocked: 5, // must mirror the inserted value above
+      layersUnlocked: 1, // must mirror the inserted value above
+      lastLayerUnlockedAt: now,
       quizPassed: false,
       entryCompleted: false,
     );
   }
 
-  /// Call when user reads a layer — increments counter, sets timestamp.
-  /// Returns updated progress. Throws if canUnlockNextLayer is false.
-  static Future<DiscoverProgress> unlockNextLayer(
-      String entryId, EntryType type) async {
+  /// Open the story up to and including layer [count], and return the row.
+  ///
+  /// Monotonic on purpose: it takes the larger of the stored count and [count],
+  /// so re-reading layer 1 of a story you have finished cannot close layers 2–5
+  /// behind you. That also makes it safe to call on every advance without the
+  /// caller tracking what is already open.
+  ///
+  /// Replaces `unlockNextLayer`, which incremented blindly and threw a
+  /// [StateError] when it thought the day's allowance was used up. Throwing from
+  /// a "the reader tapped Continue" path is the wrong shape for this: the worst
+  /// case here is that a layer is already open, which is not an error.
+  static Future<DiscoverProgress> openLayersUpTo(
+    String entryId,
+    EntryType type,
+    int count,
+  ) async {
     final progress = await ensureProgress(entryId, type);
-    if (!progress.canUnlockNextLayer) {
-      throw StateError(
-          'Cannot unlock next layer for $entryId today — already unlocked one today or all 5 done.');
-    }
+    if (count <= progress.layersUnlocked) return progress;
 
     final db = await database;
-    final now = DateTime.now().toIso8601String();
-    final newCount = progress.layersUnlocked + 1;
+    final now = DateTime.now();
 
     await db.update(
       _tProgress,
       {
-        'layers_unlocked': newCount,
-        'last_layer_unlocked_at': now,
+        'layers_unlocked': count,
+        'last_layer_unlocked_at': now.toIso8601String(),
       },
       where: 'entry_id = ? AND entry_type = ?',
       whereArgs: [entryId, _typeStr(type)],
     );
 
     return progress.copyWith(
-      layersUnlocked: newCount,
-      lastLayerUnlockedAt: DateTime.now(),
+      layersUnlocked: count,
+      lastLayerUnlockedAt: now,
     );
   }
 
   /// Call when quiz is passed — marks entry complete.
   static Future<DiscoverProgress> markQuizPassed(
       String entryId, EntryType type) async {
+    // Guarantees the row exists before the update below. Without this the update
+    // matched nothing and the `getProgress` that followed returned null, so
+    // passing a quiz threw a null-check error on the way to the results screen.
+    await ensureProgress(entryId, type);
+
     final db = await database;
     final now = DateTime.now().toIso8601String();
 

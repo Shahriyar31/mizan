@@ -39,6 +39,7 @@ import '../../discover/models/discover_models.dart';
 import '../../discover/providers/discover_providers.dart';
 import '../data/todays_encounter.dart';
 import 'home_providers.dart';
+import 'streak_math.dart' show dayOfYear;
 
 // ══════════════════════════════════════════════════════════════════════
 //  TODAY'S THREAD
@@ -145,8 +146,7 @@ final seerahTodayProvider = FutureProvider<SeerahEntry?>((ref) async {
   if (all.isEmpty) return null;
 
   final now = DateTime.now();
-  final dayOfYear = now.difference(DateTime(now.year)).inDays;
-  var index = dayOfYear % all.length;
+  var index = dayOfYear(now) % all.length;
 
   final threadId = _parseRoute(encounterForToday().routePath)?.id;
   if (all.length > 1 && all[index].id == threadId) {

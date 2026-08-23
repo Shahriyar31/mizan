@@ -7,6 +7,8 @@
 /// full sourced content already lives.
 library;
 
+import '../domain/streak_math.dart' show dayOfYear;
+
 class Encounter {
   const Encounter({
     required this.hook,
@@ -114,16 +116,14 @@ const List<Encounter> kEncounters = [
 /// Deterministic by day-of-year — same encounter all day, changes daily.
 Encounter encounterForToday({DateTime? now}) {
   final date = now ?? DateTime.now();
-  final dayOfYear = date.difference(DateTime(date.year)).inDays;
-  return kEncounters[dayOfYear % kEncounters.length];
+  return kEncounters[dayOfYear(date) % kEncounters.length];
 }
 
 /// 1-based position of today's encounter in [kEncounters] — used only for
 /// the small stage number on the Home card ("01", "02", …).
 int encounterIndexForToday({DateTime? now}) {
   final date = now ?? DateTime.now();
-  final dayOfYear = date.difference(DateTime(date.year)).inDays;
-  return (dayOfYear % kEncounters.length) + 1;
+  return (dayOfYear(date) % kEncounters.length) + 1;
 }
 
 /// The seven morning adhkar — the same verified list the full Dhikr screen
@@ -178,6 +178,5 @@ const List<Map<String, String>> kMorningAdhkar = [
 /// Deterministic by day-of-year — same dua all day, changes daily.
 Map<String, String> duaForToday({DateTime? now}) {
   final date = now ?? DateTime.now();
-  final dayOfYear = date.difference(DateTime(date.year)).inDays;
-  return kMorningAdhkar[dayOfYear % kMorningAdhkar.length];
+  return kMorningAdhkar[dayOfYear(date) % kMorningAdhkar.length];
 }

@@ -64,6 +64,19 @@ int daysBetweenDates(DateTime from, DateTime to) {
   return (b.difference(a).inHours / 24).round();
 }
 
+/// Which day of the year [date] falls on — 0 on 1 January, 1 on 2 January.
+///
+/// Lives here, next to [daysBetweenDates], because every daily rotation in the
+/// app needs it and every one of them had written it as
+/// `date.difference(DateTime(date.year)).inDays` — the same instant-subtraction
+/// mistake described above, with a subtler symptom. `DateTime(date.year)` is
+/// midnight on 1 January, so in a zone that observes summer time the elapsed
+/// duration from then until any day after the spring-forward transition is one
+/// hour short. `inDays` floors, so between 00:00 and 01:00 local time the naive
+/// form returns *yesterday's* number: from late March to late October the whole
+/// app's daily content used to change at 01:00 rather than at midnight.
+int dayOfYear(DateTime date) => daysBetweenDates(DateTime(date.year), date);
+
 /// Decide the run from what was stored.
 ///
 /// * [count] — `streak_count` as persisted, meaningless on its own.

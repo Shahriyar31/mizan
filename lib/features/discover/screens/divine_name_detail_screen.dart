@@ -23,6 +23,7 @@ class DivineNameDetailScreen extends ConsumerStatefulWidget {
 class _DivineNameDetailScreenState
     extends ConsumerState<DivineNameDetailScreen> {
   DivineName? _entry;
+  DiscoverProgress? _progress;
   bool _loading = true;
 
   static const _layerTitles = [
@@ -39,18 +40,37 @@ class _DivineNameDetailScreenState
     _loadEntry();
   }
 
+  /// Entry and saved progress both resolved before the reader is built — see
+  /// [LayerStoryScaffold.progress] for why the row cannot arrive late.
   Future<void> _loadEntry() async {
     final entries = await ref.read(namesProvider.future);
-    try {
-      final entry = entries.firstWhere((n) => n.id == widget.nameId);
-      if (mounted) {
-        setState(() {
-          _entry = entry;
-          _loading = false;
-        });
+
+    DivineName? found;
+    for (final n in entries) {
+      if (n.id == widget.nameId) {
+        found = n;
+        break;
       }
+    }
+
+    final progress = found == null ? null : await _startProgress();
+    if (!mounted) return;
+    setState(() {
+      _entry = found;
+      _progress = progress;
+      _loading = false;
+    });
+  }
+
+  /// A story is never held shut by its own bookkeeping: if progress cannot be
+  /// read or written, it opens ungated.
+  Future<DiscoverProgress?> _startProgress() async {
+    try {
+      return await ref
+          .read(nameProgressProvider.notifier)
+          .start(widget.nameId);
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      return null;
     }
   }
 
@@ -81,6 +101,9 @@ class _DivineNameDetailScreenState
       entityRef: EntityRef(EntityType.divineName, widget.nameId),
       layers: entry.layers,
       navLabels: _layerTitles,
+      // Turns the completion gate on: one layer at a time, resuming where this
+      // reader left off.
+      progress: _progress,
       headerTitle: entry.arabic,
       headerSubtitle: '${entry.translit} — ${entry.meaningBrief}',
       headerTrailing: '#${entry.number}',

@@ -2,6 +2,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/knowledge/entity_ref.dart';
@@ -9,6 +10,7 @@ import '../../core/knowledge/reference_parser.dart';
 import '../../core/theme/mizan_tokens.dart';
 import '../../core/theme/mizan_typography.dart';
 import '../../features/discover/models/discover_models.dart';
+import '../../features/discover/providers/discover_providers.dart';
 import '../../features/knowledge/presentation/widgets/connected_sections.dart';
 import '../../features/knowledge/presentation/widgets/evidence_view.dart';
 import 'mizan/mizan_components.dart';
@@ -45,7 +47,31 @@ import 'pill_layer_navigation.dart';
 ///   • **The bookmark icon** in the hero. There is no saved-stories store for
 ///     Discover entries — [SavedAyatStore] covers ayat only. Share is real and
 ///     stays; the bookmark is left out rather than drawn dead.
-class LayerStoryScaffold extends StatefulWidget {
+///
+/// ── One layer at a time ────────────────────────────────────────────────
+/// The layer pills used to let you jump anywhere in the story from the moment it
+/// opened, and nothing recorded that you had read anything — so a five-layer
+/// story was really a five-tab article, and the progress rail on Home sat at
+/// "01 / 05" forever because the table behind it was never written to.
+///
+/// Now, when [progress] is supplied, the story opens one layer at a time and the
+/// key to the next layer is finishing the current one: read to the end, press
+/// Continue, and the next pill unlocks. Layers already opened stay freely
+/// reachable — going back to re-read layer 2 is not a step backwards and cannot
+/// close anything behind you. Reopening the story lands on the furthest layer you
+/// reached rather than starting over.
+///
+/// A time gate was considered for this and rejected. "Come back tomorrow for
+/// layer 2" makes the app the thing that decides when you may learn, and it
+/// punishes a reader who has an hour tonight and none tomorrow. Finishing is
+/// something the reader does; a clock is something done to them.
+///
+/// This is Discover's rule alone. The Qur'an reader and the hadith sections are
+/// never sequenced — any ayah and any narration is open at any time.
+///
+/// It is also not a score. The gate records order, not merit: nothing here
+/// totals, ranks or grades, so Rule #4 holds.
+class LayerStoryScaffold extends ConsumerStatefulWidget {
   const LayerStoryScaffold({
     super.key,
     required this.layers,
@@ -56,6 +82,7 @@ class LayerStoryScaffold extends StatefulWidget {
     this.onBeginQuiz,
     this.onShare,
     this.entityRef,
+    this.progress,
     this.initialLayer = 0,
   });
 
@@ -73,6 +100,9 @@ class LayerStoryScaffold extends StatefulWidget {
   final String? headerTrailing;
 
   /// Called when "Begin Quiz" is tapped on the final layer. Null hides it.
+  ///
+  /// Reaching the final layer now requires having finished the ones before it, so
+  /// the quiz is gated by construction — there is no separate check for it.
   final VoidCallback? onBeginQuiz;
 
   /// Called when the hero's share button is tapped. Null hides the button. One
@@ -89,23 +119,96 @@ class LayerStoryScaffold extends StatefulWidget {
   /// screen instead of once per layer keeps the tab switches instant.
   final EntityRef? entityRef;
 
+  /// This story's saved progress. Supplying it turns the completion gate on, and
+  /// carries the entry id and section this screen writes progress back to — so
+  /// the position shown and the position written can never disagree.
+  ///
+  /// Resolve it *before* building this widget. The row loads asynchronously and
+  /// the layer to open on is fixed when the state is created, so handing it in
+  /// late would land every reader on layer 1 and only then discover they were on
+  /// layer 4.
+  ///
+  /// Null leaves every layer open, which is the right default for a caller with
+  /// nothing to record against — better than a screen locked to layer 1 with no
+  /// way forward.
+  final DiscoverProgress? progress;
+
+  /// Where to open when there is no [progress] to resume from.
   final int initialLayer;
 
   @override
-  State<LayerStoryScaffold> createState() => _LayerStoryScaffoldState();
+  ConsumerState<LayerStoryScaffold> createState() =>
+      _LayerStoryScaffoldState();
 }
 
-class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
-  late int _currentLayer = widget.initialLayer;
-  late final Set<int> _visited = {widget.initialLayer};
+class _LayerStoryScaffoldState extends ConsumerState<LayerStoryScaffold> {
+  late int _currentLayer = _resumeIndex();
+  late final Set<int> _visited = {_currentLayer};
+
+  /// How many layers may be opened, counting from the first. Held locally as
+  /// well as persisted so pressing Continue unlocks the next pill in the same
+  /// frame instead of after a round trip to sqflite.
+  late int _unlocked = _initialUnlocked();
+
+  bool get _gated => widget.progress != null;
+
+  int _resumeIndex() {
+    final total = widget.layers.length;
+    if (total <= 1) return 0;
+    final resume = widget.progress?.resumeIndex(total) ?? widget.initialLayer;
+    return resume.clamp(0, total - 1);
+  }
+
+  int _initialUnlocked() {
+    final total = widget.layers.length;
+    if (total == 0) return 0;
+    final stored = widget.progress?.layersUnlocked;
+    // No progress row means nothing is sequenced: open the whole story.
+    if (stored == null) return total;
+    return stored.clamp(1, total);
+  }
 
   void _goTo(int index) {
     if (index == _currentLayer) return;
+    if (index >= _unlocked) {
+      // Locked. The pill is drawn locked and refuses the tap itself, so this is
+      // a backstop for any other caller rather than the path a reader hits.
+      HapticFeedback.lightImpact();
+      return;
+    }
     HapticFeedback.selectionClick();
     setState(() {
       _currentLayer = index;
       _visited.add(index);
     });
+  }
+
+  /// The reader finished this layer. Opens the next one and moves to it.
+  Future<void> _advance() async {
+    final total = widget.layers.length;
+    final next = _currentLayer + 1;
+    if (next >= total) return;
+
+    HapticFeedback.mediumImpact();
+    setState(() {
+      if (_unlocked < next + 1) _unlocked = next + 1;
+      _currentLayer = next;
+      _visited.add(next);
+    });
+
+    // Persisted after the move rather than before it. The reader has finished
+    // this layer whether or not the write lands, and making them wait on a
+    // database to turn a page is the worse trade; if the write fails they lose a
+    // saved position, not the page they are reading.
+    final progress = widget.progress;
+    if (progress == null) return;
+    await ref
+        .read(discoverProgressProviderFor(progress.entryType).notifier)
+        .recordLayerRead(
+          progress.entryId,
+          layerIndex: next - 1,
+          layerCount: total,
+        );
   }
 
   /// Whole minutes at 180 words per minute, over the entire story rather than
@@ -123,10 +226,15 @@ class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
   @override
   Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
-    final layer = _currentLayer < widget.layers.length
-        ? widget.layers[_currentLayer]
-        : null;
-    final isLastLayer = _currentLayer == widget.layers.length - 1;
+    final total = widget.layers.length;
+    final layer = _currentLayer < total ? widget.layers[_currentLayer] : null;
+    final isLastLayer = _currentLayer == total - 1;
+
+    // The dots record where the reader has been. On a gated story that is the
+    // persisted reach, so a story resumed at layer 4 shows 1–4 lit instead of
+    // pretending this session began there.
+    final reached =
+        _gated ? {for (var i = 0; i < _unlocked; i++) i} : _visited;
 
     return Scaffold(
       backgroundColor: p.page,
@@ -136,11 +244,11 @@ class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
             title: widget.headerTitle,
             subtitle: widget.headerSubtitle,
             trailing: widget.headerTrailing,
-            layerCount: widget.layers.length,
+            layerCount: total,
             readingMinutes: _readingMinutes,
             onShare: widget.onShare,
             current: _currentLayer,
-            visited: _visited,
+            visited: reached,
           ),
           Expanded(
             child: layer == null
@@ -159,6 +267,8 @@ class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
                         child: child,
                       ),
                     ),
+                    // Keyed on the layer, so each layer gets a fresh scroll view
+                    // and therefore starts at the top of its own text.
                     child: SingleChildScrollView(
                       key: ValueKey(_currentLayer),
                       padding: const EdgeInsets.fromLTRB(
@@ -170,12 +280,17 @@ class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
                       child: _LayerBody(
                         layer: layer,
                         layerIndex: _currentLayer,
-                        layerCount: widget.layers.length,
+                        layerCount: total,
                         layerLabel: widget.navLabels.length > _currentLayer
                             ? widget.navLabels[_currentLayer]
                             : layer.title,
                         isLastLayer: isLastLayer,
                         onBeginQuiz: widget.onBeginQuiz,
+                        onContinue: isLastLayer ? null : _advance,
+                        nextLabel: widget.navLabels.length > _currentLayer + 1
+                            ? widget.navLabels[_currentLayer + 1]
+                            : null,
+                        nextIsLocked: _currentLayer + 1 >= _unlocked,
                         entityRef: isLastLayer ? widget.entityRef : null,
                       ),
                     ),
@@ -186,6 +301,9 @@ class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
       bottomNavigationBar: PillLayerNavigation(
         labels: widget.navLabels,
         selectedIndex: _currentLayer,
+        // Everything from here on is still to be earned. Ungated stories pass
+        // the full count, so every pill stays open.
+        unlockedCount: _unlocked,
         // Bronze on cream, gold on navy — the chips sit on the page, so this is
         // the text-legal member of the gold family.
         accent: p.accentText,
@@ -413,6 +531,9 @@ class _LayerBody extends StatelessWidget {
     required this.layerLabel,
     required this.isLastLayer,
     required this.onBeginQuiz,
+    required this.onContinue,
+    required this.nextLabel,
+    required this.nextIsLocked,
     required this.entityRef,
   });
 
@@ -422,6 +543,19 @@ class _LayerBody extends StatelessWidget {
   final String layerLabel;
   final bool isLastLayer;
   final VoidCallback? onBeginQuiz;
+
+  /// Finishes this layer and opens the next. Null on the final layer, where the
+  /// quiz is the way forward.
+  final VoidCallback? onContinue;
+
+  /// The name of the layer [onContinue] opens, so the button says what it does.
+  final String? nextLabel;
+
+  /// Whether the next layer is still shut. False when the reader is re-reading a
+  /// layer of a story they have already been further into — in which case saying
+  /// "layer 3 opens when you continue" would be untrue.
+  final bool nextIsLocked;
+
   final EntityRef? entityRef;
 
   @override
@@ -474,6 +608,26 @@ class _LayerBody extends StatelessWidget {
         ),
         const SizedBox(height: 22),
         ReflectionCard(subtitle: layer.subtitle, accent: p.accentText),
+
+        // The way forward, at the end of the layer. Deliberately here and not in
+        // the pill bar: reaching it means having scrolled through the layer, and
+        // "finished reading" is the one thing the gate is entitled to infer.
+        if (onContinue != null) ...[
+          const SizedBox(height: 30),
+          MizanButton(
+            label: nextLabel == null ? 'Continue' : 'Continue — $nextLabel',
+            trailingIcon: Icons.arrow_forward_rounded,
+            kind: MizanButtonKind.primary,
+            expand: true,
+            onPressed: onContinue!,
+          ),
+          const SizedBox(height: 10),
+          if (nextIsLocked)
+            Text(
+              'Layer ${layerIndex + 2} of $layerCount opens when you continue.',
+              style: MizanType.body(color: p.muted).copyWith(fontSize: 13),
+            ),
+        ],
 
         if (isLastLayer && onBeginQuiz != null) ...[
           const SizedBox(height: 30),

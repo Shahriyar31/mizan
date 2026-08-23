@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../shared/models/vocab_word.dart';
 import '../../growth/data/vocab_repository.dart';
+import 'streak_math.dart' show dayOfYear;
 
 // ── Last Ayah Provider — where the reader left off ─────────────
 final lastAyahProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
@@ -96,6 +97,6 @@ final fridayQuestionProvider = Provider<Map<String, String>>((ref) {
   ];
 
   // Rotate weekly — same question all day Friday, changes next Friday
-  final weekOfYear = DateTime.now().difference(DateTime(DateTime.now().year, 1, 1)).inDays ~/ 7;
+  final weekOfYear = dayOfYear(DateTime.now()) ~/ 7;
   return questions[weekOfYear % questions.length];
 });

@@ -21,6 +21,7 @@ class SeerahDetailScreen extends ConsumerStatefulWidget {
 
 class _SeerahDetailScreenState extends ConsumerState<SeerahDetailScreen> {
   SeerahEntry? _entry;
+  DiscoverProgress? _progress;
   bool _loading = true;
 
   static const _layerTitles = [
@@ -37,18 +38,37 @@ class _SeerahDetailScreenState extends ConsumerState<SeerahDetailScreen> {
     _loadEntry();
   }
 
+  /// Entry and saved progress both resolved before the reader is built — see
+  /// [LayerStoryScaffold.progress] for why the row cannot arrive late.
   Future<void> _loadEntry() async {
     final entries = await ref.read(seerahProvider.future);
-    try {
-      final e = entries.firstWhere((s) => s.id == widget.seerahId);
-      if (mounted) {
-        setState(() {
-          _entry = e;
-          _loading = false;
-        });
+
+    SeerahEntry? found;
+    for (final s in entries) {
+      if (s.id == widget.seerahId) {
+        found = s;
+        break;
       }
+    }
+
+    final progress = found == null ? null : await _startProgress();
+    if (!mounted) return;
+    setState(() {
+      _entry = found;
+      _progress = progress;
+      _loading = false;
+    });
+  }
+
+  /// A story is never held shut by its own bookkeeping: if progress cannot be
+  /// read or written, it opens ungated.
+  Future<DiscoverProgress?> _startProgress() async {
+    try {
+      return await ref
+          .read(seerahProgressProvider.notifier)
+          .start(widget.seerahId);
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      return null;
     }
   }
 
@@ -77,6 +97,9 @@ class _SeerahDetailScreenState extends ConsumerState<SeerahDetailScreen> {
       entityRef: EntityRef(EntityType.seerah, widget.seerahId),
       layers: entry.layers,
       navLabels: _layerTitles,
+      // Turns the completion gate on: one layer at a time, resuming where this
+      // reader left off.
+      progress: _progress,
       headerTitle: entry.titleArabic,
       headerSubtitle: '${entry.title} — ${entry.year}',
       onShare: () => showShareTargetSheet(context, entry.toSharedContent()),

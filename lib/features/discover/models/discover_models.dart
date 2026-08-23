@@ -258,11 +258,27 @@ class DivineName {
 class DiscoverProgress {
   final String entryId; // matches ProphetEntry.id / etc.
   final EntryType entryType;
-  final int layersUnlocked; // 0–5, increments one per day
+
+  /// How many layers of this story the reader may open, counting from the first.
+  /// `0` before the story is started, `1` once it is, and the story's own layer
+  /// count once it has been read through.
+  ///
+  /// It used to be documented as "0–5, increments one per day" and seeded at 5
+  /// with the comment "Dev mode: all layers unlocked". Neither was ever observed,
+  /// because the only code that wrote it was unreachable: nothing in the app
+  /// called `unlockLayer`, so this table stayed empty on every device and every
+  /// reader of this field saw 0. That is why the layer rail on Home sat at
+  /// "01 / 05" no matter how much had been read.
+  final int layersUnlocked;
+
+  /// When [layersUnlocked] last moved. Also stamped when the story is started,
+  /// because opening the first layer *is* the first layer becoming open — this is
+  /// what "Continue reading" on the Discover index sorts by.
   final DateTime? lastLayerUnlockedAt;
+
   final bool quizPassed;
   final DateTime? quizPassedAt;
-  final bool entryCompleted; // all 5 layers done AND quiz passed
+  final bool entryCompleted; // all layers read AND quiz passed
 
   const DiscoverProgress({
     required this.entryId,
@@ -291,12 +307,27 @@ class DiscoverProgress {
         entryCompleted: entryCompleted ?? this.entryCompleted,
       );
 
-  // Can unlock the next layer today?
-  // Dev mode: always true — re-enable day gate before launch
-  bool get canUnlockNextLayer => layersUnlocked < 5;
+  // ── The gate ───────────────────────────────────────────────────────────────
+  //
+  // One layer at a time, and the key that opens the next one is finishing the
+  // current one — not waiting. A day gate was considered and rejected: it makes
+  // the app the thing that decides when you may learn, and a reader who has
+  // twenty minutes tonight and none tomorrow is punished for it. Finishing is
+  // something the reader does; a clock is something that happens to them.
+  //
+  // These are Discover's rules only. The Qur'an reader and the hadith sections
+  // are never gated — you may open any ayah or any narration at any time.
 
-  bool get isFullyReadable => layersUnlocked >= 5;
-  bool get quizAvailable => isFullyReadable; // Dev: show quiz when layers unlocked
+  /// Whether layer [index] (0-based) may be opened.
+  bool canOpen(int index) => index < layersUnlocked;
+
+  /// Every layer of a [total]-layer story is open.
+  bool isFullyRead(int total) => total > 0 && layersUnlocked >= total;
+
+  /// The layer to land on when this story is reopened: the furthest one opened.
+  /// A reader who got to layer 4 last night does not want to start again at 1.
+  int resumeIndex(int total) =>
+      total <= 1 ? 0 : (layersUnlocked - 1).clamp(0, total - 1);
 }
 
 // ── Quiz result model ─────────────────────────────────────────────────────────

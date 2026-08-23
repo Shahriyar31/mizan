@@ -9,24 +9,36 @@ import '../../core/theme/app_typography.dart';
 ///
 /// Five descriptive labels cannot stay legible as equal-width items on a
 /// phone, so each remains a full tap target while the row scrolls naturally.
+///
+/// Layers past [unlockedCount] are drawn shut and refuse the tap. That is the
+/// visible half of Discover's completion gate — the reader can see how much story
+/// is ahead of them without being able to skip to the end of it.
 class PillLayerNavigation extends StatelessWidget {
    PillLayerNavigation({
     super.key,
     required this.labels,
     required this.selectedIndex,
     required this.onSelected,
+    this.unlockedCount,
     Color? accent,
   })  : _accent = accent;
 
   final List<String> labels;
   final int selectedIndex;
   final ValueChanged<int> onSelected;
+
+  /// How many layers may be opened, counting from the first. Null means all of
+  /// them, which is what an ungated caller gets.
+  final int? unlockedCount;
+
   final Color? _accent;
 
   Color get accent => _accent ?? AppColors.gold;
 
   @override
   Widget build(BuildContext context) {
+    final open = unlockedCount ?? labels.length;
+
     return Container(
       decoration:  BoxDecoration(
         color: AppColors.navBg,
@@ -43,19 +55,27 @@ class PillLayerNavigation extends StatelessWidget {
             separatorBuilder: (_, __) => const SizedBox(width: 8),
             itemBuilder: (context, index) {
               final selected = index == selectedIndex;
+              final locked = index >= open;
               return Semantics(
                 button: true,
                 selected: selected,
-                label: labels[index],
+                enabled: !locked,
+                label: locked
+                    ? '${labels[index]}, locked. Finish the layer you are on to open it.'
+                    : labels[index],
                 child: Material(
                   color: Colors.transparent,
                   shape: const StadiumBorder(),
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
-                    onTap: () {
-                      if (!selected) HapticFeedback.selectionClick();
-                      onSelected(index);
-                    },
+                    // Null, not a no-op: an unresponsive pill that still ripples
+                    // reads as a broken button rather than a shut one.
+                    onTap: locked
+                        ? null
+                        : () {
+                            if (!selected) HapticFeedback.selectionClick();
+                            onSelected(index);
+                          },
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 180),
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -71,13 +91,27 @@ class PillLayerNavigation extends StatelessWidget {
                               : AppColors.border,
                         ),
                       ),
-                      child: Text(
-                        labels[index],
-                        style: AppTypography.labelMedium(
-                          color: selected
-                              ? AppColors.goldSoft
-                              : AppColors.textSecondary,
-                        ),
+                      child: Row(
+                        children: [
+                          if (locked) ...[
+                            Icon(
+                              Icons.lock_outline_rounded,
+                              size: 13,
+                              color: AppColors.muted,
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            labels[index],
+                            style: AppTypography.labelMedium(
+                              color: locked
+                                  ? AppColors.muted
+                                  : selected
+                                      ? AppColors.goldSoft
+                                      : AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),

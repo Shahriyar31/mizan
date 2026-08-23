@@ -19,6 +19,8 @@
 /// added to this list without a verified reference.
 library;
 
+import '../domain/streak_math.dart' show dayOfYear;
+
 class DailyAyah {
   const DailyAyah({
     required this.arabic,
@@ -115,6 +117,5 @@ const List<DailyAyah> kDailyAyahs = [
 /// different ayat on two screens of the same app.
 DailyAyah ayahForToday({DateTime? now}) {
   final d = now ?? DateTime.now();
-  final dayOfYear = d.difference(DateTime(d.year)).inDays;
-  return kDailyAyahs[dayOfYear % kDailyAyahs.length];
+  return kDailyAyahs[dayOfYear(d) % kDailyAyahs.length];
 }
