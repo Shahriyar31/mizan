@@ -1,7 +1,11 @@
 # UmmahAPI — key verification, authentication, and the requests production will make
 
-Status: **verification complete, network test pending, no client code written.** The
-implementation gate from the brief ("DO NOT WRITE CODE YET") is still closed.
+Status: **verification complete; all five phases are now implemented.** This
+document is kept as the key-verification record and endpoint reference. For what
+was built, see `docs/UMMAH_API_IMPLEMENTATION.md`.
+
+Where this document says "not yet implemented" or "no client code written", read it
+as describing the state at verification time, not today.
 
 ---
 
