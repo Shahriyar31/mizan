@@ -89,7 +89,10 @@ class DiscoverProgressNotifier
     required int layerIndex,
     required int layerCount,
   }) async {
-    final open = (layerIndex + 2).clamp(1, layerCount);
+    // `clamp` throws when its lower bound exceeds its upper one, so a
+    // `layerCount` of 0 would turn turning a page into an exception. Callers
+    // guard against it today; this does not rely on their continuing to.
+    final open = layerCount < 1 ? 1 : (layerIndex + 2).clamp(1, layerCount);
     final row = await DiscoverDatabase.openLayersUpTo(entryId, entryType, open);
     _put(row);
     return row;

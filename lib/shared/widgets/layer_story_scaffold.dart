@@ -9,6 +9,7 @@ import '../../core/knowledge/entity_ref.dart';
 import '../../core/knowledge/reference_parser.dart';
 import '../../core/theme/mizan_tokens.dart';
 import '../../core/theme/mizan_typography.dart';
+import '../../core/utils/logger.dart';
 import '../../features/discover/models/discover_models.dart';
 import '../../features/discover/providers/discover_providers.dart';
 import '../../features/knowledge/presentation/widgets/connected_sections.dart';
@@ -200,15 +201,28 @@ class _LayerStoryScaffoldState extends ConsumerState<LayerStoryScaffold> {
     // this layer whether or not the write lands, and making them wait on a
     // database to turn a page is the worse trade; if the write fails they lose a
     // saved position, not the page they are reading.
+    //
+    // Caught rather than left to the zone: this runs from a VoidCallback, so an
+    // uncaught sqflite failure here becomes an unhandled async error with the
+    // reader none the wiser. The log line is the difference between "it forgot
+    // where I was" being diagnosable and being a mystery.
     final progress = widget.progress;
     if (progress == null) return;
-    await ref
-        .read(discoverProgressProviderFor(progress.entryType).notifier)
-        .recordLayerRead(
-          progress.entryId,
-          layerIndex: next - 1,
-          layerCount: total,
-        );
+    try {
+      await ref
+          .read(discoverProgressProviderFor(progress.entryType).notifier)
+          .recordLayerRead(
+            progress.entryId,
+            layerIndex: next - 1,
+            layerCount: total,
+          );
+    } catch (e) {
+      AppLogger.error(
+        'Could not save reading position for ${progress.entryId}',
+        error: e,
+        tag: 'LayerStory',
+      );
+    }
   }
 
   /// Whole minutes at 180 words per minute, over the entire story rather than
@@ -252,7 +266,21 @@ class _LayerStoryScaffoldState extends ConsumerState<LayerStoryScaffold> {
           ),
           Expanded(
             child: layer == null
-                ? const SizedBox.shrink()
+                // A story with no layers in it. Unreachable from the shipped
+                // corpus — every entry is validated to carry at least one — but
+                // said out loud rather than rendered as an empty page, because a
+                // blank screen with a working header reads as a broken app and
+                // sends the reader to reload it.
+                ? Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(MizanGeometry.gutter),
+                      child: Text(
+                        'This story has not been written yet.',
+                        textAlign: TextAlign.center,
+                        style: MizanType.body(color: p.muted),
+                      ),
+                    ),
+                  )
                 : AnimatedSwitcher(
                     duration: const Duration(milliseconds: 260),
                     switchInCurve: Curves.easeOut,
