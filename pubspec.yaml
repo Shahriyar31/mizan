@@ -68,6 +68,7 @@ flutter:
     - assets/data/discover/sahabah/
     - assets/data/discover/names/
     - assets/data/discover/seerah/
+    - assets/data/knowledge/
 
   fonts:
     - family: Amiri

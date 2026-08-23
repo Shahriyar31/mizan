@@ -2,6 +2,7 @@
 /// v2 added layer_unlocks + reflections.
 /// v3 adds the social tables for Halaqa (private circles) and Al-Minbar
 /// (public feed), plus the local user_profile used as the "current user".
+/// v4 adds hadith_cache, so a hadith fetched once stays readable offline.
 library;
 
 import 'package:sqflite/sqflite.dart';
@@ -13,7 +14,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._();
   static Database? _database;
   static const String _tag = 'DatabaseService';
-  static const int _version = 3; // v3 adds social tables (Halaqa + Minbar)
+  static const int _version = 4; // v4 adds hadith_cache (knowledge layer)
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -88,7 +89,37 @@ class DatabaseService {
     // Social tables (Halaqa + Al-Minbar + local profile)
     await _createSocialTables(db);
 
+    // Knowledge platform tables (hadith cache)
+    await _createKnowledgeTables(db);
+
     AppLogger.info('Database schema created', tag: _tag);
+  }
+
+  /// Knowledge-platform tables — shared by [_onCreate] and [_onUpgrade], same
+  /// reason as [_createSocialTables]: the two paths must not drift.
+  ///
+  /// `hadith_cache` holds the text of hadiths already fetched, keyed by
+  /// (collection, number) exactly as the citations are. It is a cache, not a
+  /// source of truth: deleting it costs nothing but a refetch, and `grade` is
+  /// stored only when the source stated one.
+  Future<void> _createKnowledgeTables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS hadith_cache (
+        collection TEXT NOT NULL,
+        number     TEXT NOT NULL,
+        arabic     TEXT,
+        english    TEXT,
+        narrator   TEXT,
+        grade      TEXT,
+        book_name  TEXT,
+        chapter    TEXT,
+        fetched_at TEXT NOT NULL,
+        PRIMARY KEY (collection, number)
+      )
+    ''');
+
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_hadith_cache_fetched ON hadith_cache (fetched_at)');
   }
 
   /// Social feature tables — shared by [_onCreate] (fresh installs) and
@@ -227,6 +258,11 @@ class DatabaseService {
     if (oldVersion < 3) {
       // Social tables (Halaqa + Al-Minbar + local profile) — new in v3.
       await _createSocialTables(db);
+    }
+
+    if (oldVersion < 4) {
+      // Hadith cache — new in v4.
+      await _createKnowledgeTables(db);
     }
   }
 

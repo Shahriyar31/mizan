@@ -9,6 +9,10 @@ import '../../features/discover/screens/prophet_detail_screen.dart';
 import '../../features/discover/screens/sahabi_detail_screen.dart';
 import '../../features/discover/screens/seerah_detail_screen.dart';
 import '../../features/discover/screens/divine_name_detail_screen.dart';
+import '../../features/knowledge/presentation/hadith_detail_screen.dart';
+import '../../features/knowledge/presentation/knowledge_entity_screen.dart';
+import '../../features/knowledge/presentation/knowledge_index_screen.dart';
+import '../knowledge/entity_ref.dart';
 import '../../features/halaqa/presentation/halaqa_screen.dart';
 import '../../features/halaqa/presentation/halaqa_circle_screen.dart';
 import '../../features/growth/presentation/growth_screen.dart';
@@ -222,6 +226,77 @@ class AppRouter {
                 ],
               ),
             ],
+          ),
+          // ── The knowledge platform ───────────────────────────────────
+          //
+          // Inside the shell so the bottom bar stays put: following a
+          // connection is navigation within the app, not a modal detour.
+          // Every one of these is pushed, never gone to, so Adam → Bukhari
+          // 3326 → Creation unwinds hop by hop on back.
+          //
+          // The four Discover types keep their own routes above; only the
+          // types the platform adds land here.
+          GoRoute(
+            path: '/knowledge/themes',
+            builder: (context, state) =>
+                const KnowledgeIndexScreen(type: EntityType.theme),
+          ),
+          GoRoute(
+            path: '/knowledge/journeys',
+            builder: (context, state) =>
+                const KnowledgeIndexScreen(type: EntityType.journey),
+          ),
+          GoRoute(
+            path: '/knowledge/scholars',
+            builder: (context, state) =>
+                const KnowledgeIndexScreen(type: EntityType.scholar),
+          ),
+          GoRoute(
+            path: '/knowledge/places',
+            builder: (context, state) =>
+                const KnowledgeIndexScreen(type: EntityType.place),
+          ),
+          GoRoute(
+            path: '/knowledge/theme/:id',
+            builder: (context, state) => KnowledgeEntityScreen(
+              entityRef:
+                  EntityRef(EntityType.theme, state.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
+            path: '/knowledge/scholar/:id',
+            builder: (context, state) => KnowledgeEntityScreen(
+              entityRef:
+                  EntityRef(EntityType.scholar, state.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
+            path: '/knowledge/place/:id',
+            builder: (context, state) => KnowledgeEntityScreen(
+              entityRef:
+                  EntityRef(EntityType.place, state.pathParameters['id']!),
+            ),
+          ),
+          GoRoute(
+            path: '/knowledge/journey/:id',
+            builder: (context, state) => KnowledgeEntityScreen(
+              entityRef:
+                  EntityRef(EntityType.journey, state.pathParameters['id']!),
+            ),
+          ),
+          // Collection and number as separate segments rather than one
+          // `bukhari:3326` blob, so the URL survives a share and reads as a
+          // citation.
+          GoRoute(
+            path: '/knowledge/hadith/:collection/:number',
+            builder: (context, state) => HadithDetailScreen(
+              collection: state.pathParameters['collection']!,
+              number: state.pathParameters['number']!,
+            ),
+          ),
+          GoRoute(
+            path: '/knowledge/saved-hadith',
+            builder: (context, state) => const SavedHadithScreen(),
           ),
           GoRoute(
             path: '/auth',

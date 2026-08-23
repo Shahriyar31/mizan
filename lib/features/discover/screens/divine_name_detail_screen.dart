@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:taddabur/core/theme/app_colors.dart';
 import 'package:taddabur/core/theme/app_typography.dart';
+import 'package:taddabur/core/knowledge/entity_ref.dart';
 import 'package:taddabur/shared/widgets/layer_story_scaffold.dart';
 import 'package:taddabur/features/sharing/share_target_sheet.dart';
 import 'package:taddabur/features/discover/data/discover_share_mapper.dart';
@@ -42,11 +43,12 @@ class _DivineNameDetailScreenState
     final entries = await ref.read(namesProvider.future);
     try {
       final entry = entries.firstWhere((n) => n.id == widget.nameId);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _entry = entry;
           _loading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -74,6 +76,9 @@ class _DivineNameDetailScreenState
     final entry = _entry!;
 
     return LayerStoryScaffold(
+      // Appends the connected sections to the final layer. Nothing above it
+      // moves.
+      entityRef: EntityRef(EntityType.divineName, widget.nameId),
       layers: entry.layers,
       navLabels: _layerTitles,
       headerTitle: entry.arabic,

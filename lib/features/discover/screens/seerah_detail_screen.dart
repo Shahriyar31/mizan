@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:taddabur/core/theme/app_colors.dart';
 import 'package:taddabur/core/theme/app_typography.dart';
+import 'package:taddabur/core/knowledge/entity_ref.dart';
 import 'package:taddabur/shared/widgets/layer_story_scaffold.dart';
 import 'package:taddabur/features/sharing/share_target_sheet.dart';
 import 'package:taddabur/features/discover/data/discover_share_mapper.dart';
@@ -40,11 +41,12 @@ class _SeerahDetailScreenState extends ConsumerState<SeerahDetailScreen> {
     final entries = await ref.read(seerahProvider.future);
     try {
       final e = entries.firstWhere((s) => s.id == widget.seerahId);
-      if (mounted)
+      if (mounted) {
         setState(() {
           _entry = e;
           _loading = false;
         });
+      }
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
@@ -52,22 +54,27 @@ class _SeerahDetailScreenState extends ConsumerState<SeerahDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    if (_loading)
+    if (_loading) {
       return  Scaffold(
           backgroundColor: AppColors.night,
           body: Center(
               child: CircularProgressIndicator(
                   color: AppColors.gold, strokeWidth: 2)));
-    if (_entry == null)
+    }
+    if (_entry == null) {
       return Scaffold(
           backgroundColor: AppColors.night,
           body: Center(
               child: Text('Not found',
                   style: AppTypography.bodyMedium(color: AppColors.muted))));
+    }
 
     final entry = _entry!;
 
     return LayerStoryScaffold(
+      // Appends the connected sections to the final layer. Nothing above it
+      // moves.
+      entityRef: EntityRef(EntityType.seerah, widget.seerahId),
       layers: entry.layers,
       navLabels: _layerTitles,
       headerTitle: entry.titleArabic,

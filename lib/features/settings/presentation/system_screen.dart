@@ -9,6 +9,7 @@ library;
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
@@ -104,6 +105,15 @@ class _SystemScreenState extends State<SystemScreen> {
             subtitle: 'Temporary files only — your progress and account are safe',
             enabled: !_clearing,
             onTap: _clearCache,
+          ),
+          // The hadith cache is the one cache with contents worth reading, so
+          // it is inspectable rather than just a number. Clearing it never
+          // touches a citation — only the saved copy of a text.
+          SettingsRow(
+            icon: Icons.format_quote_rounded,
+            title: 'Saved hadith',
+            subtitle: 'Texts kept on this device for offline reading',
+            onTap: () => context.push('/knowledge/saved-hadith'),
           ),
         ]),
         const SettingsSectionLabel('Updates'),

@@ -33,6 +33,7 @@ import '../../../shared/widgets/mizan/mizan_components.dart';
 import '../providers/discover_providers.dart';
 import '../models/discover_models.dart';
 import '../widgets/discover_browser.dart';
+import '../../knowledge/presentation/knowledge_routes.dart';
 
 /// Reading state used by the browser's filter chips. Kept in one place so all
 /// four sections classify entries identically.
@@ -119,6 +120,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
               _tabController.animateTo(i);
             },
           ),
+          const _KnowledgeStrip(),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -241,6 +243,68 @@ class _SectionChips extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Knowledge strip — the four cross-cutting ways in
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Themes, Journeys, Scholars and Places, under the section chips.
+///
+/// The four tabs above are *kinds of entry*: pick a prophet, read his five
+/// layers. These four are *ways across* them — a theme gathers every entry whose
+/// sources speak to it, a journey walks a path through several, a scholar page
+/// collects what he is cited on, a place collects what happened there. Neither
+/// belongs inside the other, which is why this is a separate strip rather than
+/// two more tabs: adding them as tabs would also have made the header's "FIVE
+/// LAYERS" pill a lie, since a theme has no layers.
+///
+/// Quiet chips with glyphs, visibly not the filled/outlined selection pills
+/// above, so it reads as "go somewhere" rather than "filter this list". Each is
+/// the single entry point to its index; nothing else in the app opens these.
+class _KnowledgeStrip extends StatelessWidget {
+  const _KnowledgeStrip();
+
+  static const List<(String, IconData, String)> _items = [
+    ('Themes', Icons.category_outlined, KnowledgeRoutes.themesIndex),
+    ('Journeys', Icons.route_outlined, KnowledgeRoutes.journeysIndex),
+    ('Scholars', Icons.account_balance_outlined, KnowledgeRoutes.scholarsIndex),
+    ('Places', Icons.place_outlined, KnowledgeRoutes.placesIndex),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: MizanGeometry.gutter,
+          ),
+          child: MizanRule(color: p.hairline),
+        ),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(MizanGeometry.gutter, 12, 12, 14),
+          child: Row(
+            children: [
+              for (final item in _items)
+                Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: MizanButton.quiet(
+                    label: item.$1,
+                    icon: item.$2,
+                    onPressed: () => context.push(item.$3),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

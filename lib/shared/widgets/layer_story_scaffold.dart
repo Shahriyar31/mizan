@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/knowledge/entity_ref.dart';
+import '../../core/knowledge/reference_parser.dart';
 import '../../core/theme/mizan_tokens.dart';
 import '../../core/theme/mizan_typography.dart';
 import '../../features/discover/models/discover_models.dart';
+import '../../features/knowledge/presentation/widgets/connected_sections.dart';
+import '../../features/knowledge/presentation/widgets/evidence_view.dart';
 import 'mizan/mizan_components.dart';
 import 'mizan/mizan_pressable.dart';
 import 'narrative_text.dart';
@@ -51,6 +55,7 @@ class LayerStoryScaffold extends StatefulWidget {
     this.headerTrailing,
     this.onBeginQuiz,
     this.onShare,
+    this.entityRef,
     this.initialLayer = 0,
   });
 
@@ -73,6 +78,16 @@ class LayerStoryScaffold extends StatefulWidget {
   /// Called when the hero's share button is tapped. Null hides the button. One
   /// hook here gives all four Discover screens a share action.
   final VoidCallback? onShare;
+
+  /// This story's node in the knowledge graph. Supplying it appends the
+  /// connected sections to the final layer — the people, verses, hadith,
+  /// themes, events and places this story shares sources with.
+  ///
+  /// Null leaves the screen exactly as it was, so a caller that has no ref
+  /// loses nothing. Deliberately on the last layer only: the block belongs at
+  /// the end of the story, not five times over, and asking the graph once per
+  /// screen instead of once per layer keeps the tab switches instant.
+  final EntityRef? entityRef;
 
   final int initialLayer;
 
@@ -161,6 +176,7 @@ class _LayerStoryScaffoldState extends State<LayerStoryScaffold> {
                             : layer.title,
                         isLastLayer: isLastLayer,
                         onBeginQuiz: widget.onBeginQuiz,
+                        entityRef: isLastLayer ? widget.entityRef : null,
                       ),
                     ),
                   ),
@@ -397,6 +413,7 @@ class _LayerBody extends StatelessWidget {
     required this.layerLabel,
     required this.isLastLayer,
     required this.onBeginQuiz,
+    required this.entityRef,
   });
 
   final DiscoverLayer layer;
@@ -405,6 +422,7 @@ class _LayerBody extends StatelessWidget {
   final String layerLabel;
   final bool isLastLayer;
   final VoidCallback? onBeginQuiz;
+  final EntityRef? entityRef;
 
   @override
   Widget build(BuildContext context) {
@@ -470,13 +488,16 @@ class _LayerBody extends StatelessWidget {
             },
           ),
         ],
+        // The graph, at the end of the story. Renders nothing when this entity
+        // has no neighbours, so the layout above is untouched either way.
+        if (entityRef != null) ConnectedSections(entityRef: entityRef!),
         const SizedBox(height: 40),
       ],
     );
   }
 }
 
-/// The references for this layer, plus the named source. Each chip is a claim
+/// The references for this layer, plus the named source. Each row is a claim
 /// about where the words came from, which is the whole point of them.
 ///
 /// Stacked full width rather than wrapped side by side, and this is deliberate:
@@ -485,6 +506,18 @@ class _LayerBody extends StatelessWidget {
 /// perfectly ordinary reference that ran 156px past the screen edge as a pill.
 /// A full-width row cannot overflow horizontally — the text simply wraps — so
 /// no citation has to be shortened, guessed at, or clipped to fit the layout.
+///
+/// The rows now open. Same geometry, same colours, same order — a Qur'an ref
+/// still takes the one filled row and the source still carries the sage
+/// provenance mark — but tapping one shows the ayah with its translation, or
+/// the hadith with its narrator and grade, or the tafsir passage itself. That is
+/// Evidence Mode: a citation you cannot check is a claim, and this app's whole
+/// premise is that it does not make unchecked claims.
+///
+/// Parsed through [ReferenceParser], the same parser the graph is built with, so
+/// what a reader can tap is exactly what the graph reasoned over. The raw source
+/// string always survives as its own row, so nothing the corpus wrote is lost to
+/// a parse.
 class _CitationChips extends StatelessWidget {
   const _CitationChips({required this.layer});
 
@@ -492,120 +525,13 @@ class _CitationChips extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final source = layer.source.trim();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (layer.quranRef != null)
-          _Chip(
-            icon: Icons.menu_book_outlined,
-            text: layer.quranRef!,
-            // The Quran reference is the primary one, so it takes the filled
-            // navy pill and the others stay outlined.
-            filled: true,
-          ),
-        if (layer.hadithRef != null) ...[
-          const SizedBox(height: 10),
-          _Chip(icon: Icons.format_quote_rounded, text: layer.hadithRef!),
-        ],
-        if (source.isNotEmpty) ...[
-          const SizedBox(height: 10),
-          _Chip(
-            icon: Icons.verified_outlined,
-            text: source,
-            // Sage, the palette's one "sourced" colour — this chip is not an
-            // accent, it is a provenance mark.
-            useSage: true,
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  const _Chip({
-    required this.icon,
-    required this.text,
-    this.filled = false,
-    this.useSage = false,
-  });
-
-  final IconData icon;
-  final String text;
-  final bool filled;
-  final bool useSage;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = MizanPalette.of(context);
-
-    if (filled) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: p.isLight ? p.ink : p.card,
-          borderRadius: MizanGeometry.rowBorderRadius,
-          border: Border.all(
-            color: p.accent.withValues(alpha: 0.36),
-            width: MizanGeometry.hairlineWidth,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Gold glyph on a navy fill — exactly where gold is free to go.
-              Padding(
-                padding: const EdgeInsets.only(top: 2),
-                child: Icon(icon, size: 17, color: p.accent),
-              ),
-              const SizedBox(width: 9),
-              // Expanded, not Flexible: the row owns the full width, so the
-              // citation wraps instead of running off the screen.
-              Expanded(
-                child: Text(
-                  text,
-                  style: MizanType.bodyStrong(
-                    color: MizanTone.inverse.onColor(p),
-                  ).copyWith(fontSize: 14.5, height: 1.35),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final color = useSage ? p.sage : p.muted;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: p.card,
-        borderRadius: MizanGeometry.rowBorderRadius,
-        border: Border.all(color: p.hairline, width: MizanGeometry.hairlineWidth),
+    return EvidenceRows(
+      evidence: ReferenceParser.parseLayer(
+        quranRef: layer.quranRef,
+        hadithRef: layer.hadithRef,
+        source: layer.source,
       ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 11),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(icon, size: 17, color: color),
-            ),
-            const SizedBox(width: 9),
-            Expanded(
-              child: Text(
-                text,
-                style: MizanType.body(color: p.ink)
-                    .copyWith(fontSize: 14.5, height: 1.35),
-              ),
-            ),
-          ],
-        ),
-      ),
+      showLabel: false,
     );
   }
 }

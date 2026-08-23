@@ -1,0 +1,82 @@
+{
+  "_note": "Curated reading paths. Every step is an id that exists today in assets/data/discover — the brief's example journey ran Adam → Yunus → Ka'b ibn Malik, and Yunus and Ka'b have no entries yet, so they are left out rather than left dangling. Steps carry no note: the text under each one is the entry's own teaser, so a journey adds ordering and nothing else. `intro` describes the reading path, not the religion. A journey is not a course — no score, no unlocking, no streak.",
+  "journeys": [
+    {
+      "id": "repentance",
+      "title": "The Journey of Repentance",
+      "title_arabic": "طريق التوبة",
+      "subtitle": "Turning back, from the first man onwards",
+      "intro": "Four entries read in order. It starts with the first slip and the first return, moves through a prophet who was given kingship and still wept, and ends with a campaign where staying behind had to be answered for. Read them together and repentance stops looking like a single act.",
+      "steps": [
+        { "ref": "prophet:adam" },
+        { "ref": "prophet:dawud" },
+        { "ref": "seerah:tabuk" },
+        { "ref": "name:at_tawwaab" }
+      ],
+      "themes": ["theme:tawbah", "theme:rahmah"]
+    },
+    {
+      "id": "patience",
+      "title": "The Journey of Patience",
+      "title_arabic": "طريق الصبر",
+      "subtitle": "What holding on actually costs",
+      "intro": "Patience is easy to praise and hard to read about honestly. These entries are the ones where it is expensive: a father who waited years, a son who submitted, a woman killed for refusing to recant, and three years of boycott in a valley.",
+      "steps": [
+        { "ref": "prophet:yaqub" },
+        { "ref": "prophet:ismail" },
+        { "ref": "sahabi:sumayyah" },
+        { "ref": "seerah:boycott" },
+        { "ref": "seerah:year_of_sorrow" },
+        { "ref": "name:as_saboor" }
+      ],
+      "themes": ["theme:sabr"]
+    },
+    {
+      "id": "knowledge",
+      "title": "The Journey of Knowledge",
+      "title_arabic": "طريق العلم",
+      "subtitle": "From the first names taught to the men who carried the text",
+      "intro": "It begins with the first human being taught, and follows the thread to the companions who spent their lives on the text itself — one who recited it, one who wrote it down, one sent to teach a province.",
+      "steps": [
+        { "ref": "prophet:adam" },
+        { "ref": "seerah:first_revelation" },
+        { "ref": "sahabi:abdullah_ibn_masud" },
+        { "ref": "sahabi:zayd_ibn_thabit" },
+        { "ref": "sahabi:muadh_ibn_jabal" },
+        { "ref": "sahabi:abu_darda" }
+      ],
+      "themes": ["theme:ilm"]
+    },
+    {
+      "id": "tawheed",
+      "title": "The Journey of Tawheed",
+      "title_arabic": "طريق التوحيد",
+      "subtitle": "One message, repeated to every people",
+      "intro": "Four prophets sent to four peoples with the same sentence, and then the first public call in Makkah. Read consecutively, the repetition is the point.",
+      "steps": [
+        { "ref": "prophet:nuh" },
+        { "ref": "prophet:hud" },
+        { "ref": "prophet:salih" },
+        { "ref": "prophet:ibrahim" },
+        { "ref": "seerah:public_call" }
+      ],
+      "themes": ["theme:tawheed"]
+    },
+    {
+      "id": "leadership",
+      "title": "The Journey of Leadership",
+      "title_arabic": "طريق القيادة",
+      "subtitle": "Carrying other people's weight",
+      "intro": "A city built from a treaty, letters sent to emperors, a battle where command passed three times in a day, and the two men who took the weight afterwards.",
+      "steps": [
+        { "ref": "seerah:madinah_foundation" },
+        { "ref": "seerah:letters_to_kings" },
+        { "ref": "seerah:mutah" },
+        { "ref": "sahabi:abu_bakr" },
+        { "ref": "sahabi:umar" },
+        { "ref": "seerah:what_he_left" }
+      ],
+      "themes": ["theme:leadership"]
+    }
+  ]
+}

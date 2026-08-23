@@ -10,9 +10,11 @@ import '../domain/layer_providers.dart';
 import '../data/layer_content.dart';
 import '../data/surah_metadata.dart';
 import '../models/layer_unlock.dart';
+import '../../../core/knowledge/entity_ref.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
+import '../../knowledge/presentation/widgets/connected_sections.dart';
 
 class LayerScreen extends ConsumerStatefulWidget {
   const LayerScreen({
@@ -62,7 +64,6 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
     final contentKey =
         '$_ayahKey|||${widget.arabicText}|||${widget.translation}';
     final contentAsync = ref.watch(layerContentProvider(contentKey));
-    final content = contentAsync.valueOrNull;
 
     return Scaffold(
       backgroundColor: AppColors.cardQuranBg,
@@ -379,10 +380,6 @@ class _ContextLayer extends StatelessWidget {
     final period = meta?.period ?? '';
     final theme = meta?.theme ?? '';
 
-    // Body text is Ibn Kathir's commentary — used as scene description
-    final bodyText = content!.context.isNotEmpty
-        ? content!.context
-        : 'Historical context for this ayah is being prepared.';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -1010,6 +1007,17 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                 ],
               );
             },
+          ),
+
+          // Everything in the app that rests on this ayah — the prophets and
+          // companions whose stories cite it, the hadith cited beside it, the
+          // themes it belongs to. Drawn from the graph, so it appears only
+          // where a real citation exists and renders nothing where none does.
+          ConnectedSections(
+            entityRef: EntityRef.verse(widget.surahNumber, widget.ayahNumber),
+            // No "Connected Verses" here: neighbouring ayat are the reader's
+            // job, and the reader is one tap away.
+            exclude: const {EntityType.verse},
           ),
         ],
       ),

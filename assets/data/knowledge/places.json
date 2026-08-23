@@ -1,0 +1,125 @@
+{
+  "_note": "Places, each with the seerah entries that happened there. Every id in `events` is a real file in assets/data/discover/seerah — an event that has not been written yet is simply absent, and the graph shows nothing rather than a broken row. A place-to-event link is a matter of geography, not interpretation: the Battle of Badr took place at Badr.",
+  "places": [
+    {
+      "id": "makkah",
+      "title": "Makkah",
+      "title_arabic": "مكة",
+      "region": "The Hijaz",
+      "subtitle": "The city of the Ka'bah, and where the revelation began.",
+      "events": [
+        "seerah:birth_childhood",
+        "seerah:orphan_years",
+        "seerah:youth_and_trade",
+        "seerah:marriage_khadijah",
+        "seerah:rebuilding_kabah",
+        "seerah:first_revelation",
+        "seerah:early_makkah",
+        "seerah:public_call",
+        "seerah:persecution",
+        "seerah:two_conversions",
+        "seerah:boycott",
+        "seerah:year_of_sorrow",
+        "seerah:isra_miraj",
+        "seerah:conquest_of_makkah",
+        "seerah:farewell_hajj"
+      ]
+    },
+    {
+      "id": "madinah",
+      "title": "Madinah",
+      "title_arabic": "المدينة",
+      "region": "The Hijaz",
+      "subtitle": "Yathrib, which became the city of the Prophet ﷺ.",
+      "events": [
+        "seerah:hijra",
+        "seerah:madinah_foundation",
+        "seerah:khandaq",
+        "seerah:letters_to_kings",
+        "seerah:year_of_delegations",
+        "seerah:final_illness",
+        "seerah:what_he_left"
+      ]
+    },
+    {
+      "id": "badr",
+      "title": "Badr",
+      "title_arabic": "بدر",
+      "region": "South-west of Madinah",
+      "subtitle": "Wells on the caravan road, and the first pitched battle.",
+      "events": ["seerah:battle_badr"]
+    },
+    {
+      "id": "uhud",
+      "title": "Mount Uhud",
+      "title_arabic": "أحد",
+      "region": "North of Madinah",
+      "subtitle": "The ridge outside Madinah.",
+      "events": ["seerah:uhud", "seerah:after_uhud"]
+    },
+    {
+      "id": "hudaybiyyah",
+      "title": "Al-Hudaybiyyah",
+      "title_arabic": "الحديبية",
+      "region": "On the edge of the Makkan sanctuary",
+      "subtitle": "Where the treaty was written.",
+      "events": ["seerah:hudaybiyyah"]
+    },
+    {
+      "id": "khaybar",
+      "title": "Khaybar",
+      "title_arabic": "خيبر",
+      "region": "North of Madinah",
+      "subtitle": "An oasis of fortified settlements.",
+      "events": ["seerah:khaybar"]
+    },
+    {
+      "id": "abyssinia",
+      "title": "Abyssinia",
+      "title_arabic": "الحبشة",
+      "region": "Across the Red Sea",
+      "subtitle": "The kingdom that gave the first emigrants refuge.",
+      "events": ["seerah:abyssinia"]
+    },
+    {
+      "id": "jerusalem",
+      "title": "Jerusalem",
+      "title_arabic": "بيت المقدس",
+      "region": "Al-Sham",
+      "subtitle": "Al-Masjid al-Aqsa, the second stop of the night journey.",
+      "events": ["seerah:isra_miraj"]
+    },
+    {
+      "id": "taif",
+      "title": "At-Ta'if",
+      "title_arabic": "الطائف",
+      "region": "The Hijaz highlands",
+      "subtitle": "The hill town of Thaqif.",
+      "events": ["seerah:hunayn_and_taif", "seerah:year_of_sorrow"]
+    },
+    {
+      "id": "tabuk",
+      "title": "Tabuk",
+      "title_arabic": "تبوك",
+      "region": "Towards al-Sham",
+      "subtitle": "The furthest expedition north.",
+      "events": ["seerah:tabuk"]
+    },
+    {
+      "id": "mutah",
+      "title": "Mu'tah",
+      "title_arabic": "مؤتة",
+      "region": "Jordan",
+      "subtitle": "Where three commanders fell in one day.",
+      "events": ["seerah:mutah"]
+    },
+    {
+      "id": "aqabah",
+      "title": "Al-'Aqabah",
+      "title_arabic": "العقبة",
+      "region": "Outside Makkah, at Mina",
+      "subtitle": "The pass where the pledges were given.",
+      "events": ["seerah:aqabah_pledges"]
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "_note": "Themes are structure, not content. Membership is DERIVED: `keywords` are counted across each entry's own layer text, and an entry that clears `min_hits` joins the theme with an edge pointing at the layer where the discussion is. Nothing here decides on the reader's behalf which prophet is 'about patience' — the corpus text does. Definitions are one-line glosses of the kind found in any glossary of Islamic terms; anything longer waits for a cited source.",
+  "_thresholds": "Every `min_hits` below was set by measuring the actual hit distribution across all 186 corpus entries (tools/audit_corpus.dart shows the method), not by guessing. Each one sits at the point where the curve falls away, so a theme collects the entries that discuss it and stops before the ones that mention the word in passing. A common English keyword needs a higher bar than a specific term, which is why 'leadership' — whose keywords include 'command' and 'appointed' — requires 5 while 'tawheed' requires 2. 'wisdom' was removed from `ilm` because hikmah is not 'ilm; keeping it pulled in divine-name pages that say events happen by Allah's wisdom, which is a different subject.",
+  "themes": [
+    {
+      "id": "ilm",
+      "title": "Knowledge",
+      "title_arabic": "العلم",
+      "transliteration": "al-'Ilm",
+      "definition": "Knowing, and the seeking of it — the first thing Adam was given and the first command of the revelation.",
+      "keywords": ["knowledge", "taught", "teach", "learned", "learning", "scholar", "ilm"],
+      "min_hits": 4,
+      "tags": ["learning", "scholarship"]
+    },
+    {
+      "id": "sabr",
+      "title": "Patience",
+      "title_arabic": "الصبر",
+      "transliteration": "as-Sabr",
+      "definition": "Holding fast under difficulty without abandoning what is right.",
+      "keywords": ["patience", "patient", "sabr", "endured", "endurance", "steadfast", "persever"],
+      "min_hits": 2,
+      "tags": ["hardship", "endurance"]
+    },
+    {
+      "id": "tawbah",
+      "title": "Repentance",
+      "title_arabic": "التوبة",
+      "transliteration": "at-Tawbah",
+      "definition": "Turning back — leaving a wrong, regretting it, and returning to Allah.",
+      "keywords": ["repent", "repentance", "tawbah", "forgave", "forgiveness", "turned back", "sought forgiveness"],
+      "min_hits": 3,
+      "tags": ["mercy", "forgiveness"]
+    },
+    {
+      "id": "rahmah",
+      "title": "Mercy",
+      "title_arabic": "الرحمة",
+      "transliteration": "ar-Rahmah",
+      "definition": "Mercy — the attribute the revelation opens with and returns to throughout.",
+      "keywords": ["mercy", "merciful", "rahmah", "compassion", "kindness"],
+      "min_hits": 3,
+      "tags": ["mercy"]
+    },
+    {
+      "id": "tawheed",
+      "title": "Tawheed",
+      "title_arabic": "التوحيد",
+      "transliteration": "at-Tawhid",
+      "definition": "The oneness of Allah — the message every prophet was sent with.",
+      "keywords": ["tawheed", "tawhid", "oneness", "monotheism", "idol", "shirk", "one god", "worship him alone"],
+      "min_hits": 2,
+      "tags": ["creed", "prophethood"]
+    },
+    {
+      "id": "leadership",
+      "title": "Leadership",
+      "title_arabic": "الإمامة",
+      "transliteration": "al-Imamah",
+      "definition": "Carrying responsibility for others — consultation, appointment, and answering for a trust.",
+      "keywords": ["leader", "leadership", "command", "authority", "caliph", "governor", "appointed", "consult"],
+      "min_hits": 5,
+      "tags": ["responsibility", "community"]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "_note": "Hand-stated relationships. This file is deliberately tiny. Almost every edge in the graph is derived — shared citations, chronology by sequence number, theme membership by keyword frequency — and derived edges are traceable back to the layer that produced them. What lands here is only what the corpus states in prose and no amount of citation-matching would find: family. Each entry names where the relationship is stated. Prophet and seerah ordering is NOT here; the builder derives it from sequence_number.",
+  "edges": [
+    {
+      "from": "prophet:ibrahim",
+      "to": "prophet:ismail",
+      "kind": "parent_of",
+      "note": "His firstborn, and the son of the sacrifice.",
+      "source": "Qur'an 14:39 — 'Praise to Allah, who has granted me Ismail and Ishaq in old age.'"
+    },
+    {
+      "from": "prophet:ibrahim",
+      "to": "prophet:ishaq",
+      "kind": "parent_of",
+      "note": "The son promised to him and Sarah in old age.",
+      "source": "Qur'an 14:39; and 11:71 — the glad tidings of Ishaq."
+    },
+    {
+      "from": "prophet:ishaq",
+      "to": "prophet:yaqub",
+      "kind": "parent_of",
+      "note": "Yaqub, also called Israel, from whom the twelve tribes descend.",
+      "source": "Qur'an 11:71 — 'We gave her good tidings of Ishaq and, after Ishaq, Yaqub.'"
+    },
+    {
+      "from": "prophet:ibrahim",
+      "to": "prophet:lut",
+      "kind": "related_to",
+      "note": "His nephew, who believed with him and emigrated with him.",
+      "source": "Qur'an 29:26 — 'And Lut believed him.'"
+    },
+    {
+      "from": "sahabi:abu_bakr",
+      "to": "sahabi:asma_bint_abi_bakr",
+      "kind": "parent_of",
+      "note": "Her father, whose provisions she tied for the hijra.",
+      "source": "Stated in her entry in the companions corpus; Bukhari, Book of the Virtues of the Companions."
+    },
+    {
+      "from": "prophet:adam",
+      "to": "prophet:nuh",
+      "kind": "related_to",
+      "note": "Ten generations separate them, and Nuh's people were the first to be sent a prophet after the message was lost.",
+      "source": "Reported from Ibn Abbas in the tafsir of 2:213; see Ibn Kathir on that ayah."
+    }
+  ]
+}

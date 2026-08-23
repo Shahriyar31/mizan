@@ -1,0 +1,156 @@
+{
+  "_note": "Bibliographic records for the scholars and compilers this app's own corpus cites. Names, dates, schools and works are checkable bibliography. `biography` is null everywhere and stays null until verified text is supplied — the pages are not empty in the meantime, because each one shows the verses and topics derived from every layer that cites that scholar. Where `methodology` is filled in it is a one-line description of the work's own stated approach, and `description_source` says exactly that so it is never mistaken for a sourced claim. The last four entries exist because the corpus cites them, not because a list of great scholars was wanted.",
+  "scholars": [
+    {
+      "id": "ibn-kathir",
+      "title": "Ibn Kathir",
+      "title_arabic": "ابن كثير",
+      "dates": "701–774 AH / 1301–1373 CE",
+      "school": "Shafi'i",
+      "origin": "Busra, then Damascus",
+      "works": [
+        "Tafsir al-Qur'an al-'Azim",
+        "Al-Bidaya wa'l-Nihaya",
+        "Stories of the Prophets"
+      ],
+      "biography": null,
+      "methodology": "A tafsir of narration: the ayah is explained first by other ayat, then by hadith and the reports of the early generations, with weak reports named as weak.",
+      "description_source": "Descriptive summary of the work's own stated approach — pending review against a cited introduction."
+    },
+    {
+      "id": "al-tabari",
+      "title": "Al-Tabari",
+      "title_arabic": "الطبري",
+      "dates": "224–310 AH / 839–923 CE",
+      "school": "Independent (his own madhhab)",
+      "origin": "Tabaristan, then Baghdad",
+      "works": [
+        "Jami' al-Bayan 'an Ta'wil Ay al-Qur'an",
+        "Tarikh al-Rusul wa'l-Muluk"
+      ],
+      "biography": null,
+      "methodology": "Collects the reported interpretations of an ayah with their chains of transmission, then states which reading he holds and why.",
+      "description_source": "Descriptive summary of the work's own stated approach — pending review against a cited introduction."
+    },
+    {
+      "id": "al-qurtubi",
+      "title": "Al-Qurtubi",
+      "title_arabic": "القرطبي",
+      "dates": "d. 671 AH / 1273 CE",
+      "school": "Maliki",
+      "origin": "Cordoba, then Egypt",
+      "works": ["Al-Jami' li-Ahkam al-Qur'an"],
+      "biography": null,
+      "methodology": "Reads each ayah for the rulings it carries, surveying the positions of the schools alongside language and reported interpretation.",
+      "description_source": "Descriptive summary of the work's own stated approach — pending review against a cited introduction."
+    },
+    {
+      "id": "ibn-ashur",
+      "title": "Ibn Ashur",
+      "title_arabic": "ابن عاشور",
+      "dates": "1296–1393 AH / 1879–1973 CE",
+      "school": "Maliki",
+      "origin": "Tunis",
+      "works": ["Al-Tahrir wa'l-Tanwir", "Maqasid al-Shari'ah al-Islamiyyah"],
+      "biography": null,
+      "methodology": "Attends closely to the language and rhetoric of the ayah, and to the purposes the ruling serves.",
+      "description_source": "Descriptive summary of the work's own stated approach — pending review against a cited introduction."
+    },
+    {
+      "id": "ibn-uthaymeen",
+      "title": "Ibn Uthaymeen",
+      "title_arabic": "ابن عثيمين",
+      "dates": "1347–1421 AH / 1929–2001 CE",
+      "school": "Hanbali",
+      "origin": "Unayzah, Saudi Arabia",
+      "works": ["Commentary on the 99 Names of Allah", "Sharh Riyad as-Salihin"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    },
+    {
+      "id": "al-mubarakpuri",
+      "title": "Safiur-Rahman al-Mubarakpuri",
+      "title_arabic": "المباركفوري",
+      "dates": "1942–2006 CE",
+      "school": null,
+      "origin": "Mubarakpur, India",
+      "works": ["Ar-Raheeq Al-Makhtum (The Sealed Nectar)"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    },
+    {
+      "id": "ibn-sad",
+      "title": "Ibn Sa'd",
+      "title_arabic": "ابن سعد",
+      "dates": "168–230 AH / 784–845 CE",
+      "school": null,
+      "origin": "Basra, then Baghdad",
+      "works": ["Kitab at-Tabaqat al-Kabir"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    },
+    {
+      "id": "ibn-hisham",
+      "title": "Ibn Hisham",
+      "title_arabic": "ابن هشام",
+      "dates": "d. 218 AH / 833 CE",
+      "school": null,
+      "origin": "Basra, then Egypt",
+      "works": ["As-Sira an-Nabawiyya (his recension of Ibn Ishaq)"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    },
+    {
+      "id": "al-baihaqi",
+      "title": "Al-Baihaqi",
+      "title_arabic": "البيهقي",
+      "dates": "384–458 AH / 994–1066 CE",
+      "school": "Shafi'i",
+      "origin": "Bayhaq, Khurasan",
+      "works": ["Dala'il an-Nubuwwah", "As-Sunan al-Kubra"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    },
+    {
+      "id": "ibn-abi-shaybah",
+      "title": "Ibn Abi Shaybah",
+      "title_arabic": "ابن أبي شيبة",
+      "dates": "159–235 AH / 776–849 CE",
+      "school": null,
+      "origin": "Kufa",
+      "works": ["Al-Musannaf"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    },
+    {
+      "id": "al-nawawi",
+      "title": "An-Nawawi",
+      "title_arabic": "النووي",
+      "dates": "631–676 AH / 1233–1277 CE",
+      "school": "Shafi'i",
+      "origin": "Nawa, then Damascus",
+      "works": ["Riyad as-Salihin", "Al-Minhaj (commentary on Sahih Muslim)"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    },
+    {
+      "id": "ibn-hajar",
+      "title": "Ibn Hajar al-Asqalani",
+      "title_arabic": "ابن حجر العسقلاني",
+      "dates": "773–852 AH / 1372–1449 CE",
+      "school": "Shafi'i",
+      "origin": "Cairo",
+      "works": ["Fath al-Bari", "Al-Isabah fi Tamyiz as-Sahabah"],
+      "biography": null,
+      "methodology": null,
+      "description_source": null
+    }
+  ]
+}
