@@ -51,12 +51,20 @@ class PlaybackArbiter {
 
   /// Called by a player about to start. Stops every other registered player.
   ///
+  /// Deliberately unconditional: it does *not* first ask whether the other player
+  /// is playing. `isPlaying` reports the notifier's state, and a player that has
+  /// begun `setUrl`/`setAudioSource` but not yet reached `play()` reports
+  /// `loading`, not `playing` — so gating on it let a player that was about to
+  /// start slip through, resolve its source, and begin on top of the recitation
+  /// the listener had just asked for. Two live outputs is what listeners report as
+  /// distortion. `stop()` on a player that is idle is a no-op, so there is nothing
+  /// to save by asking.
+  ///
   /// Failures are swallowed per player: one player that will not stop must not
   /// prevent the one the listener just asked for from starting.
   Future<void> claim(Object owner) async {
     for (final entry in _players.entries.toList()) {
       if (entry.key == owner) continue;
-      if (!entry.value.isPlaying()) continue;
       try {
         await entry.value.stop();
       } catch (_) {

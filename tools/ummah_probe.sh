@@ -197,3 +197,196 @@ PY
 
 echo
 echo "bodies and headers saved in tools/.ummah_samples/"
+
+# ── the ten topics ───────────────────────────────────────────────────────
+#
+# The one thing that cannot be established without a network: whether each of
+# the ten doors in the learning section actually has narrations behind it.
+#
+# Two numbers per topic, and the gap between them is the whole diagnosis:
+#
+#   raw    — rows the service sent. Zero means the term finds nothing, or the
+#            query parameter is not the one being used.
+#   citable— rows that carried BOTH a collection we can resolve AND a hadith
+#            number, which is what the app requires before it will show a
+#            narration. `id` is not accepted as a number: a row identifier
+#            printed as "Sahih al-Bukhari 84712" is a fabricated citation.
+#
+# raw > 0 with citable == 0 is a field-name problem in the app, and the
+# collection names printed underneath say which spelling to teach it. raw == 0
+# for every term is a term problem, or a topic that should not ship.
+echo
+echo "── the ten topics ───────────────────────────────────────────────────"
+
+TOPIC_OUT="$OUT/topics"; mkdir -p "$TOPIC_OUT"
+
+# search <outfile> <param> <term> — GET the search, URL-encoding the term.
+search() {
+  curl -sS --max-time 25 -G \
+    -H "X-API-Key: $KEY" \
+    --data-urlencode "$2=$3" \
+    --data-urlencode "limit=40" \
+    -o "$1" -w '%{http_code}' \
+    "$BASE/api/hadith/search" 2>>"$TOPIC_OUT/curlerr.txt"
+}
+
+# rows <file> — how many result rows the body holds, or -1 if unreadable.
+rows() {
+  python3 - "$1" <<'PY' 2>/dev/null || echo -1
+import json,sys
+try: doc=json.load(open(sys.argv[1],encoding='utf-8'))
+except Exception: sys.exit(1)
+def rowsof(d):
+    if isinstance(d,list): return [x for x in d if isinstance(x,dict)]
+    if isinstance(d,dict):
+        for k in ('hadiths','results','data','items'):
+            v=d.get(k)
+            if isinstance(v,list): return rowsof(v)
+        for v in d.values():
+            if isinstance(v,(dict,list)):
+                r=rowsof(v)
+                if r: return r
+    return []
+print(len(rowsof(doc)))
+PY
+}
+
+# The parameter name is not documented, so it is discovered the same way the app
+# discovers it — and judged the same way: on the RAW row count, never on how many
+# rows turned out to be citable.
+PARAM=""
+for cand in q query keyword search text; do
+  code="$(search "$TOPIC_OUT/param_$cand.json" "$cand" patience)"
+  n="$(rows "$TOPIC_OUT/param_$cand.json")"
+  printf '  param %-8s status %-3s raw rows %s\n' "$cand" "${code:-ERR}" "$n"
+  if [ "${code:-0}" = "200" ] && [ "${n:-0}" -gt 0 ] 2>/dev/null; then
+    PARAM="$cand"; break
+  fi
+done
+
+if [ -z "$PARAM" ]; then
+  echo
+  echo "  no query parameter returned any rows — the app cannot search until this"
+  echo "  is resolved. Read $TOPIC_OUT/param_q.json for what the service did say."
+else
+  echo
+  echo "  query parameter that worked: $PARAM"
+  echo
+  printf '  %-12s %-14s %5s %8s\n' TOPIC TERM RAW CITABLE
+  printf '  %-12s %-14s %5s %8s\n' ------------ -------------- ----- --------
+
+  # id → terms, in the same order as HadithTopics.all. Kept here rather than
+  # parsed out of the Dart so the probe runs with nothing but curl and python.
+  TOPICS=(
+    "faith|faith belief oneness worship"
+    "prayer|prayer prostration congregation"
+    "patience|patience patient affliction"
+    "knowledge|knowledge learn teach"
+    "character|character manners truthful modesty"
+    "repentance|repentance repent forgiveness"
+    "family|parents mother children kinship"
+    "leadership|leader ruler authority shepherd"
+    "companions|companions ansar muhajirun"
+    "signs|the hour;resurrection;signs"
+  )
+
+  for entry in "${TOPICS[@]}"; do
+    id="${entry%%|*}"; termspec="${entry#*|}"
+    # Semicolons separate multi-word terms; spaces separate single-word ones.
+    if [[ "$termspec" == *";"* ]]; then
+      IFS=';' read -r -a terms <<<"$termspec"
+    else
+      read -r -a terms <<<"$termspec"
+    fi
+
+    used=""; raw=0; citable=0
+    for term in "${terms[@]}"; do
+      f="$TOPIC_OUT/$id.json"
+      code="$(search "$f" "$PARAM" "$term")"
+      raw="$(rows "$f")"
+      used="$term"
+      [ "${raw:-0}" -gt 0 ] 2>/dev/null && break
+    done
+
+    if [ "${raw:-0}" -gt 0 ] 2>/dev/null; then
+      citable="$(python3 - "$TOPIC_OUT/$id.json" <<'PY' 2>/dev/null || echo -1
+import json,re,sys
+doc=json.load(open(sys.argv[1],encoding='utf-8'))
+def rowsof(d):
+    if isinstance(d,list): return [x for x in d if isinstance(x,dict)]
+    if isinstance(d,dict):
+        for k in ('hadiths','results','data','items'):
+            v=d.get(k)
+            if isinstance(v,list): return rowsof(v)
+        for v in d.values():
+            if isinstance(v,(dict,list)):
+                r=rowsof(v)
+                if r: return r
+    return []
+norm=lambda s: re.sub(r'[^a-z0-9]','',s.lower())
+# The app's accepted number fields. `id` is deliberately not among them.
+NUM={norm(x) for x in ('number','hadith_number','hadith_no','hadith_num',
+                       'reference_number','number_in_book')}
+COL={norm(x) for x in ('collection','collection_name','collection_slug',
+                       'book_slug','source','collection_id','book')}
+TXT={norm(x) for x in ('arabic','arab','hadith_arabic','text_ar','arabicText',
+                       'english','hadith_english','text_en','englishText',
+                       'translation','body','text')}
+# Only what UmmahAPI carries and our slugs accept; ahmad/darimi/bulugh/nawawi
+# are declined on purpose, so a row naming them is correctly uncitable.
+ALIASES={'bukhari':'bukhari','sahih bukhari':'bukhari','muslim':'muslim',
+         'sahih muslim':'muslim','abu dawud':'abudawud','abudawud':'abudawud',
+         'abudawood':'abudawud','tirmidhi':'tirmidhi','nasai':'nasai',
+         'ibn majah':'ibnmajah','ibnmajah':'ibnmajah','muwatta':'malik',
+         'malik':'malik'}
+def field(row,names):
+    for k,v in row.items():
+        if norm(k) in names and v not in (None,''):
+            if isinstance(v,(str,int,float)) and str(v).strip(): return str(v).strip()
+    return None
+def slug(row):
+    for k,v in row.items():
+        if norm(k) not in COL or not isinstance(v,(str,int,float)): continue
+        s=re.sub(r"['’‘`]",'',str(v).lower())
+        if any(t in s for t in ('40','forty','arbain')): continue
+        for a,sl in ALIASES.items():
+            if a in s: return sl
+    return None
+rs=rowsof(doc); ok=0; names={}
+for r in rs:
+    sl=slug(r)
+    if sl is None:
+        for k,v in r.items():
+            if norm(k) in COL and isinstance(v,(str,int,float)):
+                names[str(v)]=names.get(str(v),0)+1
+        continue
+    if field(r,NUM) is None: continue
+    if field(r,TXT) is None: continue
+    ok+=1
+print(ok)
+open(sys.argv[1]+'.unresolved','w').write(json.dumps(names))
+PY
+)"
+    fi
+
+    printf '  %-12s %-14s %5s %8s\n' "$id" "$used" "${raw:-0}" "${citable:-0}"
+  done
+
+  echo
+  echo "  collection names that could not be resolved (per topic, if any):"
+  found=0
+  for f in "$TOPIC_OUT"/*.json.unresolved; do
+    [ -f "$f" ] || continue
+    [ "$(cat "$f")" = "{}" ] && continue
+    printf '    %-14s %s\n' "$(basename "$f" .json.unresolved)" "$(cat "$f")"
+    found=1
+  done
+  [ "$found" = 0 ] && echo "    (none — every row named a collection the app knows)"
+
+  echo
+  echo "  A topic showing raw 0 for every term is a topic that should not ship."
+  echo "  A topic showing raw > 0 and citable 0 is a field-name fix in the app."
+fi
+
+echo
+echo "topic bodies saved in tools/.ummah_samples/topics/"

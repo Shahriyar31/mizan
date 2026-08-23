@@ -28,9 +28,25 @@
 ///
 /// ── Never store a broken file ─────────────────────────────────────────
 /// Downloads land on a `.dl` temporary file and are renamed into place only
-/// after a 200 with a plausible body length. A truncated write that is renamed
-/// anyway is the one failure mode a media cache must not have, because it turns
-/// a transient network fault into permanent silence for that ayah.
+/// after a 200, an audio-ish content type and a plausible body length. A
+/// truncated write that is renamed anyway is the one failure mode a media cache
+/// must not have, because it turns a transient network fault into permanent
+/// silence for that ayah.
+///
+/// The content-type check is not paranoia. everyayah.com answers a missing ayah
+/// with a real 404, but the catalogue reciters resolved through
+/// [AudioRepository] hand back arbitrary third-party URLs, and a host that
+/// answers `200 text/html` with a login wall or a "file moved" page would
+/// otherwise have that page written to disk as `.mp3` and handed to the decoder
+/// on every later replay. An MP3 decoder fed HTML does not fail cleanly — it
+/// emits noise, which is indistinguishable to the listener from distortion.
+///
+/// ── One writer per path ───────────────────────────────────────────────
+/// [pendingFor] exists so that this class is the *only* thing downloading a
+/// given file at a given moment. just_audio's `LockCachingAudioSource` also
+/// streams-and-writes, and it was pointed at these same paths; see
+/// `ayah_audio_provider.dart` for the collision that caused and why the caller
+/// has to ask before starting a competing stream.
 library;
 
 import 'dart:async';
@@ -66,6 +82,14 @@ class RecitationCache {
   /// In-flight downloads keyed by absolute path. A prefetch of the next ayah and
   /// a tap on that same ayah must not download it twice.
   final Map<String, Future<File?>> _inflight = {};
+
+  /// The download already running for [file], or null if none is.
+  ///
+  /// The player calls this before it falls back to streaming: if this ayah is
+  /// mid-prefetch, the right move is to wait for that one download rather than
+  /// open a second one onto the same path. Keyed by path rather than by
+  /// reciter/surah/ayah so it cannot disagree with [_inflight] about identity.
+  Future<File?>? pendingFor(File file) => _inflight[file.path];
 
   // ── Paths ───────────────────────────────────────────────────────────
 
@@ -165,6 +189,14 @@ class RecitationCache {
         return null;
       }
       final bytes = response.bodyBytes;
+      if (!_isAudioType(response.headers['content-type'])) {
+        AppLogger.info(
+          'recitation not audio (${response.headers['content-type']}) for '
+          '${p.basename(file.path)}',
+          tag: _tag,
+        );
+        return null;
+      }
       if (bytes.length < _minimumBytes) {
         AppLogger.info(
           'recitation body too small (${bytes.length}B) for '
@@ -233,4 +265,23 @@ class RecitationCache {
   /// segments. Anything outside this set becomes an underscore.
   static String _safe(String id) =>
       id.replaceAll(RegExp(r'[^A-Za-z0-9_\-]'), '_');
+
+  /// Whether a `Content-Type` could plausibly be a recitation.
+  ///
+  /// Deliberately a reject-list rather than an allow-list. Audio is served under
+  /// a long tail of types — `audio/mpeg`, `application/octet-stream`,
+  /// `binary/octet-stream`, and CDNs that send none at all — so an allow-list
+  /// would break working reciters the first time one of them was unusual. What
+  /// this has to catch is the opposite case, a *document* being passed off as an
+  /// ayah: an HTML error page, a JSON error envelope, a plain-text message. Those
+  /// are the only things rejected, and a missing header is allowed through
+  /// because the body-length check still stands behind it.
+  static bool _isAudioType(String? contentType) {
+    if (contentType == null || contentType.isEmpty) return true;
+    final type = contentType.toLowerCase();
+    if (type.startsWith('text/')) return false;
+    return !type.contains('html') &&
+        !type.contains('json') &&
+        !type.contains('xml');
+  }
 }

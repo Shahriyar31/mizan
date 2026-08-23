@@ -18,6 +18,7 @@ import '../models/layer_unlock.dart';
 import '../../../core/knowledge/entity_ref.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../core/theme/mizan_tokens.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
 import '../../knowledge/presentation/widgets/connected_sections.dart';
 
@@ -29,6 +30,7 @@ class LayerScreen extends ConsumerStatefulWidget {
     required this.surahName,
     required this.arabicText,
     required this.translation,
+    this.initialLayer = 0,
   });
 
   final int surahNumber;
@@ -36,6 +38,12 @@ class LayerScreen extends ConsumerStatefulWidget {
   final String surahName;
   final String arabicText;
   final String translation;
+
+  /// Which layer to open on, as a **storage** index — see [LayerMeta]. The
+  /// layers sheet is the only caller that passes anything but the default: the
+  /// reader picks a layer there, so landing on Words first and making them find
+  /// it again in the tab bar would waste the choice they already made.
+  final int initialLayer;
 
   @override
   ConsumerState<LayerScreen> createState() => _LayerScreenState();
@@ -54,12 +62,40 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: LayerMeta.count, vsync: this);
+    _currentTab =
+        LayerMeta.positionOf(widget.initialLayer).clamp(0, LayerMeta.count - 1);
+    _tabController = TabController(
+      length: LayerMeta.count,
+      initialIndex: _currentTab,
+      vsync: this,
+    );
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() => _currentTab = _tabController.index);
+        _recordOpen(LayerMeta.displayOrder[_tabController.index]);
       }
     });
+    _recordOpen(widget.initialLayer);
+  }
+
+  /// Writes the "this layer was opened" row the unlock schedule is built on.
+  ///
+  /// Nothing called [LayerRepository.recordUnlock] before the layers sheet
+  /// existed, so `layer_unlocks` stayed empty on every device: every layer past
+  /// the first read as permanently locked and the sheet would have reported
+  /// "0 read" forever. Recording on *arrival* is what the table means — one row
+  /// per layer first opened — and the UNIQUE constraint makes the repeat calls
+  /// on every tab tap free.
+  ///
+  /// The states provider is invalidated afterwards so the sheet, which is the
+  /// only reader of that cache, recomputes on the way back instead of showing
+  /// the counts as they were before this visit.
+  Future<void> _recordOpen(int storageIndex) async {
+    await ref
+        .read(layerRepositoryProvider)
+        .recordUnlock(widget.surahNumber, widget.ayahNumber, storageIndex);
+    if (!mounted) return;
+    ref.invalidate(layerStatesProvider(_ayahKey));
   }
 
   @override
@@ -200,6 +236,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
   }
 
   Widget _buildBottomTabBar() {
+    final p = MizanPalette.of(context);
     return Container(
       decoration:  BoxDecoration(
         color: AppColors.quranSurfaceDim,
@@ -250,9 +287,12 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
                       curve: Curves.easeOutBack,
                       builder: (context, scale, child) =>
                           Transform.scale(scale: scale, child: child),
-                      child: Text(
+                      child: Icon(
                         LayerMeta.icons[index],
-                        style: TextStyle(fontSize: isActive ? 22 : 18),
+                        // Tokens, because the glyph is no longer an emoji drawn
+                        // by the platform font — see [LayerMeta.icons].
+                        size: isActive ? 22 : 18,
+                        color: isActive ? p.accentText : p.muted,
                       ),
                     ),
                     const SizedBox(height: 4),

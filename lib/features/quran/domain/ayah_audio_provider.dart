@@ -33,9 +33,27 @@
 ///      costs none.
 ///
 /// The next ayah is fetched to disk while the current one plays, which is what
-/// removes the stall at each boundary. Before this, every ayah and every repeat
-/// was a cold `setUrl` with no buffer ahead of the playhead — see
-/// [RecitationCache] for why that, and not the audio source, was the distortion.
+/// removes the stall at each boundary.
+///
+/// ── Why the distortion outlived the caching fix ────────────────────────
+/// Caching was necessary but it was not the whole cause, and two things had to
+/// be fixed on top of it. Both are documented at the code below rather than
+/// here, but in short:
+///
+///   1. [playAyah] loaded the next source onto a player that was *still
+///      playing*. Resolving a URL is not instant, so the previous ayah stayed
+///      audible across that window and then `setAudioSource` swapped the source
+///      under a live audio track. The player is paused first now.
+///   2. The prefetch and just_audio's caching source wrote the *same* file by
+///      two different routes, so on a slow connection the same ayah was
+///      downloaded twice and renamed into place twice while the decoder was
+///      reading it. [_sourceFor] now waits for a download already in flight
+///      instead of opening a competing one.
+///
+/// Per-ayah `setAudioSource` remains the design — see the note on repeat above
+/// for why a gapless playlist (`AudioPlayer.setAudioSources`) cannot replace it
+/// — so a short gap at each boundary is expected and is not the artefact this
+/// guards against.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -291,6 +309,30 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     // — that is what let a Settings preview and a reader recitation overlap.
     await PlaybackArbiter.instance.claim(this);
 
+    // Silence *this* player before loading anything, and do it before the awaits
+    // below rather than after them.
+    //
+    // The arbiter deliberately skips the player that called `claim`, so nothing
+    // else stops this one. Resolving the next ayah is not instant — a cache
+    // lookup at best, and for a catalogue reciter up to two HTTP round-trips in
+    // `AudioRepository.urlFor` — and for that whole window the *previous* ayah
+    // was still audible while the app already showed the new one as loading.
+    // Then `setAudioSource` arrived on a player whose `playing` was still true,
+    // so ExoPlayer swapped the source under a live audio track: the tail of the
+    // old ayah's buffer is emitted over the head of the new one. That is the
+    // click-and-garble at every boundary and every tap that reads as distortion,
+    // and it is why it survived the caching fix — caching made the window
+    // shorter, not empty.
+    //
+    // Pausing first both stops the sound immediately and drops `playing` to
+    // false, so the new source cannot auto-start before `play()` is called
+    // deliberately below.
+    try {
+      await _player.pause();
+    } catch (_) {
+      // Nothing loaded yet on the very first ayah. Not a failure.
+    }
+
     state = state.copyWith(
       status: AyahAudioStatus.loading,
       surahNumber: surahNumber,
@@ -347,12 +389,38 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     final url = await _repository.urlFor(r, surahNumber, ayahNumber);
     if (url == null) return null;
 
-    // LockCachingAudioSource streams and writes at once, so the first listen
-    // pays for the download and every later one is a disk read. It writes a
-    // `.part` file and renames on completion, so an interrupted listen cannot
-    // leave a truncated file behind to be played as if it were whole.
     try {
       final file = await _cache.fileFor(r.id, surahNumber, ayahNumber);
+
+      // Only one writer per path, ever.
+      //
+      // This is the collision the caching fix introduced. `_warmNext` prefetches
+      // ayah N+1 through [RecitationCache], which downloads to `<name>.mp3.dl`
+      // and renames into place. `LockCachingAudioSource` streams the *same* ayah
+      // to `<name>.mp3.part` and renames into the *same* final path. On a slow
+      // connection the prefetch of N+1 has not finished by the time auto-advance
+      // arrives at N+1 — which is the normal case precisely when the connection
+      // is bad — so `cached()` found nothing (only the `.dl` exists), a second
+      // download started, and two writers raced onto one file while the player
+      // was reading it: `LockCachingAudioSource.request()` re-stats the cache
+      // file on every range request, so a rename landing mid-ayah changes the
+      // bytes under the decoder. Frames read at the wrong offset are decoded as
+      // noise. Waiting for the download that is *already running* costs nothing
+      // — it is the same bytes from the same server — and leaves exactly one
+      // writer on the path.
+      final pending = _cache.pendingFor(file);
+      if (pending != null) {
+        final done = await pending;
+        if (done != null) return AudioSource.file(done.path);
+        // The prefetch failed, so the path is free again and streaming is the
+        // right fallback rather than giving up on the ayah.
+      }
+
+      // LockCachingAudioSource streams and writes at once, so the first listen
+      // pays for the download and every later one is a disk read. It writes a
+      // `.part` file and renames on completion, so an interrupted listen cannot
+      // leave a truncated file behind to be played as if it were whole.
+      //
       // Experimental in just_audio 0.10.x, and used deliberately: it is the only
       // way to stream and cache in one download. If it is ever removed, the
       // fallback is the line below — stream without keeping the file — which

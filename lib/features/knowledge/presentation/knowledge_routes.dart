@@ -32,6 +32,12 @@ class KnowledgeRoutes {
   /// the topic-based way in rather than a list of every hadith in the graph.
   static const String hadithTopicsIndex = '/knowledge/hadith-topics';
 
+  /// The hadith the reader has kept. Named here rather than typed as a literal
+  /// at each call site because two screens reach it — Discover's "more ways in"
+  /// sheet, where it is a reading list, and Settings → System, where the same
+  /// screen doubles as the one inspectable cache.
+  static const String savedHadith = '/knowledge/saved-hadith';
+
   static String hadithTopic(String topicId) => '/knowledge/hadith-topic/$topicId';
 
   /// The index path for a type, where one exists.

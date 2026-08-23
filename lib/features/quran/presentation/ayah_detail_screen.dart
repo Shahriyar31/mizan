@@ -39,12 +39,21 @@
 ///   • **Repeat** lives in the player bar: 1× · 3× · 5× · 10× · ∞. It repeats
 ///     the *current* ayah that many times and then carries on, which is how
 ///     memorising actually works.
-///   • **"Layers"** opens the five-layer screen for that ayah. Exactly one way
-///     in, one word, the same on every ayah: three controls that all landed on
-///     the same screen made the row look like it offered three things. Where no
-///     curated tafseer exists yet, [LayerScreen] says so itself — the label does
-///     not change, because a control that renames itself per ayah reads as a
-///     different feature rather than the same one.
+///   • **"Six layers"** in the bottom bar opens the layers sheet for the ayah
+///     under the reading line — see `layers_sheet.dart`. It is the only door in,
+///     and it says those two words on every ayah in the Quran. The per-card
+///     "Layers" link that used to sit beside share was removed when the pill
+///     landed: two ways into one room made the action row look like it offered
+///     two things. Where no curated tafsir exists yet, the layer itself says so —
+///     the control does not rename itself per ayah, because one that does reads
+///     as a different feature rather than the same one.
+///   • **‹ and ›** beside the pill move the reading position one ayah and bring
+///     that card up. They are not a pager: this reader scrolls (see above), so
+///     they drive the same reading line and the same resume point the scroll
+///     does.
+///   • **The six-layers card** is drawn once, under the first ayah a new reader
+///     opens, and never again — the pill cannot explain itself in two words. Its
+///     one boolean lives in [OnboardingFlags] beside the welcome flag.
 ///   • **The word-by-word strip** shows on the focused ayah only — it is real
 ///     data ([Ayah.tappableWords]) and tapping a word opens the existing word
 ///     sheet. On every card at once it would bury the ayah.
@@ -74,12 +83,14 @@ import '../../../shared/models/surah.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
 import '../../../shared/widgets/mizan/mizan_pressable.dart';
 import '../../../shared/widgets/word_tap_sheet.dart';
+import '../../onboarding/domain/onboarding_flags.dart';
 import '../../settings/domain/reading_preferences_provider.dart';
 import '../../sharing/share_target_sheet.dart';
 import '../data/ayah_share_mapper.dart';
 import '../domain/ayah_audio_provider.dart';
 import '../domain/quran_providers.dart';
 import 'layer_screen.dart';
+import 'layers_sheet.dart';
 
 /// The basmala, shown above the first ayah of every surah except Al-Fatihah
 /// (where it *is* ayah 1) and At-Tawbah (which has none).
@@ -122,8 +133,77 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
   /// at, so the feature is discoverable without a hint telling you to tap.
   late int _focusedIndex = _openAt;
 
+  /// Whether the six-layers introduction card is still owed to this reader.
+  /// Read synchronously — [OnboardingFlags] is restored before the first frame,
+  /// so the card never appears a beat after the ayah.
+  late bool _showIntro = !OnboardingFlags.layersIntroSeen;
+
   GlobalKey _keyFor(int index) =>
       _cardKeys.putIfAbsent(index, () => GlobalKey());
+
+  /// Answers the introduction card, whichever button did it, and never shows it
+  /// again on any ayah.
+  void _dismissIntro() {
+    setState(() => _showIntro = false);
+    OnboardingFlags.markLayersIntroSeen();
+  }
+
+  /// Moves the reading position one ayah and brings that card up.
+  ///
+  /// This reader is a vertical scroll, not a pager (see the library comment), so
+  /// "previous / next ayah" means what it means to a scrolling reader: move the
+  /// reading line, save the resume point, and let the existing
+  /// [Scrollable.ensureVisible] machinery carry the card. The index is set here
+  /// rather than waiting for the scroll to settle so the "Six layers" pill beside
+  /// these buttons is already pointing at the new ayah when the animation starts.
+  void _stepAyah(int delta, List<Ayah> ayat, String surahName) {
+    final target = _readingIndex + delta;
+    if (target < 0 || target >= ayat.length) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _readingIndex = target;
+      _focusedIndex = target;
+    });
+    _saveResumePoint(ayat[target], surahName);
+    _scrollToAyah(ayat[target].ayahNumber);
+  }
+
+  /// The single door into the six layers — see `layers_sheet.dart`. It always
+  /// opens the ayah under the reading line, which is the ayah the header names.
+  void _openLayers(List<Ayah>? ayat, String surahName, Surah? surah) {
+    if (ayat == null || _readingIndex >= ayat.length) return;
+    final ayah = ayat[_readingIndex];
+    HapticFeedback.selectionClick();
+    showLayersSheet(
+      context,
+      surahNumber: widget.surahNumber,
+      ayahNumber: ayah.ayahNumber,
+      surahName: surah?.englishName ?? surahName,
+      arabicText: ayah.arabicText,
+      translation: ayah.translation,
+    );
+  }
+
+  /// Opens one named layer directly. Only the introduction card uses this: its
+  /// "Start with Words" button is a promise about *which* layer opens, so it
+  /// cannot go through the sheet.
+  void _openLayer(List<Ayah>? ayat, String surahName, Surah? surah, int layer) {
+    if (ayat == null || _readingIndex >= ayat.length) return;
+    final ayah = ayat[_readingIndex];
+    HapticFeedback.selectionClick();
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LayerScreen(
+          surahNumber: widget.surahNumber,
+          ayahNumber: ayah.ayahNumber,
+          surahName: surah?.englishName ?? surahName,
+          arabicText: ayah.arabicText,
+          translation: ayah.translation,
+          initialLayer: layer,
+        ),
+      ),
+    );
+  }
 
   Future<void> _saveResumePoint(Ayah ayah, String surahName) async {
     final prefs = await SharedPreferences.getInstance();
@@ -201,6 +281,7 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
           ),
         );
     final ayatAsync = ref.watch(ayatProvider(widget.surahNumber));
+    final loaded = ayatAsync.valueOrNull;
     final surah = surahAsync.valueOrNull;
     final surahName = surah?.englishName ?? 'Surah ${widget.surahNumber}';
 
@@ -251,6 +332,13 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
                   focusedIndex: _focusedIndex,
                   playingIndex: playingIndex,
                   keyFor: _keyFor,
+                  introAt: _showIntro ? _openAt.clamp(0, value.length - 1) : -1,
+                  onIntroStart: () {
+                    _dismissIntro();
+                    // 0 is the storage index of Words — see [LayerMeta].
+                    _openLayer(value, surahName, surah, 0);
+                  },
+                  onIntroDismiss: _dismissIntro,
                   onFocus: (i) => setState(
                     () => _focusedIndex = _focusedIndex == i ? -1 : i,
                   ),
@@ -261,9 +349,31 @@ class _AyahDetailScreenState extends ConsumerState<AyahDetailScreen> {
           ),
         ],
       ),
-      // Not `Positioned` over the text: see the library comment. Null while
-      // nothing from this surah is loaded, so the reading area keeps its height.
-      bottomNavigationBar: _PlayerBar(surahNumber: widget.surahNumber),
+      // Not `Positioned` over the text: see the library comment. One SafeArea
+      // around both bars — the player's own SafeArea then resolves to nothing,
+      // so an active player does not push a gap between itself and the layers
+      // bar.
+      bottomNavigationBar: SafeArea(
+        top: false,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _PlayerBar(surahNumber: widget.surahNumber),
+            _LayersBar(
+              // Both guards test the loaded list, not just the index: the reader
+              // can open at ayah 255 and tap ‹ before the surah has arrived.
+              canPrevious: loaded != null && _readingIndex > 0,
+              canNext: loaded != null && _readingIndex < loaded.length - 1,
+              onPrevious: loaded == null
+                  ? null
+                  : () => _stepAyah(-1, loaded, surahName),
+              onNext:
+                  loaded == null ? null : () => _stepAyah(1, loaded, surahName),
+              onOpenLayers: () => _openLayers(loaded, surahName, surah),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -456,6 +566,9 @@ class _ReaderScroll extends StatelessWidget {
     required this.focusedIndex,
     required this.playingIndex,
     required this.keyFor,
+    required this.introAt,
+    required this.onIntroStart,
+    required this.onIntroDismiss,
     required this.onFocus,
     required this.onSettled,
   });
@@ -472,21 +585,43 @@ class _ReaderScroll extends StatelessWidget {
   final int playingIndex;
 
   final GlobalKey Function(int) keyFor;
+
+  /// Which card the six-layers introduction sits under, or -1 for none. It rides
+  /// with the ayah the reader arrived at rather than being pinned to the top of
+  /// the surah, so it is in view on the ayah they actually opened — and it is one
+  /// card, once, not a banner on every card.
+  final int introAt;
+
+  final VoidCallback onIntroStart;
+  final VoidCallback onIntroDismiss;
+
   final ValueChanged<int> onFocus;
   final VoidCallback onSettled;
 
   Widget _card(int index) => Padding(
         key: keyFor(index),
         padding: const EdgeInsets.only(bottom: MizanGeometry.gap),
-        child: _AyahCard(
-          ayah: ayat[index],
-          surah: surah,
-          surahNumber: surahNumber,
-          surahName: surahName,
-          ayahCount: ayat.length,
-          focused: index == focusedIndex,
-          playing: index == playingIndex,
-          onTap: () => onFocus(index),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _AyahCard(
+              ayah: ayat[index],
+              surah: surah,
+              surahNumber: surahNumber,
+              surahName: surahName,
+              ayahCount: ayat.length,
+              focused: index == focusedIndex,
+              playing: index == playingIndex,
+              onTap: () => onFocus(index),
+            ),
+            if (index == introAt) ...[
+              const SizedBox(height: MizanGeometry.gap),
+              LayersIntroCard(
+                onStartWithWords: onIntroStart,
+                onDismiss: onIntroDismiss,
+              ),
+            ],
+          ],
         ),
       );
 
@@ -893,25 +1028,8 @@ class _AyahActions extends ConsumerWidget {
   final String surahName;
   final int ayahCount;
 
-  void _openLayers(BuildContext context) {
-    HapticFeedback.selectionClick();
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => LayerScreen(
-          surahNumber: surahNumber,
-          ayahNumber: ayah.ayahNumber,
-          surahName: surahName,
-          arabicText: ayah.arabicText,
-          translation: ayah.translation,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final p = MizanPalette.of(context);
-
     return Row(
       children: [
         _ListenTile(
@@ -934,25 +1052,100 @@ class _AyahActions extends ConsumerWidget {
             );
           },
         ),
-        const Spacer(),
-        // The one and only way into the layers from a card. It is a word rather
-        // than a glyph because "Layers" needs explaining and a stack icon does
-        // not explain it — and it says the same word on every ayah, whether or
-        // not curated tafsir exists behind it, so the row never looks like it
-        // is offering different things on different ayat.
-        MizanPressable(
-          fill: Colors.transparent,
-          shadowsEnabled: false,
-          borderRadius: BorderRadius.circular(MizanGeometry.pillRadius),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 10),
-          semanticLabel: 'Open the five layers for this ayah',
-          onTap: () => _openLayers(context),
-          child: Text(
-            'Layers',
-            style: MizanType.bodyStrong(color: p.accentText),
-          ),
-        ),
+        // No layers link here. The "Six layers" pill in the bottom bar is the
+        // one and only door, and it always opens the ayah under the reading
+        // line — the same ayah this row belongs to when this row is the one being
+        // read. A second link beside share made the row look like it offered two
+        // different things, and it is the exact duplication the reader called out.
       ],
+    );
+  }
+}
+
+/// The bottom bar: previous ayah, the layers pill, next ayah.
+///
+/// The pill is the only entry point to the layers in the whole app, and it says
+/// "Six layers" on every ayah of every surah. It once read "Reflect" on most
+/// surahs and "Tafsir" on al-Fatihah, depending on what content happened to
+/// exist — which made one feature look like two and hid the layers from anyone
+/// who did not recognise the word. Where a layer has nothing curated behind it,
+/// the layer itself says so; the control does not change its name.
+class _LayersBar extends StatelessWidget {
+  const _LayersBar({
+    required this.canPrevious,
+    required this.canNext,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onOpenLayers,
+  });
+
+  final bool canPrevious;
+  final bool canNext;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback onOpenLayers;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        MizanGeometry.gutter,
+        6,
+        MizanGeometry.gutter,
+        8,
+      ),
+      child: Row(
+        children: [
+          MizanIconTile(
+            icon: Icons.chevron_left_rounded,
+            iconSize: 24,
+            semanticLabel: 'Previous ayah',
+            // Null rather than a greyed-out tap that does nothing: at the first
+            // ayah there is no previous ayah to go to.
+            onTap: canPrevious ? onPrevious : null,
+          ),
+          const SizedBox(width: MizanGeometry.gap),
+          Expanded(
+            child: MizanPressable(
+              onTap: onOpenLayers,
+              borderRadius:
+                  BorderRadius.circular(MizanGeometry.pillRadius),
+              // The one navy control on the page in both themes — the layers are
+              // a different kind of thing from the ayah they sit under.
+              fill: MizanTone.inverse.resolve(p),
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              semanticLabel: 'Open the six layers of this ayah',
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    'Six layers',
+                    style: MizanType.bodyStrong(
+                      color: MizanTone.inverse.onColor(p),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  // Up, because the sheet rises from here.
+                  Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    size: 20,
+                    color: MizanTone.inverse.accentTextOn(p),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: MizanGeometry.gap),
+          MizanIconTile(
+            icon: Icons.chevron_right_rounded,
+            iconSize: 24,
+            semanticLabel: 'Next ayah',
+            onTap: canNext ? onNext : null,
+          ),
+        ],
+      ),
     );
   }
 }

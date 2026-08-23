@@ -27,14 +27,34 @@ abstract final class OnboardingFlags {
   /// a new user never seeing it.
   static bool welcomeSeen = false;
 
+  /// Stable storage key — renaming it re-shows the six-layers card to every
+  /// existing reader.
+  static const _layersIntroKey = 'reader_layers_intro_seen';
+
+  /// Whether the "Every ayah has six layers" card has been answered — by
+  /// starting with Words *or* by declining. Either counts: a card that must be
+  /// refused on every ayah is an advert, not an introduction.
+  ///
+  /// Restored with [welcomeSeen] before the first frame, so the reader either
+  /// draws the card immediately or never — it can never appear a beat after the
+  /// ayah has been read.
+  static bool layersIntroSeen = false;
+
   static Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
     welcomeSeen = prefs.getBool(_welcomeKey) ?? false;
+    layersIntroSeen = prefs.getBool(_layersIntroKey) ?? false;
   }
 
   static Future<void> markWelcomeSeen() async {
     welcomeSeen = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_welcomeKey, true);
+  }
+
+  static Future<void> markLayersIntroSeen() async {
+    layersIntroSeen = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_layersIntroKey, true);
   }
 }

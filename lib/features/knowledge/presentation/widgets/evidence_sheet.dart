@@ -185,7 +185,9 @@ class _QuranBody extends ConsumerWidget {
         ),
         const SizedBox(height: 10),
         Text(
-          'The five layers for this ayah live on the reader screen.',
+          // Named exactly as the control on the reader is named. There are six
+          // layers, and they are called "Six layers" wherever they are mentioned.
+          'The six layers for this ayah live on the reader screen.',
           textAlign: TextAlign.center,
           style: MizanType.body(color: p.muted).copyWith(fontSize: 13),
         ),

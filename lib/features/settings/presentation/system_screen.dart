@@ -15,6 +15,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../knowledge/presentation/knowledge_routes.dart';
 import 'widgets/settings_row.dart';
 
 class SystemScreen extends StatefulWidget {
@@ -113,7 +114,7 @@ class _SystemScreenState extends State<SystemScreen> {
             icon: Icons.format_quote_rounded,
             title: 'Saved hadith',
             subtitle: 'Texts kept on this device for offline reading',
-            onTap: () => context.push('/knowledge/saved-hadith'),
+            onTap: () => context.push(KnowledgeRoutes.savedHadith),
           ),
         ]),
         const SettingsSectionLabel('Updates'),

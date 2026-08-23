@@ -120,6 +120,22 @@ class ApiCache {
     }
   }
 
+  /// Forgets one entry.
+  ///
+  /// Used where an answer turned out not to be worth keeping — an empty search
+  /// result under a twelve-hour policy would otherwise hold a screen blank long
+  /// after the cause was fixed.
+  Future<void> remove(String key) async {
+    _memory.remove(key);
+    _absent.add(key);
+    try {
+      final db = await _db.database;
+      await db.delete(table, where: 'cache_key = ?', whereArgs: [key]);
+    } catch (_) {
+      // Removed from memory for this session even if the delete failed.
+    }
+  }
+
   // ── Housekeeping, surfaced in Settings ──────────────────────────────
 
   Future<int> count() async {

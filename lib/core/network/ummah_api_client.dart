@@ -170,6 +170,15 @@ class UmmahApiClient {
       }
       try {
         final data = await _attempt(path, query);
+        // An empty payload is not worth remembering. Writing it means a single
+        // bad answer keeps a screen blank for the whole cache window, long
+        // after whatever caused it has been fixed.
+        if (_isEmptyPayload(data)) {
+          if (kDebugMode) {
+            debugPrint('[$_tag] $path returned an empty payload; not cached');
+          }
+          return data;
+        }
         await _cache.write(cacheKey, data);
         return data;
       } on UmmahApiException catch (e) {
@@ -256,6 +265,9 @@ class UmmahApiClient {
     return map;
   }
 
+  static bool _isEmptyPayload(Object? data) =>
+      (data is List && data.isEmpty) || (data is Map && data.isEmpty);
+
   static String _keyFor(String path, Map<String, String>? query) {
     if (query == null || query.isEmpty) return path;
     final parts = query.entries.map((e) => '${e.key}=${e.value}').toList()..sort();
@@ -286,6 +298,10 @@ class UmmahApiClient {
   /// A `List` payload. Handles the common case of a list nested one level deeper
   /// than expected — `data: {reciters: [...]}` — by looking for the first list
   /// value when [nestedKeys] are given.
+  ///
+  /// Pass [cacheEmpty] as false where an empty answer must not be remembered.
+  /// Searches want this: a query that came back with nothing, cached for twelve
+  /// hours, is a screen that stays empty for twelve hours.
   Future<List<Map<String, dynamic>>> fetchList(
     String path, {
     Map<String, String>? query,
@@ -293,10 +309,17 @@ class UmmahApiClient {
     Duration maxAge = CachePolicy.immutable,
     bool offlineOnly = false,
     List<String> nestedKeys = const [],
+    bool cacheEmpty = true,
   }) async {
     final data = await fetch(path,
         query: query, cacheKey: cacheKey, maxAge: maxAge, offlineOnly: offlineOnly);
-    return listFrom(data, nestedKeys: nestedKeys);
+    final rows = listFrom(data, nestedKeys: nestedKeys);
+    if (rows.isEmpty && !cacheEmpty && !offlineOnly) {
+      // The envelope itself was not empty — `{hadiths: []}` is a populated map —
+      // so the write above happened and has to be undone.
+      await _cache.remove(cacheKey ?? _keyFor(path, query));
+    }
+    return rows;
   }
 
   /// Extracts a list of maps from whatever shape arrived.

@@ -85,9 +85,38 @@ abstract final class ReferenceParser {
     caseSensitive: false,
   );
 
-  /// The quoted fragment, single or curly quotes. Non-greedy so a citation with
+  /// A quotation in double quotes. Unambiguous — a double quote has no second
+  /// job in English or in transliterated Arabic — so it is tried first.
+  static final RegExp _quotedDouble = RegExp('["“]([^"”]{8,240})["”]');
+
+  /// A quotation in single quotes, guarded, because in this corpus the
+  /// apostrophe does double duty as the transliteration of hamza and ayn.
+  ///
+  /// `Sahih al-Bukhari — Abu Musa al-Ash'ari narration on Adam's creation from
+  /// mixed clay` contains no quotation at all. An unguarded `'…'` pair reads the
+  /// apostrophe of *al-Ash'ari* as an opening quote and the apostrophe of
+  /// *Adam's* as the closing one, capturing `ari narration on Adam` — which
+  /// reached the evidence card as a highlighted excerpt clipped mid-word. It did
+  /// that to 28 of the 408 hadith references in the corpus.
+  ///
+  /// So a straight apostrophe only delimits at a word boundary: it may not open
+  /// while glued to the right of a letter or digit, and may not close with a
+  /// letter following it. That also *frees* the body to contain apostrophes,
+  /// which the old character class forbade — `'the Prophet's saying'` used to
+  /// truncate at *Prophet* and now survives whole. Non-greedy so a citation with
   /// two quotations yields the first rather than everything between them.
-  static final RegExp _quoted = RegExp("['‘\"“]([^'’\"”]{8,240})['’\"”]");
+  static final RegExp _quotedSingle = RegExp(
+    r"(?<![\p{L}\p{N}])['‘](.{8,240}?)['’](?![\p{L}])",
+    unicode: true,
+  );
+
+  /// The quotation in [text], or null when the text merely *describes* the
+  /// passage. Never returns a fragment cut out of the middle of a word.
+  static String? quotedIn(String text) {
+    final m = _quotedDouble.firstMatch(text) ?? _quotedSingle.firstMatch(text);
+    final quote = m?.group(1)?.trim();
+    return (quote == null || quote.isEmpty) ? null : quote;
+  }
 
   // ── Qur'an ──────────────────────────────────────────────────────────
 
@@ -104,7 +133,7 @@ abstract final class ReferenceParser {
 
     // The quoted fragment, if any, belongs to the whole citation rather than to
     // one of its passages, so it is attached to the first.
-    final quoted = _quoted.firstMatch(text)?.group(1)?.trim();
+    final quoted = quotedIn(text);
 
     final out = <QuranEvidence>[];
     for (final m in _verse.allMatches(text)) {
@@ -146,7 +175,7 @@ abstract final class ReferenceParser {
       locator: _locatorIn(text),
       bookName: _bookWithin.firstMatch(text)?.group(1)?.trim(),
       detail: _detailTail(text),
-      quotedText: _quoted.firstMatch(text)?.group(1)?.trim(),
+      quotedText: quotedIn(text),
       narrator: narratorIn(text),
       gradeNote: collection.gradedThroughout ? 'Sahih' : null,
     );

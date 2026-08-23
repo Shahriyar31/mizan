@@ -21,6 +21,8 @@
 /// [LayerMeta.displayOrder] is the only place the difference lives.
 library;
 
+import 'package:flutter/material.dart' show IconData, Icons;
+
 class LayerUnlock {
   const LayerUnlock({
     this.id,
@@ -71,9 +73,32 @@ class LayerMeta {
     'Similar',
   ];
 
-  static const List<String> icons = [
-    '🔤', '📍', '📚', '🔗', '✍️', '🔀',
+  /// One glyph per layer, indexed by **storage** index.
+  ///
+  /// These were emoji until the layers sheet landed. Emoji are drawn by the
+  /// platform's own font: they ignore the palette, so a locked or inverse row
+  /// could not tint them, they change shape between Android and iOS, and beside
+  /// the app's rounded Material icons they read as another product's UI. These
+  /// are the same icon family the rest of the reader uses.
+  static const List<IconData> icons = [
+    Icons.translate_rounded,      // Words — roots and meanings
+    Icons.place_rounded,          // Context — where and when it came down
+    Icons.auto_stories_rounded,   // Scholars — the tafsir
+    Icons.link_rounded,           // Isnad — the chain
+    Icons.edit_note_rounded,      // Reflection — the reader writes
+    Icons.compare_arrows_rounded, // Similar — mutashabihat
   ];
+
+  /// Roughly how long one layer takes to read, in whole minutes, by **storage**
+  /// index.
+  ///
+  /// An estimate, not a measurement — nothing in the app times a reader. It
+  /// exists so the layers sheet can say "about 9 min left" instead of showing
+  /// six destinations with no sense of the cost of any of them, and it is always
+  /// spoken with a hedge ("about") for exactly that reason. Scholars is the
+  /// longest because it is prose from a mufassir; Context and Similar are the
+  /// shortest because they are a paragraph and a short list.
+  static const List<int> readMinutes = [3, 2, 4, 2, 3, 2];
 
   /// How many layers exist.
   static int get count => names.length;

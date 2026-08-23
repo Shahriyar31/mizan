@@ -52,17 +52,55 @@ final savedHadithCountProvider = FutureProvider<int>((ref) async {
 /// Results are handed to [HadithRepository.remember] before they are returned, so
 /// the text is already cached by the time the reader taps one — the detail page
 /// opens with content rather than a spinner, and works offline afterwards.
+final hadithTopicOutcomeProvider =
+    FutureProvider.family<HadithTopicOutcome, String>((ref, topicId) async {
+  final topic = HadithTopics.byId(topicId);
+  if (topic == null) {
+    return HadithTopicOutcome(topicId: topicId, attempts: const []);
+  }
+
+  final outcome = await ref.watch(hadithSearchRepositoryProvider).outcomeFor(topic);
+  if (outcome.records.isNotEmpty) {
+    await ref.watch(hadithRepositoryProvider).remember(outcome.records);
+  }
+
+  // Told to the index so a topic the service has nothing for stops presenting
+  // itself as a full door. Recorded after the await, never during build.
+  ref.read(hadithTopicCountsProvider.notifier).record(topicId, outcome.records.length);
+  return outcome;
+});
+
+/// Just the records, for callers that do not care why a list is short.
 final hadithTopicProvider =
     FutureProvider.family<List<HadithRecord>, String>((ref, topicId) async {
-  final topic = HadithTopics.byId(topicId);
-  if (topic == null) return const [];
-
-  final results = await ref.watch(hadithSearchRepositoryProvider).forTopic(topic);
-  if (results.isNotEmpty) {
-    await ref.watch(hadithRepositoryProvider).remember(results);
-  }
-  return results;
+  final outcome = await ref.watch(hadithTopicOutcomeProvider(topicId).future);
+  return outcome.records;
 });
+
+/// topic id → citable narrations found, for topics that have actually been
+/// searched this session.
+///
+/// The index of ten reads this instead of running ten searches when it opens: a
+/// topic is absent until it has been asked, and absent is shown as an ordinary
+/// row. Zero is only ever a measured zero — the app never guesses that a topic is
+/// empty, and never fills one with narrations of its own choosing.
+final hadithTopicCountsProvider =
+    StateNotifierProvider<HadithTopicCounts, Map<String, int>>((ref) {
+  return HadithTopicCounts();
+});
+
+class HadithTopicCounts extends StateNotifier<Map<String, int>> {
+  HadithTopicCounts() : super(const {});
+
+  void record(String topicId, int citable) {
+    if (state[topicId] == citable) return;
+    state = {...state, topicId: citable};
+  }
+
+  /// Null when this topic has not been searched yet, which is not the same
+  /// answer as zero and must not be rendered as one.
+  int? countFor(String topicId) => state[topicId];
+}
 
 /// The reader's own reflection on one hadith, or null.
 final hadithReflectionProvider =

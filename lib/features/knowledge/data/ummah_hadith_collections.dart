@@ -175,9 +175,18 @@ abstract final class UmmahHadithCollections {
 
     if (carriesForty(raw)) return null;
 
-    final matched = HadithCollections.matchIn(raw);
+    // Tried twice: as it arrived, then with apostrophes removed. The aliases are
+    // written without them — "an-nasai", "jami at-tirmidhi" — so a payload that
+    // spells the collection "An-Nasa'i" or "Jami‘ at-Tirmidhī" matches nothing
+    // on the first pass and the row would be dropped as uncitable. Only
+    // apostrophes are stripped; hyphens and spaces are part of the aliases.
+    final matched = HadithCollections.matchIn(raw) ??
+        HadithCollections.matchIn(_withoutApostrophes(raw));
     if (matched == null) return null;
     if (notCarried.contains(matched.slug)) return null;
     return matched.slug;
   }
+
+  static String _withoutApostrophes(String value) =>
+      value.replaceAll(RegExp("['’‘`ʿʾ]"), '');
 }

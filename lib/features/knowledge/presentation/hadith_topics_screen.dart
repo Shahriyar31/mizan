@@ -15,6 +15,7 @@
 ///    knowledge graph's theme page where the topic has a theme.
 library;
 
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -24,6 +25,7 @@ import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
 import '../data/hadith_record.dart';
+import '../data/hadith_search_repository.dart';
 import '../data/hadith_topic.dart';
 import '../domain/hadith_providers.dart';
 import 'knowledge_routes.dart';
@@ -64,13 +66,22 @@ class HadithTopicsScreen extends ConsumerWidget {
   }
 }
 
-class _TopicRow extends StatelessWidget {
+class _TopicRow extends ConsumerWidget {
   const _TopicRow({required this.topic});
 
   final HadithTopic topic;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+
+    // Zero here is measured, never assumed: the map holds only topics that have
+    // actually been searched this session. A topic the service has nothing for is
+    // labelled rather than left looking like a broken link, and it is never
+    // filled with narrations the app chose for itself.
+    final known = ref.watch(hadithTopicCountsProvider)[topic.id];
+    final empty = known == 0;
+
     return MizanRow(
       title: topic.title,
       subtitle: topic.titleArabic,
@@ -80,6 +91,12 @@ class _TopicRow extends StatelessWidget {
         size: 42,
         iconSize: 19,
       ),
+      trailing: empty
+          ? Text(
+              'none available',
+              style: MizanType.body(color: p.muted).copyWith(fontSize: 11.5),
+            )
+          : null,
       onTap: () => context.push(KnowledgeRoutes.hadithTopic(topic.id)),
     );
   }
@@ -108,7 +125,7 @@ class HadithTopicScreen extends ConsumerWidget {
       );
     }
 
-    final results = ref.watch(hadithTopicProvider(topic.id));
+    final results = ref.watch(hadithTopicOutcomeProvider(topic.id));
 
     return KnowledgeScaffold(
       hero: KnowledgeHero(
@@ -117,7 +134,7 @@ class HadithTopicScreen extends ConsumerWidget {
         eyebrow: 'HADITH',
         meta: results.valueOrNull == null
             ? null
-            : '${results.valueOrNull!.length} narrations',
+            : '${results.valueOrNull!.records.length} narrations',
       ),
       children: [
         Text(
@@ -157,9 +174,9 @@ class HadithTopicScreen extends ConsumerWidget {
                 'The hadith service could not be reached. Anything already '
                 'saved on this device is still readable from the saved list.',
           ),
-          data: (items) => items.isEmpty
-              ? _NoResults(topic: topic)
-              : _Results(items: items),
+          data: (outcome) => outcome.isEmpty
+              ? _NoResults(topic: topic, outcome: outcome)
+              : _Results(items: outcome.records),
         ),
       ],
     );
@@ -215,13 +232,36 @@ class _Results extends StatelessWidget {
 }
 
 class _NoResults extends StatelessWidget {
-  const _NoResults({required this.topic});
+  const _NoResults({required this.topic, required this.outcome});
 
   final HadithTopic topic;
+  final HadithTopicOutcome outcome;
 
   @override
   Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
+
+    // Three different situations, three different sentences. "Nothing returned"
+    // over all of them was the state that hid a real defect for a day: the
+    // service was answering with narrations the app was silently discarding.
+    final String headline;
+    final String body;
+    if (outcome.unreachable) {
+      headline = 'Search unavailable';
+      body = 'The hadith service could not be reached for this topic. Anything '
+          'already saved on this device is still readable from the saved list.';
+    } else if (outcome.droppedEverything) {
+      headline = 'Nothing citable returned';
+      body = 'The service answered for "${topic.primaryQuery}", but none of what '
+          'it sent carried both a collection and a hadith number. A narration '
+          'this app cannot let you check is one it does not show, and it will '
+          'not invent the reference to make the list look full.';
+    } else {
+      headline = 'Nothing returned';
+      body = 'The service returned no narrations for "${topic.primaryQuery}". '
+          'The app does not fill a gap like this with text of its own — a '
+          'hadith it cannot fetch is a hadith it does not show.';
+    }
 
     return MizanSurface(
       child: Column(
@@ -231,16 +271,26 @@ class _NoResults extends StatelessWidget {
             children: [
               Icon(Icons.search_off_outlined, size: 17, color: p.muted),
               const SizedBox(width: 9),
-              Text('Nothing returned', style: MizanType.bodyStrong(color: p.ink)),
+              Text(headline, style: MizanType.bodyStrong(color: p.ink)),
             ],
           ),
           const SizedBox(height: 10),
           Text(
-            'The service returned no narrations for "${topic.primaryQuery}". '
-            'The app does not fill a gap like this with text of its own — a '
-            'hadith it cannot fetch is a hadith it does not show.',
+            body,
             style: MizanType.body(color: p.muted).copyWith(height: 1.55),
           ),
+
+          // Debug only, and worth its space: this is the line that says whether
+          // the fault is upstream or ours.
+          if (kDebugMode) ...[
+            const SizedBox(height: 12),
+            Text(
+              [
+                for (final a in outcome.attempts) '${a.term} → ${a.summary}',
+              ].join('\n'),
+              style: MizanType.body(color: p.muted).copyWith(fontSize: 11),
+            ),
+          ],
         ],
       ),
     );
