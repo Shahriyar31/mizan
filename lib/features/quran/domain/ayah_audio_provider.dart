@@ -35,19 +35,31 @@
 /// The next ayah is fetched to disk while the current one plays, which is what
 /// removes the stall at each boundary.
 ///
-/// ── Why the distortion outlived the caching fix ────────────────────────
-/// Caching was necessary but it was not the whole cause, and two things had to
-/// be fixed on top of it. Both are documented at the code below rather than
-/// here, but in short:
+/// ── Why "it stops after two ayat" and "it distorts" were four bugs ─────
+/// Caching was necessary but it was not the whole cause. Each of these is
+/// documented at the code that fixes it; in short:
 ///
-///   1. [playAyah] loaded the next source onto a player that was *still
-///      playing*. Resolving a URL is not instant, so the previous ayah stayed
-///      audible across that window and then `setAudioSource` swapped the source
-///      under a live audio track. The player is paused first now.
-///   2. The prefetch and just_audio's caching source wrote the *same* file by
-///      two different routes, so on a slow connection the same ayah was
-///      downloaded twice and renamed into place twice while the decoder was
-///      reading it. [_sourceFor] now waits for a download already in flight
+///   1. **The stop.** `await _player.play()` in [playAyah]. just_audio's `play()`
+///      future does not complete until playback *ends*, so auto-advance held the
+///      completion guard raised for the whole of the next ayah and then threw
+///      that ayah's completion away as re-entrant. Exactly two ayat, always.
+///      `play()` is started and not awaited now.
+///   2. **A second interruption policy.** [AudioPlayer] defaults to
+///      `handleInterruptions: true` and installs its own handler on the two
+///      `AudioSession` streams `main()` already listens on. Two policies then ran
+///      per interruption, one resuming and one deliberately not, against one
+///      player. Both players are built with it off; `AudioSessionSetup` owns the
+///      policy alone, and no longer treats a notification chime as a full loss of
+///      focus.
+///   3. **A live source swap.** [playAyah] loaded the next source onto a player
+///      that was *still playing*. Resolving a URL is not instant, so the previous
+///      ayah stayed audible across that window and then `setAudioSource` swapped
+///      the source under a live audio track — the tail of one ayah emitted over
+///      the head of the next. The player is paused first now.
+///   4. **Two writers, one file.** The prefetch and just_audio's caching source
+///      wrote the *same* path by different routes, so on a slow connection an
+///      ayah was downloaded twice and renamed into place twice while the decoder
+///      was reading it. [_sourceFor] now waits for a download already in flight
 ///      instead of opening a competing one.
 ///
 /// Per-ayah `setAudioSource` remains the design — see the note on repeat above
@@ -55,6 +67,8 @@
 /// — so a short gap at each boundary is expected and is not the artefact this
 /// guards against.
 library;
+
+import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
@@ -227,7 +241,21 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
   }
 
   final Ref _ref;
-  final AudioPlayer _player = AudioPlayer();
+
+  /// `handleInterruptions: false` because [AudioSessionSetup] owns that policy
+  /// for the whole app.
+  ///
+  /// Left at its default of `true`, just_audio subscribes to the same two
+  /// `AudioSession` streams `main()` already listens on, and every interruption
+  /// then ran two policies against one player: just_audio pauses and resumes
+  /// afterwards, this app pauses and deliberately does not. The two arrive in
+  /// either order, so a notification a couple of ayat in could end with the
+  /// player stopped and this notifier's state reset — the recitation stopping on
+  /// its own, with nothing in the app that looked responsible for it.
+  ///
+  /// This does not disable audio *attributes*: `androidApplyAudioAttributes`
+  /// is a separate flag and stays on.
+  final AudioPlayer _player = AudioPlayer(handleInterruptions: false);
   final RecitationCache _cache = RecitationCache.instance;
   final AudioRepository _repository = AudioRepository.instance;
 
@@ -277,7 +305,12 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     if (wantsMore) {
       state = s.copyWith(repeatDone: done);
       await _player.seek(Duration.zero);
-      await _player.play();
+      // Not awaited, for the reason spelled out in [playAyah]: this future does
+      // not complete until the repetition ends, and this method is what holds
+      // `_handlingCompletion` raised.
+      unawaited(_player.play().catchError((Object e) {
+        AppLogger.error('repeat play() rejected', error: e, tag: _tag);
+      }));
       return;
     }
 
@@ -358,8 +391,37 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
 
       await _player.setAudioSource(source);
       await _player.setSpeed(_speed);
-      await _player.play();
-      state = state.copyWith(status: AyahAudioStatus.playing);
+
+      // Started, not awaited — and this one line is why recitation stopped after
+      // exactly two ayat.
+      //
+      // just_audio's `play()` does not complete when playback *begins*. Its own
+      // documentation says the future "completes when the playback completes or
+      // is paused or stopped", and both platform implementations bear that out:
+      // each parks on a completer that is only fired at the end of the clip. So
+      // `await _player.play()` here sat still for the entire ayah.
+      //
+      // That turned auto-advance into a one-shot. Ayah N ends, [_onPlayerState]
+      // raises `_handlingCompletion` and calls [_onAyahFinished], which awaited
+      // `playAyah` for ayah N+1, which awaited `play()` — which does not return
+      // until N+1 has itself finished. The guard was therefore still raised when
+      // N+1's completion arrived, that completion was discarded as re-entrant,
+      // and the recitation was over. Two ayat, every time, with nothing logged
+      // and nothing thrown.
+      //
+      // It also left [_warmNext] below unreachable until the ayah was over, so
+      // the next ayah was never on disk in time and every boundary paid for a
+      // cold fetch — audible as the gap and click at each transition.
+      //
+      // Not awaiting costs nothing: `playerStateStream` already drives
+      // [AyahAudioStatus] through [_onPlayerState], so the button follows the
+      // player rather than this method's optimism, and an error raised inside
+      // `play()` surfaces on `playbackEventStream`, which the constructor
+      // listens to.
+      unawaited(_player.play().catchError((Object e) {
+        AppLogger.error('play() rejected for $surahNumber:$ayahNumber',
+            error: e, tag: _tag);
+      }));
 
       _warmNext(r, surahNumber, ayahNumber, lastAyah);
     } catch (e) {
@@ -454,16 +516,21 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     state = state.copyWith(status: AyahAudioStatus.paused);
   }
 
+  /// Resumes the loaded ayah.
+  ///
+  /// `play()` is not awaited here either. Awaiting it meant this method did not
+  /// return until the ayah had *finished*, and the `status: playing` line that
+  /// used to follow then landed after playback was already over — writing
+  /// "playing" onto a player that had stopped. [_onPlayerState] reports the real
+  /// thing a frame later, so there is nothing to write here.
   Future<void> resume() async {
-    try {
-      await _player.play();
-      state = state.copyWith(status: AyahAudioStatus.playing);
-    } catch (e) {
+    unawaited(_player.play().catchError((Object e) {
+      AppLogger.error('resume() rejected', error: e, tag: _tag);
       state = state.copyWith(
         status: AyahAudioStatus.error,
         errorMessage: 'Playback failed.',
       );
-    }
+    }));
   }
 
   Future<void> stop() async {

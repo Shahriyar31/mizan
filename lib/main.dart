@@ -19,18 +19,20 @@ Future<void> main() async {
   // Load environment variables from .env file
   await dotenv.load(fileName: '.env');
 
-  // Tell the OS this app plays speech, before any player exists. Without this
-  // iOS routes recitation to the ambient stream (thin, silenced by the ringer
+  // Tell the OS this app plays recitation, before any player exists. Without
+  // this iOS routes it to the ambient stream (thin, silenced by the ringer
   // switch, stopped by screen lock) and Android never requests audio focus, so
   // recitation and whatever else is playing are mixed into one output. See
   // AudioSessionSetup.
   await AudioSessionSetup.configure();
 
-  // A phone call pauses recitation; unplugged headphones stop it. Routed through
-  // the arbiter, so neither player has to know these events exist.
+  // A phone call or unplugged headphones pause recitation — never discard it.
+  // Routed through the arbiter, so neither player has to know these events
+  // exist. This is the app's only interruption handler; both players are built
+  // with `handleInterruptions: false` so just_audio does not install a second,
+  // conflicting one.
   await AudioSessionSetup.attachInterruptionHandling(
     onPause: PlaybackArbiter.instance.pauseAll,
-    onStop: PlaybackArbiter.instance.stopAll,
     isPlaying: () => PlaybackArbiter.instance.anyPlaying,
   );
 

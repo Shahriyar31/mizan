@@ -6,6 +6,7 @@
 /// MP3Quran server URL — nothing is downloaded or bundled.
 library;
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -165,7 +166,10 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
     );
   }
 
-  final AudioPlayer _player = AudioPlayer();
+  /// `handleInterruptions: false` for the same reason as the ayah player:
+  /// `AudioSessionSetup` holds the app's one interruption policy, and leaving
+  /// this at its default put a second, conflicting policy on the same streams.
+  final AudioPlayer _player = AudioPlayer(handleInterruptions: false);
   AudioPlayer get player => _player;
 
   Stream<Duration> get positionStream => _player.positionStream;
@@ -209,9 +213,14 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
     try {
       final duration = await _player.setUrl(url);
       AppLogger.info('setUrl ok, duration=$duration', tag: _tag);
-      await _player.play();
-      AppLogger.info('play() called', tag: _tag);
-      state = state.copyWith(status: QuranAudioStatus.playing);
+      // Not awaited: just_audio's `play()` future completes when the surah
+      // *ends*, not when it starts. Awaiting it here meant the status line that
+      // used to follow ran an hour later and wrote "playing" over the `idle` the
+      // completion listener had already set. The listener above is the only thing
+      // that should be reporting playback state.
+      unawaited(_player.play().catchError((Object e) {
+        AppLogger.error('play() rejected for $url', error: e, tag: _tag);
+      }));
     } catch (e) {
       AppLogger.error('Playback failed for $url', error: e, tag: _tag);
       state = QuranAudioState(
@@ -228,13 +237,11 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
   }
 
   Future<void> resume() async {
-    try {
-      await _player.play();
-      state = state.copyWith(status: QuranAudioStatus.playing);
-    } catch (e) {
+    unawaited(_player.play().catchError((Object e) {
+      AppLogger.error('resume() rejected', error: e, tag: _tag);
       state = state.copyWith(
           status: QuranAudioStatus.error, errorMessage: 'Playback failed.');
-    }
+    }));
   }
 
   Future<void> stop() async {
