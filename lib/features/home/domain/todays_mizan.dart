@@ -21,10 +21,25 @@
 /// `reflected` unions in the pre-existing `last_muhasabah_date` pref, so a user
 /// who has been writing muhasabah since before this file existed does not see
 /// that facet reset to empty.
+///
+/// ── Why the streak listens here ───────────────────────────────────────
+/// [mark] is the only place in the app that asserts "something happened today",
+/// so it is the only honest input to a day-streak. The first facet marked on a
+/// day advances [streakProvider]; the second and third do not, because a streak
+/// counts *days*, not deeds. That distinction is what keeps Rule #4 intact — the
+/// streak is not a score derived from this record, it is a count of the days the
+/// record was non-empty.
+///
+/// The consequence worth knowing: **if an action does not mark a facet, it does
+/// not count towards the streak.** That is the intended design. When a new
+/// meaningful action ships, mark the facet it belongs to and the streak follows
+/// for free; never reach for `StreakStore` directly.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'streak_provider.dart';
 
 /// The three facets. Named for what the user *did*, never for a value earned.
 enum MizanFacet {
@@ -50,6 +65,12 @@ class TodaysMizan {
   final bool acted;
 
   static const empty = TodaysMizan();
+
+  /// Nothing engaged today. A getter rather than `this == empty` on purpose:
+  /// this class has no `==`, so identity comparison would call a freshly decoded
+  /// all-false record "not empty" and quietly count a streak day for a user who
+  /// has done nothing. Asking the three fields cannot get that wrong.
+  bool get isEmpty => !learned && !reflected && !acted;
 
   bool has(MizanFacet f) => switch (f) {
         MizanFacet.learned => learned,
@@ -94,15 +115,23 @@ class TodaysMizan {
 }
 
 class TodaysMizanController extends StateNotifier<TodaysMizan> {
-  TodaysMizanController() : super(TodaysMizan.empty) {
+  TodaysMizanController(this._ref) : super(TodaysMizan.empty) {
     _restore();
   }
+
+  final Ref _ref;
 
   static const _key = 'todays_mizan';
 
   /// Written by the muhasabah screen since long before this file. Read, never
   /// written, here.
   static const _muhasabahKey = 'last_muhasabah_date';
+
+  /// Re-read from storage. Called on construction, and again from `app.dart`
+  /// whenever the app resumes — a record stamped `yyyy-mm-dd` is only true for
+  /// the day it names, and the app may have been in the background across
+  /// midnight.
+  Future<void> refresh() => _restore();
 
   Future<void> _restore() async {
     final prefs = await SharedPreferences.getInstance();
@@ -115,6 +144,15 @@ class TodaysMizanController extends StateNotifier<TodaysMizan> {
       value = value.with_(MizanFacet.reflected);
     }
     if (mounted) state = value;
+
+    // Self-heal. Two cases land here: a facet stamped today by a build that
+    // predates the streak change, and the muhasabah union just above — neither
+    // of which ever called `recordActivity`. Recording it now is safe because
+    // that call is idempotent per day, and the alternative is a user who
+    // demonstrably used the app today seeing their run marked at risk.
+    if (!value.isEmpty) {
+      await _ref.read(streakProvider.notifier).recordActivity();
+    }
   }
 
   /// Record that a facet was engaged today. Idempotent — marking twice is not
@@ -125,10 +163,14 @@ class TodaysMizanController extends StateNotifier<TodaysMizan> {
     state = next;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_key, next.encode(DateTime.now()));
+
+    // Today now holds something. Deliberately after the write: the streak is a
+    // claim about a day that is already on disk.
+    await _ref.read(streakProvider.notifier).recordActivity();
   }
 }
 
 final todaysMizanProvider =
     StateNotifierProvider<TodaysMizanController, TodaysMizan>(
-  (ref) => TodaysMizanController(),
+  (ref) => TodaysMizanController(ref),
 );

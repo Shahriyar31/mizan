@@ -8,6 +8,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/mizan_theme.dart';
+import 'features/home/domain/streak_provider.dart';
+import 'features/home/domain/todays_mizan.dart';
 import 'features/settings/domain/settings_providers.dart';
 import 'l10n/app_localizations.dart';
 
@@ -22,11 +24,56 @@ class MizanApp extends StatelessWidget {
   }
 }
 
-class _MizanMaterialApp extends ConsumerWidget {
+/// Stateful for one reason: the app needs to know when it comes back to the
+/// foreground.
+///
+/// Anything derived from "today" is wrong the moment the day changes underneath
+/// it. A phone left on the Home screen overnight keeps this process alive, so the
+/// streak resolved at launch and Today's Mizan restored at launch both describe
+/// yesterday until something recomputes them. Nothing did. Now `resumed`
+/// re-derives both from storage, which is cheap (two SharedPreferences reads) and
+/// correct regardless of how long the app sat in the background.
+///
+/// This is the only [WidgetsBindingObserver] in the app; add day-sensitive state
+/// here rather than growing a second one.
+class _MizanMaterialApp extends ConsumerStatefulWidget {
   const _MizanMaterialApp();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MizanMaterialApp> createState() => _MizanMaterialAppState();
+}
+
+class _MizanMaterialAppState extends ConsumerState<_MizanMaterialApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    // Re-read, do not recompute in memory: the answer lives on disk and both
+    // calls are date comparisons against it.
+    //
+    // `refresh()` rather than `ref.invalidate` for Today's Mizan — invalidating
+    // would tear the notifier down, snap the strip back to three empty facets,
+    // and refill it a frame later once SharedPreferences answered. Re-reading in
+    // place shows no flicker and, on the overwhelmingly common resume where the
+    // day has not changed, no visible change at all.
+    ref.read(streakProvider.notifier).reevaluate();
+    ref.read(todaysMizanProvider.notifier).refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(

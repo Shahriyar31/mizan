@@ -42,9 +42,13 @@ Future<void> main() async {
   // AppRouter's initialLocation is evaluated during the first build.
   await OnboardingFlags.restore();
 
-  // Resolve the day-streak once, here, before anything can render it. This is
-  // the ONLY writer of `streak_count` and `last_opened_at` — see StreakStore's
-  // header for why having two writers used to freeze the counter.
+  // Stamp the open and work out how long the user was away. This is the ONLY
+  // writer of `last_opened_at` — see StreakStore's header for why having two
+  // writers used to freeze the counter.
+  //
+  // It no longer touches the streak. Opening the app is not an act of learning,
+  // so the count now moves only when a Today's Mizan facet is marked; the number
+  // itself is derived on read and needs nothing done to it here.
   await StreakStore.recordOpen();
 
   // Initialize SQLite (personal local data)

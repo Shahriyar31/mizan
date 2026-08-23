@@ -12,6 +12,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../services/database/database_service.dart';
+import '../../home/domain/todays_mizan.dart';
 
 class MuhasabahScreen extends ConsumerStatefulWidget {
   const MuhasabahScreen({super.key});
@@ -64,6 +65,13 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
       // Mark muhasabah done for today
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString('last_muhasabah_date', todayStr);
+
+      // Sitting with the three questions is the clearest "reflected" the app
+      // has. `TodaysMizanController` already unions `last_muhasabah_date` in on
+      // restore, but that only helps on the *next* launch — marking here lights
+      // the Home strip and counts the streak day now, while the user is still
+      // in the app to see it.
+      await ref.read(todaysMizanProvider.notifier).mark(MizanFacet.reflected);
 
       setState(() {
         _saving = false;

@@ -41,6 +41,7 @@ import '../../../core/knowledge/narrator_index.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
+import '../../home/domain/todays_mizan.dart';
 import '../data/hadith_extras.dart';
 import '../data/hadith_record.dart';
 import '../domain/hadith_providers.dart';
@@ -547,6 +548,7 @@ class _ReflectionCardState extends ConsumerState<_ReflectionCard> {
         .saveReflection(widget.hadithRef, text);
     ref.invalidate(hadithReflectionProvider(widget.hadithRef));
     if (!mounted) return;
+    ref.read(todaysMizanProvider.notifier).mark(MizanFacet.reflected);
     setState(() => _saved = true);
   }
 

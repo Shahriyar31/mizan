@@ -160,17 +160,35 @@ class _HeaderRow extends ConsumerWidget {
   }
 }
 
+/// The day-journey pill. Three states, because a streak that only ever renders
+/// one way cannot tell you the one thing you want to know — whether today is
+/// still open.
+///
+///   • **No run** (0 days): a quiet flame and "start today". Showing "0 day
+///     journey" states a number where there is none.
+///   • **Alive, today counted**: lit flame, the number, "day journey".
+///   • **Alive, today still open**: muted flame and "day journey · today open".
+///     Duolingo greys its flame here for the same reason. It is a fact, not a
+///     nag — Rule #4 forbids grading, and "today open" grades nothing.
 class _StreakPill extends ConsumerWidget {
   const _StreakPill();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = MizanPalette.of(context);
-    final days = ref.watch(streakProvider);
+    final streak = ref.watch(streakProvider);
+    final lit = streak.activeToday;
+
+    final label = switch (streak) {
+      Streak(days: 0) => 'No journey started yet. Opens Growth.',
+      Streak(:final days) when streak.atRisk =>
+        '$days day journey, today not counted yet. Opens Growth.',
+      Streak(:final days) => '$days day journey. Opens Growth.',
+    };
 
     return Semantics(
       button: true,
-      label: '$days day journey. Opens Growth.',
+      label: label,
       excludeSemantics: true,
       child: MizanSurface(
         radius: const BorderRadius.all(
@@ -182,11 +200,13 @@ class _StreakPill extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.local_fire_department_rounded,
+              lit
+                  ? Icons.local_fire_department_rounded
+                  : Icons.local_fire_department_outlined,
               size: 20,
               // Bronze on cream, gold on navy — gold is never a text/icon
-              // colour on the light page.
-              color: p.accentText,
+              // colour on the light page. Muted when today is still open.
+              color: lit ? p.accentText : p.muted,
             ),
             const SizedBox(width: 10),
             Column(
@@ -194,13 +214,17 @@ class _StreakPill extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '$days',
+                  streak.days == 0 ? '—' : '${streak.days}',
                   style: MizanType.bodyStrong(color: p.ink)
                       .copyWith(fontSize: 17, height: 1.05),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  'day journey',
+                  switch (streak) {
+                    Streak(days: 0) => 'start today',
+                    _ when streak.atRisk => 'today open',
+                    _ => 'day journey',
+                  },
                   style: MizanType.body(color: p.muted)
                       .copyWith(fontSize: 11, height: 1.0),
                 ),

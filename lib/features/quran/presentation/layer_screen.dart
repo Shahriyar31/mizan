@@ -20,6 +20,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../shared/widgets/fade_slide_in.dart';
+import '../../home/domain/todays_mizan.dart';
 import '../../knowledge/presentation/widgets/connected_sections.dart';
 
 class LayerScreen extends ConsumerStatefulWidget {
@@ -96,6 +97,11 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
         .recordUnlock(widget.surahNumber, widget.ayahNumber, storageIndex);
     if (!mounted) return;
     ref.invalidate(layerStatesProvider(_ayahKey));
+
+    // Opening a layer is the app's most common act of learning, so this is the
+    // busiest input to Today's Mizan — and it costs nothing to call repeatedly,
+    // because `mark` returns immediately once the facet is already lit today.
+    ref.read(todaysMizanProvider.notifier).mark(MizanFacet.learned);
   }
 
   @override
@@ -1224,6 +1230,12 @@ class _ReflectionLayerState extends ConsumerState<_ReflectionLayer> {
                       );
                       ref.invalidate(reflectionProvider(widget.ayahKey));
                       HapticFeedback.mediumImpact();
+                      // Writing about an ayah is the "reflected" facet by
+                      // definition. Marked after the save, so the strip never
+                      // claims a reflection that failed to persist.
+                      ref
+                          .read(todaysMizanProvider.notifier)
+                          .mark(MizanFacet.reflected);
                       setState(() => _saved = true);
                     },
                     child: AnimatedContainer(

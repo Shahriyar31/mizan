@@ -23,6 +23,7 @@ import '../../shared/models/shared_content.dart';
 import '../../shared/widgets/content_visuals.dart';
 import '../halaqa/domain/halaqa_providers.dart';
 import '../halaqa/models/halaqa_models.dart';
+import '../home/domain/todays_mizan.dart';
 import '../identity/domain/identity_providers.dart';
 import '../minbar/domain/minbar_providers.dart';
 
@@ -77,6 +78,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
           .read(minbarRepositoryProvider)
           .shareToMinbar(user: user, content: widget.content);
       ref.invalidate(minbarFeedProvider);
+      _markActed();
       _confirm('Al-Minbar');
     } catch (_) {
       if (mounted) {
@@ -98,6 +100,7 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
             personalNote: note.isEmpty ? null : note,
           );
       ref.invalidate(halaqaFeedProvider(circle.id));
+      _markActed();
       _confirm(circle.name);
     } catch (_) {
       if (mounted) {
@@ -105,6 +108,15 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
         _error();
       }
     }
+  }
+
+  /// Sharing is the app's "acted" facet — knowledge turned outward. Called from
+  /// the two success paths above rather than from [_confirm], so it can never be
+  /// reached by a future caller that shows the sheet's confirmation for some
+  /// other reason. Fire-and-forget on purpose: the share already succeeded, and
+  /// the sheet is about to pop.
+  void _markActed() {
+    ref.read(todaysMizanProvider.notifier).mark(MizanFacet.acted);
   }
 
   void _error() {

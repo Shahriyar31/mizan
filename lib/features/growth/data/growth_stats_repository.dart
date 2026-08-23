@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/utils/logger.dart';
 import '../../discover/data/discover_database.dart';
+import '../../home/domain/streak_provider.dart';
 import '../../knowledge/data/hadith_repository.dart';
 import '../../quran/data/layer_repository.dart';
 import '../domain/growth_map_models.dart';
@@ -72,8 +73,13 @@ class GrowthStatsRepository {
   Future<_PrefSignals> _prefsSignals() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Read-only. streak_count is written by the Home streak badge.
-      final streak = prefs.getInt('streak_count') ?? 0;
+      // Read-only, and deliberately not `prefs.getInt('streak_count')` on its
+      // own. That integer is only meaningful next to the date it was last moved:
+      // a run that broke three days ago still has its old count sitting in
+      // storage, because `StreakStore` never rewrites on a read. Going through
+      // `evaluate()` applies the same today/yesterday test the Home pill uses, so
+      // Growth and Home can never disagree about whether a streak is alive.
+      final streak = (await StreakStore.evaluate()).days;
       final lastMuhasabah = prefs.getString('last_muhasabah_date');
       // Must match the padded date format the muhasabah screen writes and that
       // Home uses in muhasabahDoneProvider: 'yyyy-MM-dd'. Keep all three in sync.

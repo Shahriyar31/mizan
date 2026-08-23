@@ -11,8 +11,9 @@
 /// wrote `last_opened_at` in two places, and `StreakStore` (in
 /// `streak_provider.dart`) writes the same key from `main()`. Whichever ran
 /// second won, so the streak could silently freeze. `StreakStore` is now the
-/// single owner of `last_opened_at` and `streak_count` — do not write either key
-/// from anywhere else.
+/// single owner of `last_opened_at`, `streak_count` and
+/// `streak_last_active_date` — do not write any of those keys from anywhere else,
+/// and reach the streak through `streakProvider` rather than reading the prefs.
 ///
 /// The Friday question below is kept deliberately: its seven entries are verified
 /// Quran and hadith citations, and they will be needed again when Jumu'ah gets a
