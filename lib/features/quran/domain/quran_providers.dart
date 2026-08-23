@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../data/quran_repository.dart';
+import '../../settings/domain/translation_provider.dart';
 import '../../../shared/models/surah.dart';
 import '../../../shared/models/ayah.dart';
 
@@ -44,10 +45,18 @@ final selectedSurahNumberProvider = StateProvider<int?>((ref) => null);
 // ayatProvider(1) fetches Al-Fatihah
 // ayatProvider(2) fetches Al-Baqarah
 // Each is cached separately
+//
+// Watches the chosen translation, so picking a new translator in Settings
+// re-fetches every open surah on its own — no refresh button, and never new
+// Arabic over old English.
 final ayatProvider =
     FutureProvider.family<List<Ayah>, int>((ref, surahNumber) async {
   final repository = ref.watch(quranRepositoryProvider);
-  return repository.getAyatForSurah(surahNumber);
+  final translation = ref.watch(selectedTranslationProvider);
+  return repository.getAyatForSurah(
+    surahNumber,
+    translationId: translation.id,
+  );
 });
 
 // ── Search Query Provider ─────────────────────────────────────

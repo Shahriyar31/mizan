@@ -1,12 +1,35 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// discover_screen.dart — Redesigned with bottom nav + immersive cards
-// ─────────────────────────────────────────────────────────────────────────────
+/// DISCOVER — the index for the four story libraries.
+///
+/// The *detail* page in `Mizan Light.pdf` / `Mizan Dark.pdf` page 5 is
+/// [LayerStoryScaffold], not this file; this is the list you arrive from. What
+/// the rebuild changed here:
+///
+///   • **Two bottom tab bars.** This screen supplied its own
+///     `bottomNavigationBar` while living inside the app shell's `ShellRoute`,
+///     so the section switcher stacked directly on top of the real tab bar.
+///     The sections are chips under the header now, which is where every other
+///     rebuilt screen puts its filters.
+///   • **Emoji tabs** (🕌 ⚔️ ✨ 📜) are gone. The design system draws with line
+///     icons, Arabic and the arch; an emoji renders as somebody else's artwork
+///     at somebody else's colour.
+///   • The header is on Mizan tokens: Arabic in bronze/gold above the English
+///     (Rule #6, never alone), and "FIVE LAYERS" as an outlined bronze pill.
+///
+/// The four tab bodies and their cards still read `AppColors`. That file now
+/// aliases every token onto [MizanPalette], so they already paint the Mizan
+/// palette in both themes — their *layout* is the next pass, and the chrome
+/// being right first is what makes the screen usable in the meantime.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:taddabur/core/theme/app_colors.dart';
 import 'package:taddabur/core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../core/theme/mizan_tokens.dart';
+import '../../../core/theme/mizan_typography.dart';
+import '../../../shared/widgets/mizan/mizan_components.dart';
 import '../providers/discover_providers.dart';
 import '../models/discover_models.dart';
 import '../widgets/discover_browser.dart';
@@ -52,10 +75,10 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
   int _currentTab = 0;
 
   static const _tabs = [
-    _TabInfo('Prophets', '🕌', 'أَنْبِيَاء'),
-    _TabInfo('Sahabah', '⚔️', 'صَحَابَة'),
-    _TabInfo('99 Names', '✨', 'أَسْمَاء'),
-    _TabInfo('Seerah', '📜', 'سِيرَة'),
+    _TabInfo('Prophets', 'أَنْبِيَاء'),
+    _TabInfo('Sahabah', 'صَحَابَة'),
+    _TabInfo('99 Names', 'أَسْمَاء'),
+    _TabInfo('Seerah', 'سِيرَة'),
   ];
 
   @override
@@ -77,13 +100,25 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
 
   @override
   Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: p.page,
       body: Column(
         children: [
-          // Header — minimal, Arabic-led
           _DiscoverHeader(tab: _tabs[_currentTab]),
-          // Content
+          // The four sections used to be a second bottom nav bar, stacked
+          // directly above the app shell's real one — two tab bars on one
+          // screen. They are chips under the header now, which is also where
+          // every other rebuilt screen puts its filters.
+          _SectionChips(
+            tabs: _tabs,
+            currentIndex: _currentTab,
+            onTap: (i) {
+              setState(() => _currentTab = i);
+              _tabController.animateTo(i);
+            },
+          ),
           Expanded(
             child: TabBarView(
               controller: _tabController,
@@ -97,24 +132,14 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
           ),
         ],
       ),
-      // Bottom nav — matches Quran tab pattern
-      bottomNavigationBar: _DiscoverBottomNav(
-        currentIndex: _currentTab,
-        tabs: _tabs,
-        onTap: (i) {
-          setState(() => _currentTab = i);
-          _tabController.animateTo(i);
-        },
-      ),
     );
   }
 }
 
 class _TabInfo {
   final String label;
-  final String emoji;
   final String arabic;
-  const _TabInfo(this.label, this.emoji, this.arabic);
+  const _TabInfo(this.label, this.arabic);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -127,10 +152,17 @@ class _DiscoverHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 20, 24, 12),
+        padding: const EdgeInsets.fromLTRB(
+          MizanGeometry.gutter,
+          10,
+          MizanGeometry.gutter,
+          14,
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
@@ -138,30 +170,32 @@ class _DiscoverHeader extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Bronze on cream, gold on navy — Rule #1, since this is text.
+                  // The English sits on the very next line, Rule #6.
                   Text(
                     tab.arabic,
-                    style: AppTypography.arabicDisplay(
-                        color: AppColors.gold, size: 22),
+                    textDirection: TextDirection.rtl,
+                    style: MizanType.arabic(color: p.accentText, fontSize: 22),
                   ),
-                  Text(
-                    tab.label,
-                    style:
-                        AppTypography.displayMedium(color: AppColors.parchment),
-                  ),
+                  const SizedBox(height: 2),
+                  Text(tab.label, style: MizanType.screenTitle(color: p.ink)),
                 ],
               ),
             ),
+            // True of every entry in all four sections, which is why it can sit
+            // in the header rather than on each card.
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
               decoration: BoxDecoration(
-                color: AppColors.gold.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(MizanGeometry.pillRadius),
                 border: Border.all(
-                    color: AppColors.gold.withValues(alpha: 0.3), width: 1),
+                  color: p.accentText.withValues(alpha: 0.45),
+                  width: MizanGeometry.hairlineWidth,
+                ),
               ),
               child: Text(
-                'Five layers',
-                style: AppTypography.labelSmall(color: AppColors.gold),
+                'FIVE LAYERS',
+                style: MizanType.sectionLabel(color: p.accentText),
               ),
             ),
           ],
@@ -172,88 +206,40 @@ class _DiscoverHeader extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Bottom Navigation
+// Section chips
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _DiscoverBottomNav extends StatelessWidget {
-  final int currentIndex;
-  final List<_TabInfo> tabs;
-  final ValueChanged<int> onTap;
-
-  const _DiscoverBottomNav({
-    required this.currentIndex,
+class _SectionChips extends StatelessWidget {
+  const _SectionChips({
     required this.tabs,
+    required this.currentIndex,
     required this.onTap,
   });
 
+  final List<_TabInfo> tabs;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-      decoration:  BoxDecoration(
-        color: AppColors.navBg,
-        border: Border(top: BorderSide(color: AppColors.border, width: 0.5)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 52,
-          child: Row(
-            children: List.generate(tabs.length, (i) {
-              final active = i == currentIndex;
-              return Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(right: i == tabs.length - 1 ? 0 : 6),
-                  child: Semantics(
-                    button: true,
-                    selected: active,
-                    label: tabs[i].label,
-                    child: Material(
-                      color: Colors.transparent,
-                      shape: const StadiumBorder(),
-                      clipBehavior: Clip.antiAlias,
-                      child: InkWell(
-                        onTap: () => onTap(i),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 180),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: active
-                                ? AppColors.gold.withValues(alpha: 0.18)
-                                : AppColors.surface,
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(
-                              color: active
-                                  ? AppColors.gold.withValues(alpha: 0.75)
-                                  : AppColors.border,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Text(tabs[i].emoji,
-                                  style: TextStyle(fontSize: active ? 17 : 15)),
-                              Text(
-                                tabs[i].label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: AppTypography.labelSmall(
-                                  color: active
-                                      ? AppColors.goldSoft
-                                      : AppColors.textSecondary,
-                                ).copyWith(fontSize: 8, letterSpacing: 0.25),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.fromLTRB(MizanGeometry.gutter, 0, 12, 16),
+      child: Row(
+        children: [
+          for (var i = 0; i < tabs.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: MizanButton(
+                label: tabs[i].label,
+                // Filled navy when active, outlined when not — selection reads
+                // through fill and label colour, never through depth.
+                kind: MizanButtonKind.chip,
+                selected: i == currentIndex,
+                onPressed: () => onTap(i),
+              ),
+            ),
+        ],
       ),
     );
   }

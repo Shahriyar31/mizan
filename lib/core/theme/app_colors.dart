@@ -1,18 +1,43 @@
-/// Taddabur Color System
+/// Legacy colour tokens, now aliased onto the MIZAN palette.
 ///
-/// Rules:
-/// 1. Every color used in the app must be defined here
-/// 2. Never use raw hex values in widget files — always reference AppColors
-/// 3. Colors are grouped by purpose, not by screen
+/// ── What this file is for ─────────────────────────────────────────────
+/// The app has ~780 call sites across 49 files that read `AppColors.something`.
+/// The screens rebuilt onto the design system read [MizanPalette] from the
+/// widget tree instead and never come here. Everything not yet rebuilt — the
+/// quiz, the settings sub-screens, the older reader chrome — still reads these
+/// tokens, and until this file changed they painted the *old* palette: a blue
+/// accent, colder creams, six differently-tinted card materials, amber and
+/// violet accents. Correct in both themes, but a different app to look at.
 ///
-/// Brightness-aware: every token is a getter that resolves against the
-/// currently applied brightness. `AppColors.applyBrightness()` is called once
-/// per build of the root widget (see app.dart) before any widget reads a token.
-/// Because these are getters and not consts, no token may be used inside a
-/// `const` expression.
+/// So every token below is now a view onto [MizanPalette.light] /
+/// [MizanPalette.dark]. Nothing is invented here: each getter returns a colour
+/// that exists in the Mizan spec. The whole app is one palette from this commit
+/// on, and a screen's *layout* can then be rebuilt on its own schedule without
+/// the colour being wrong in the meantime.
+///
+/// ── Consequences worth knowing ────────────────────────────────────────
+///   • Several legacy tokens now resolve to the same colour — `jade` and
+///     `jadeLight`, `parchment2` and `parchment3`, all six `card*Bg` materials.
+///     That is deliberate: the Mizan palette has four hues and one grey per
+///     theme, so a scale of near-identical greys has nowhere to land. Screens
+///     that relied on those materials to tell content types apart should use an
+///     icon or a label instead, which the rebuilt screens do.
+///   • `gold` resolves to **bronze** in light mode. Rule #1 of the spec: the
+///     gold family may not be text on cream, so the legal light-mode value of
+///     "the gold token" is `accentText`. Dark mode keeps true gold.
+///   • `error`, `errorDim` and `errorBg` are the one place a colour outside the
+///     palette survives. The spec has no red, and an error signal has to be red;
+///     inventing a "Mizan red" is a design decision to take deliberately, not a
+///     side effect of this migration.
+///
+/// Tokens remain getters, never consts, so no token may be used inside a
+/// `const` expression. [applyBrightness] is called once per root build from
+/// `app.dart` and `app_theme.dart` before any widget reads a token.
 library;
 
 import 'package:flutter/material.dart';
+
+import 'mizan_tokens.dart';
 
 class AppColors {
   AppColors._();
@@ -23,107 +48,111 @@ class AppColors {
 
   static void applyBrightness(Brightness value) => _brightness = value;
 
+  /// The single source of truth. Both palettes are const, so this is a lookup,
+  /// not an allocation.
+  static MizanPalette get _p => isLight ? MizanPalette.light : MizanPalette.dark;
+
+  /// Kept for the handful of tokens with no Mizan equivalent (the error reds).
   static Color _pick(Color dark, Color light) => isLight ? light : dark;
 
-  // ── Primary Palette ───────────────────────────────────────────
-  // Dark: a Nordic winter sky. Light: matte cream parchment, not cold
-  // white-blue — an illuminated-manuscript page, not a hospital wall.
-  static Color get night => _pick(const Color(0xFF101720), const Color(0xFFFBF6EC));
-  static Color get slate => _pick(const Color(0xFF1B2733), const Color(0xFFF3EAD8));
-  static Color get jade => _pick(const Color(0xFF5E9FB6), const Color(0xFF2C7691));
-  static Color get jadeLight => _pick(const Color(0xFF9ACDDE), const Color(0xFF4E9CB4));
-  // gold: the signature accent blue — unchanged in both themes by request.
-  static Color get gold => _pick(const Color(0xFF7FB7D0), const Color(0xFF1F6E8C));
-  static Color get goldSoft => _pick(const Color(0xFFB7D9E6), const Color(0xFF3D8CA8));
-  static Color get goldPale => _pick(const Color(0xFFE8F3F7), const Color(0xFF2A6E86));
-  // clay: the third identity hue — warm copper/terracotta, an illuminated
-  // manuscript's rubrication ink. Used for "in progress" states and
-  // secondary highlights that shouldn't compete with the blue accent.
-  static Color get clay => _pick(const Color(0xFFE0916A), const Color(0xFFAD5A2B));
-  static Color get clayBg => _pick(const Color(0xFF2A1D14), const Color(0xFFF3E3D2));
+  // ── Primary palette ───────────────────────────────────────────
+  /// The app background: deep navy on dark, cream parchment on light.
+  static Color get night => _p.page;
+
+  /// The secondary surface — a raised panel on dark, an inset well on light.
+  static Color get slate => _p.sunk;
+
+  /// The calm blue. In Mizan this is the link/secondary-accent hue.
+  static Color get jade => _p.link;
+  static Color get jadeLight => _p.link;
+
+  /// The signature accent. Bronze on light so it stays legal as text (Rule #1),
+  /// true gold on dark.
+  static Color get gold => _p.accentText;
+
+  /// A lower-emphasis accent. The palette has one gold per theme, so these
+  /// resolve to it and rely on opacity at the call site for emphasis.
+  static Color get goldSoft => _p.accentText;
+  static Color get goldPale => _p.accentText;
+
+  /// Was a warm terracotta third hue, used for "in progress". Mizan has no
+  /// third hue, so in-progress states take the calm blue.
+  static Color get clay => _p.link;
+  static Color get clayBg => _p.sunk;
 
   // ── Surfaces ───────────────────────────────────────────────────
-  static Color get surface => _pick(const Color(0xFF17212B), const Color(0xFFFFFCF5));
-  static Color get surfaceElevated => _pick(const Color(0xFF22313D), const Color(0xFFF5EEDD));
-  static Color get surfaceDim => _pick(const Color(0xFF0D141B), const Color(0xFFEFE3C9));
+  static Color get surface => _p.card;
+  static Color get surfaceElevated => _p.sunk;
+  static Color get surfaceDim => _p.page;
 
   // ── Headline neutrals ────────────────────────────────────────────
-  // A parallel scale to textPrimary/Secondary/muted, kept as separate
-  // tokens because a handful of screens want a slightly different weight
-  // for hero headlines specifically. Theme-aware like everything else —
-  // these used to be frozen to the dark-mode value, which is why light
-  // mode text used to vanish.
-  static Color get parchment =>
-      _pick(const Color(0xFFEAF1F4), const Color(0xFF16283A));
-  static Color get parchment2 =>
-      _pick(const Color(0xFFD9E4E9), const Color(0xFF3E5468));
-  static Color get parchment3 =>
-      _pick(const Color(0xFFC7D4DA), const Color(0xFF6C7F8C));
-  // white: literal white — only correct for text/icons sitting on a
-  // solid-filled accent surface (a button, a filled badge), never for text
-  // on the app background. Use textPrimary for that instead.
+  /// One ink per theme — cream text on navy, deep navy text on cream.
+  static Color get parchment => _p.ink;
+  static Color get parchment2 => _p.muted;
+  static Color get parchment3 => _p.muted;
+
+  /// Literal white. Only correct on a solid accent fill, never on the page.
   static Color get white => const Color(0xFFFFFFFF);
 
   // ── Text ───────────────────────────────────────────────────────
-  // ink: literal near-black — the counterpart to `white` above, for text
-  // that sits on a solid accent fill and must stay dark in both themes
-  // (button labels, filled-badge numbers). Never use for text on the app
-  // background — use textPrimary for that.
-  static Color get ink => const Color(0xFF111412);
-  static Color get textPrimary =>
-      _pick(const Color(0xFFEEF4F6), const Color(0xFF16283A));
-  static Color get textSecondary =>
-      _pick(const Color(0xFFC0CCD1), const Color(0xFF3E5468));
-  static Color get body => _pick(const Color(0xFFD5DEE3), const Color(0xFF33495C));
-  static Color get muted => _pick(const Color(0xFF91A0A8), const Color(0xFF6C7F8C));
-  static Color get border => _pick(const Color(0xFF31424D), const Color(0xFFE3D5B8));
-  static Color get borderLight =>
-      _pick(const Color(0xFFC7D4DA), const Color(0xFFEDE1C8));
+  /// Text that must stay dark on a solid accent fill, in both themes. This is
+  /// exactly what [MizanPalette.onFilled] means on dark.
+  static Color get ink => MizanPalette.dark.onFilled;
+
+  static Color get textPrimary => _p.ink;
+  static Color get textSecondary => _p.muted;
+  static Color get body => _p.ink;
+  static Color get muted => _p.muted;
+
+  /// One hairline per theme: warm cream on light, gold at 18% on dark — the spec
+  /// is explicit that dark borders are never grey.
+  static Color get border => _p.hairline;
+  static Color get borderLight => _p.hairline;
 
   // ── Semantic ──────────────────────────────────────────────────
-  static Color get success => _pick(const Color(0xFF34D399), const Color(0xFF15803D));
-  static Color get successDim => _pick(const Color(0xFF166534), const Color(0xFF166534));
-  static Color get successBg => _pick(const Color(0xFF0D2A24), const Color(0xFFE2F5EA));
-  static Color get error => _pick(const Color(0xFFF87171), const Color(0xFFB91C1C));
+  /// Sage is the palette's one success colour.
+  static Color get success => _p.sage;
+  static Color get successDim => _p.sage;
+  static Color get successBg => _p.sunk;
+
+  /// The one survival from the old palette — see the library comment.
+  static Color get error =>
+      _pick(const Color(0xFFF87171), const Color(0xFFB91C1C));
   static Color get errorDim => const Color(0xFFBE123C);
-  static Color get errorBg => _pick(const Color(0xFF2A0F1A), const Color(0xFFFCE8E8));
-  static Color get amber => _pick(const Color(0xFFFBBF24), const Color(0xFFB45309));
-  static Color get amberDim => const Color(0xFF92400E);
-  static Color get amberBg => _pick(const Color(0xFF2A1F0A), const Color(0xFFFDF3E0));
-  static Color get violet => _pick(const Color(0xFF8B5CF6), const Color(0xFF6D28D9));
-  static Color get violetDim => const Color(0xFF5B21B6);
-  static Color get violetBg => _pick(const Color(0xFF1A1328), const Color(0xFFF1EAFE));
+  static Color get errorBg =>
+      _pick(const Color(0xFF2A0F1A), const Color(0xFFFCE8E8));
+
+  /// Amber was a second warm accent; the gold family already is that.
+  static Color get amber => _p.accentText;
+  static Color get amberDim => _p.accentText;
+  static Color get amberBg => _p.sunk;
+
+  /// Violet had no place in a four-hue palette; it becomes the calm blue.
+  static Color get violet => _p.link;
+  static Color get violetDim => _p.link;
+  static Color get violetBg => _p.sunk;
 
   // ── Minbar / Discover card materials ──────────────────────────
-  static Color get cardQuranBg =>
-      _pick(const Color(0xFF0F1A28), const Color(0xFFE9F1F8));
-  // Was a muddy reddish-brown (0xFF1C1108) — a warm, refined charcoal now,
-  // in the same family as the rest of the dark palette instead of clashing
-  // with it.
-  static Color get cardSahabiBg =>
-      _pick(const Color(0xFF241C14), const Color(0xFFF8F0E4));
-  static Color get cardHadithBg =>
-      _pick(const Color(0xFF1E2D3D), const Color(0xFFEAF0F6));
-  static Color get cardNameBg =>
-      _pick(const Color(0xFF0B1120), const Color(0xFFEDEFF7));
-  static Color get cardProphetBg =>
-      _pick(const Color(0xFF0D2218), const Color(0xFFE6F3EC));
-  static Color get cardSeerahBg =>
-      _pick(const Color(0xFF171426), const Color(0xFFEFEDF8));
+  /// Six tinted materials collapse to one inset surface. Content type is now
+  /// carried by an icon and a label, not by a background tint.
+  static Color get cardQuranBg => _p.sunk;
+  static Color get cardSahabiBg => _p.sunk;
+  static Color get cardHadithBg => _p.sunk;
+  static Color get cardNameBg => _p.sunk;
+  static Color get cardProphetBg => _p.sunk;
+  static Color get cardSeerahBg => _p.sunk;
 
   // ── Quran reading surfaces ─────────────────────────────────────
-  static Color get quranSurface =>
-      _pick(const Color(0xFF1A2535), const Color(0xFFFFFDF7));
-  static Color get quranSurfaceDim =>
-      _pick(const Color(0xFF0D1626), const Color(0xFFF6EEDC));
-  static Color get quranBorder =>
-      _pick(const Color(0xFF2A3545), const Color(0xFFE3D5B8));
-  static Color get quranMuted =>
-      _pick(const Color(0xFF9CADB8), const Color(0xFF5D6E78));
+  static Color get quranSurface => _p.card;
+  static Color get quranSurfaceDim => _p.sunk;
+  static Color get quranBorder => _p.hairline;
+  static Color get quranMuted => _p.muted;
 
   // ── Navigation ────────────────────────────────────────────────
-  static Color get navActive => gold;
-  static Color get navInactive =>
-      _pick(const Color(0xFF82929B), const Color(0xFF77878F));
-  static Color get navBg => _pick(const Color(0xFF121C25), const Color(0xFFFFFCF5));
+  /// The tab bar's active colour is the ink, not the accent: in Mizan the active
+  /// tab is marked by a gold diamond beneath the label, and the label itself
+  /// stays ink so it never becomes gold text on cream.
+  static Color get navActive => _p.ink;
+  static Color get navInactive => _p.muted;
+  static Color get navBg => _p.card;
 }

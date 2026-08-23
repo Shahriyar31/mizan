@@ -13,6 +13,7 @@ library;
 import '../../../services/quran/quran_api_service.dart';
 import '../../../shared/models/surah.dart';
 import '../../../shared/models/ayah.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/logger.dart';
 
 class QuranRepository {
@@ -27,9 +28,16 @@ class QuranRepository {
   // List of surahs cached after first fetch
   List<Surah>? _cachedSurahs;
 
-  // Cache of ayat per surah number
-  // Key: surah number, Value: list of ayat
-  final Map<int, List<Ayah>> _cachedAyat = {};
+  // Cache of ayat, keyed by surah *and* translation ('2:85').
+  //
+  // The translation has to be part of the key. Keying on surah alone means
+  // switching translation keeps serving the old English under the new setting
+  // for every surah already opened this session — the setting appears to do
+  // nothing. Keying on both also makes switching back instant.
+  final Map<String, List<Ayah>> _cachedAyat = {};
+
+  String _ayatKey(int surahNumber, int translationId) =>
+      '$surahNumber:$translationId';
 
   // ── Surahs ────────────────────────────────────────────────────
 
@@ -69,24 +77,38 @@ class QuranRepository {
 
   // ── Ayat ──────────────────────────────────────────────────────
 
-  /// Gets all ayat for a surah
-  /// Caches per surah — opening Al-Baqarah twice only fetches once
-  Future<List<Ayah>> getAyatForSurah(int surahNumber) async {
-    // Return cache if we have it for this surah
-    if (_cachedAyat.containsKey(surahNumber)) {
+  /// Gets all ayat for a surah in the given translation.
+  ///
+  /// [translationId] is a Quran.com resource id — see [kQuranTranslations].
+  /// Caches per surah *and* translation, so opening Al-Baqarah twice fetches
+  /// once, and switching translation fetches once more and then never again.
+  Future<List<Ayah>> getAyatForSurah(
+    int surahNumber, {
+    int translationId = ApiConstants.translationEnglish,
+  }) async {
+    final key = _ayatKey(surahNumber, translationId);
+
+    // Return cache if we have it for this surah in this translation
+    if (_cachedAyat.containsKey(key)) {
       AppLogger.info(
-        'Returning cached ayat for surah $surahNumber',
+        'Returning cached ayat for surah $surahNumber (translation $translationId)',
         tag: _tag,
       );
-      return _cachedAyat[surahNumber]!;
+      return _cachedAyat[key]!;
     }
 
-    AppLogger.info('Fetching ayat for surah $surahNumber', tag: _tag);
+    AppLogger.info(
+      'Fetching ayat for surah $surahNumber (translation $translationId)',
+      tag: _tag,
+    );
 
-    final ayat = await _apiService.getAyatForSurah(surahNumber);
+    final ayat = await _apiService.getAyatForSurah(
+      surahNumber,
+      translationId: translationId,
+    );
 
-    // Cache this surah's ayat
-    _cachedAyat[surahNumber] = ayat;
+    // Cache this surah's ayat in this translation
+    _cachedAyat[key] = ayat;
 
     AppLogger.info(
       'Cached ${ayat.length} ayat for surah $surahNumber',

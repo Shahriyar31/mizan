@@ -25,6 +25,7 @@ import '../../features/settings/presentation/notifications_screen.dart';
 import '../../features/settings/presentation/personalisation_screen.dart';
 import '../../features/settings/presentation/app_icon_screen.dart';
 import '../../features/settings/presentation/audio_screen.dart';
+import '../../features/settings/presentation/translation_screen.dart';
 import '../../features/settings/presentation/system_screen.dart';
 import '../../features/settings/presentation/language_screen.dart';
 import '../../features/settings/presentation/more_screen.dart';
@@ -177,6 +178,10 @@ class AppRouter {
                     builder: (context, state) => const AppIconScreen(),
                   ),
                 ],
+              ),
+              GoRoute(
+                path: 'translation',
+                builder: (context, state) => const TranslationScreen(),
               ),
               GoRoute(
                 path: 'audio',

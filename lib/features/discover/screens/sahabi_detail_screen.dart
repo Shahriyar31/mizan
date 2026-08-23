@@ -72,8 +72,6 @@ class _SahabiDetailScreenState extends ConsumerState<SahabiDetailScreen> {
       navLabels: _layerTitles,
       headerTitle: entry.nameArabic,
       headerSubtitle: '${entry.nameEnglish} — ${entry.era}',
-      backgroundColor: AppColors.night,
-      accent: AppColors.gold,
       onShare: () => showShareTargetSheet(context, entry.toSharedContent()),
       onBeginQuiz: () => Navigator.push(
           context,
