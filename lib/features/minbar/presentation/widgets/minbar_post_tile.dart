@@ -74,9 +74,9 @@ class MinbarPostTile extends StatelessWidget {
             when: _relativeTime(share.sharedAt),
           ),
           const SizedBox(height: 10),
-          _ContentCard(content: share.content, onOpen: onOpen),
+          _ContentCard(content: share.content),
           const SizedBox(height: 10),
-          _ReactionRow(view: view, onReact: onReact),
+          _ReactionRow(view: view, onReact: onReact, onOpen: onOpen),
         ],
       ),
     );
@@ -158,10 +158,9 @@ class _AuthorLine extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════
 
 class _ContentCard extends StatelessWidget {
-  const _ContentCard({required this.content, this.onOpen});
+  const _ContentCard({required this.content});
 
   final SharedContent content;
-  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -169,29 +168,14 @@ class _ContentCard extends StatelessWidget {
 
     return MizanSurface(
       // Flat, hairline only. A feed post holds text, and the shadow rules
-      // reserve depth for things you press. The open arrow is the touchable.
+      // reserve depth for things you press. The one touchable lives in the
+      // footer row beneath the card, not up here.
       tone: MizanTone.card,
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: _TypeChip(type: content.contentType)),
-              if (onOpen != null)
-                MizanPressable(
-                  onTap: onOpen,
-                  fill: Colors.transparent,
-                  shadowsEnabled: false,
-                  borderRadius: BorderRadius.circular(MizanGeometry.rowRadius),
-                  padding: const EdgeInsets.all(4),
-                  semanticLabel: 'Open ${content.title}',
-                  child: Icon(Icons.north_east_rounded,
-                      size: 20, color: p.link),
-                ),
-            ],
-          ),
+          _TypeChip(type: content.contentType),
           const SizedBox(height: 14),
 
           // Rule #6: the Arabic name never stands alone — the English title sits
@@ -306,14 +290,36 @@ class _CitationLine extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  REACTIONS — the entire response vocabulary
+//  FOOTER — reactions left, open far right
 // ══════════════════════════════════════════════════════════════════════
 
+/// One row under the card: the three reactions packed to the left, then all the
+/// remaining width, then the open action hard against the right edge.
+///
+/// ── Why the open action moved down here ───────────────────────────────
+/// It used to be a bare ↗ arrow in the card's top-right corner, and a bare arrow
+/// in a corner reads as "share" — which is the one thing it is not. Al-Minbar
+/// posts are snapshots of content that already exists in the app, so there is no
+/// re-share: sharing happens on the content's own screen, where the share sheet
+/// lives. One entry point per action.
+///
+/// It now sits at the far right of the footer with the word **Open** next to it,
+/// separated from the reactions by a [Spacer] rather than sitting in the same
+/// cluster. Reactions and "go read this" are different kinds of act, and putting
+/// them shoulder to shoulder made the fourth item look like a fourth reaction.
 class _ReactionRow extends StatelessWidget {
-  const _ReactionRow({required this.view, required this.onReact});
+  const _ReactionRow({
+    required this.view,
+    required this.onReact,
+    this.onOpen,
+  });
 
   final MinbarShareView view;
   final ValueChanged<ReactionType> onReact;
+
+  /// Null when the share predates route tracking. The affordance is then hidden
+  /// rather than drawn dead — a button that goes nowhere is worse than no button.
+  final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -331,6 +337,39 @@ class _ReactionRow extends StatelessWidget {
                 onTap: () => onReact(r),
               ),
             ),
+          const Spacer(),
+          if (onOpen != null) _OpenButton(onTap: onOpen!),
+        ],
+      ),
+    );
+  }
+}
+
+class _OpenButton extends StatelessWidget {
+  const _OpenButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    return MizanPressable(
+      onTap: onTap,
+      fill: Colors.transparent,
+      shadowsEnabled: false,
+      borderRadius: BorderRadius.circular(MizanGeometry.pillRadius),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      semanticLabel: 'Open this in the app',
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            'Open',
+            style: MizanType.bodyStrong(color: p.link).copyWith(fontSize: 14),
+          ),
+          const SizedBox(width: 6),
+          Icon(Icons.north_east_rounded, size: 18, color: p.link),
         ],
       ),
     );
