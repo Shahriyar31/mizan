@@ -9,12 +9,15 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../core/branding/mizan_brand.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../domain/settings_providers.dart';
 import '../domain/reading_preferences_provider.dart';
 import 'widgets/settings_row.dart';
+import '../../../shared/widgets/mizan/mizan_logo.dart';
 import '../../../shared/widgets/tactile.dart';
 
 class PersonalisationScreen extends ConsumerWidget {
@@ -23,6 +26,7 @@ class PersonalisationScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final mode = ref.watch(themeModeProvider);
+    final logoVariant = ref.watch(logoVariantProvider);
     final prefs = ref.watch(readingPreferencesProvider);
     final controller = ref.read(readingPreferencesProvider.notifier);
 
@@ -53,6 +57,33 @@ class PersonalisationScreen extends ConsumerWidget {
                 ),
             ],
           ),
+        ),
+
+        const SettingsSectionLabel('App Icon'),
+        SettingsGroup(
+          children: [
+            SettingsRow(
+              icon: Icons.auto_awesome_mosaic_rounded,
+              title: 'App icon',
+              subtitle: logoVariant == null
+                  ? 'Matching your theme'
+                  : '${logoVariant.label} — '
+                      '${logoVariant.description.toLowerCase()}',
+              // A custom trailing suppresses SettingsRow's automatic chevron,
+              // so it is re-added here after the preview.
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const MizanMark(size: 30),
+                  const SizedBox(width: 12),
+                  Icon(Icons.chevron_right_rounded,
+                      size: 20, color: AppColors.muted),
+                ],
+              ),
+              onTap: () =>
+                  context.push('/settings/personalisation/app-icon'),
+            ),
+          ],
         ),
 
         const SettingsSectionLabel('Arabic Font'),

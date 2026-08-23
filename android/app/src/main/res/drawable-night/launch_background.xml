@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mizan launch splash, dark mode — navy page, so the splash matches the
+     first frame instead of flashing white. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/mizan_page_dark" />
+</layer-list>

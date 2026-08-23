@@ -17,10 +17,13 @@ import '../../features/growth/presentation/al_meezan_screen.dart';
 import '../../features/growth/presentation/vocab_bank_screen.dart';
 import '../../features/growth/presentation/muhasabah_screen.dart';
 import '../../features/minbar/presentation/minbar_screen.dart';
+import '../../features/onboarding/domain/onboarding_flags.dart';
+import '../../features/onboarding/presentation/welcome_screen.dart';
 import '../../features/settings/presentation/settings_screen.dart';
 import '../../features/settings/presentation/auth_screen.dart';
 import '../../features/settings/presentation/notifications_screen.dart';
 import '../../features/settings/presentation/personalisation_screen.dart';
+import '../../features/settings/presentation/app_icon_screen.dart';
 import '../../features/settings/presentation/audio_screen.dart';
 import '../../features/settings/presentation/system_screen.dart';
 import '../../features/settings/presentation/language_screen.dart';
@@ -32,8 +35,16 @@ class AppRouter {
   AppRouter._();
 
   static final GoRouter router = GoRouter(
-    initialLocation: '/home',
+    // Read synchronously from a flag `main()` fills in before `runApp`. See
+    // [OnboardingFlags] for why this is not a `redirect`.
+    initialLocation: OnboardingFlags.welcomeSeen ? '/home' : '/welcome',
     routes: [
+      // Outside the ShellRoute on purpose: the welcome screen is full-bleed and
+      // must not have the bottom nav over its landscape.
+      GoRoute(
+        path: '/welcome',
+        builder: (context, state) => const WelcomeScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
@@ -160,6 +171,12 @@ class AppRouter {
               GoRoute(
                 path: 'personalisation',
                 builder: (context, state) => const PersonalisationScreen(),
+                routes: [
+                  GoRoute(
+                    path: 'app-icon',
+                    builder: (context, state) => const AppIconScreen(),
+                  ),
+                ],
               ),
               GoRoute(
                 path: 'audio',

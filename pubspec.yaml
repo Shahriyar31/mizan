@@ -61,12 +61,12 @@ flutter:
 
   assets:
     - .env
+    - assets/brand/
     - assets/data/ibn_kathir/
     - assets/data/ibn_kathir_processed/
     - assets/data/discover/prophets/
     - assets/data/discover/sahabah/
     - assets/data/discover/names/
-    - assets/data/discover/seerah/
     - assets/data/discover/seerah/
 
   fonts:

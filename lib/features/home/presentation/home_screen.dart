@@ -1,134 +1,81 @@
-// ─────────────────────────────────────────────────────────────────────────────
-// home_screen.dart — Redesigned home with proper UX
-// ─────────────────────────────────────────────────────────────────────────────
+/// Home — rebuilt on the Mizan design system.
+///
+/// ── What this screen is ───────────────────────────────────────────────
+/// The landing screen, laid out to `Mizan Light.pdf` / `Mizan Dark.pdf` page 2:
+/// a header row, the greeting under an arch watermark, Today's Mizan, the
+/// Today's Thread hero, two half-width cards, and the ayah card. It reads only
+/// from [MizanPalette], [MizanType] and [MizanGeometry] — there is not one
+/// `AppColors` reference in this file, which is the whole point of the rebuild.
+///
+/// ── What replaced the old Home ────────────────────────────────────────
+/// The previous 1,655-line version detected five time-of-day "states" (Friday,
+/// returning, muhasabah, morning wird, default) and rendered a different screen
+/// for each. The new design has one Home, so that machinery is gone. Two things
+/// were rescued out of it before it went, because they were content and content
+/// is expensive: the seven-ayah rotation now lives in `data/daily_ayah.dart`, and
+/// the seven morning adhkar now live in `data/todays_encounter.dart`.
+///
+/// The adhkar currently have nowhere to be shown — the eight screens in the
+/// design do not include a dhikr screen. The data is kept and verified; it needs
+/// a home in a later pass rather than a silent deletion now.
+///
+/// ── Where the content comes from ──────────────────────────────────────
+/// Every card is bound to something already sourced. See
+/// `domain/home_today_providers.dart` for the reasoning, including why the
+/// mockup's "TODAY IN ISLAM" card reads "FROM THE SEERAH" here: the app has no
+/// hijri-dated event list, and inventing anniversaries for sacred history is not
+/// something this codebase does.
+///
+/// ── On the Mizan strip ────────────────────────────────────────────────
+/// Rule #4: it records, it does not score. Three facets, filled diamond or empty
+/// diamond, no count and no verdict. The state difference is carried by *shape*
+/// (solid vs outline), not by colour alone.
 library;
 
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../domain/home_providers.dart';
-import '../../growth/domain/vocab_providers.dart';
-import '../data/todays_encounter.dart';
-import '../../identity/domain/identity_providers.dart';
-import 'thread_detail_screen.dart';
-import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_typography.dart';
-import '../../../shared/widgets/tactile.dart';
 
-class HomeScreen extends ConsumerWidget {
+import '../../../core/theme/mizan_tokens.dart';
+import '../../../core/theme/mizan_typography.dart';
+import '../../../core/util/hijri_date.dart';
+import '../../../shared/widgets/mizan/mizan_components.dart';
+import '../../identity/domain/identity_providers.dart';
+import '../../quran/presentation/ayah_detail_screen.dart' show SavedAyatStore;
+import '../data/daily_ayah.dart';
+import '../data/todays_encounter.dart';
+import '../domain/home_today_providers.dart';
+import '../domain/streak_provider.dart';
+import '../domain/todays_mizan.dart';
+
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final homeStateAsync = ref.watch(homeStateProvider);
-    return homeStateAsync.when(
-      loading: () => const _HomeLoading(),
-      error: (_, __) => const _DefaultState(),
-      data: (state) => switch (state) {
-        HomeState.friday => const _FridayState(),
-        HomeState.returning => const _ReturningState(),
-        HomeState.muhasabah => const _MuhasabahState(),
-        HomeState.wird => const _WirdState(),
-        HomeState.defaultState => const _DefaultState(),
-      },
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Loading
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _HomeLoading extends StatelessWidget {
-  const _HomeLoading();
-  @override
-  Widget build(BuildContext context) =>  Scaffold(
-        backgroundColor: AppColors.night,
-        body: Center(
-          child:
-              CircularProgressIndicator(color: AppColors.gold, strokeWidth: 2),
-        ),
-      );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MORNING WIRD — The main engagement state
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _WirdState extends ConsumerWidget {
-  const _WirdState();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
     return Scaffold(
-      backgroundColor: AppColors.night,
+      backgroundColor: p.page,
       body: SafeArea(
-        child: CustomScrollView(
-          slivers: [
-            // ── Greeting ─────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _Greeting()),
-                    _StreakBadge(),
-                    const SizedBox(width: 10),
-                    _HeaderIconButton(
-                      icon: Icons.settings_rounded,
-                      label: 'Settings',
-                      onTap: () => context.push('/settings'),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // ── Today's Thread — signature feature ───────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 32, 20, 0),
-                child: _TodaysThreadCard(),
-              ),
-            ),
-
-            // ── Ayah to Sit With ─────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: _AyahOfDayCard(),
-              ),
-            ),
-
-            // ── Daily Dua ────────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: _DailyDuaCard(),
-              ),
-            ),
-
-            // ── Your Growth ──────────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-                child: _GrowthGatewayCard(),
-              ),
-            ),
-
-            // ── A Moment to Weigh (Al-Meezan) ────────────────────────────
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
-                child: _MeezanGatewayCard(),
-              ),
-            ),
-
-            // ── Bottom spacer ────────────────────────────────────────────
-            const SliverToBoxAdapter(child: SizedBox(height: 40)),
+        bottom: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(
+            MizanGeometry.gutter,
+            10,
+            MizanGeometry.gutter,
+            MizanGeometry.scrollBottomPadding,
+          ),
+          children: const [
+            _HeaderBlock(),
+            SizedBox(height: 22),
+            _TodaysMizanCard(),
+            SizedBox(height: MizanGeometry.gap),
+            _ThreadHero(),
+            SizedBox(height: MizanGeometry.gap),
+            _TwoUp(),
+            SizedBox(height: MizanGeometry.gap),
+            _AyahCard(),
           ],
         ),
       ),
@@ -136,196 +83,128 @@ class _WirdState extends ConsumerWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Header icon button — used for the Growth/Settings shortcuts (not tabs).
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+//  HEADER + GREETING
+// ══════════════════════════════════════════════════════════════════════
 
-class _HeaderIconButton extends StatelessWidget {
-  const _HeaderIconButton({
-    required this.icon,
-    required this.label,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
+/// The header row and greeting, with the arch drawn behind both.
+///
+/// The arch is a [Positioned] child of a `Clip.none` [Stack], so it is free to
+/// overhang the bottom of this block — the Mizan card that follows in the list
+/// is opaque and paints over the overhang, which is exactly how the mockup
+/// crops it. Keeping the arch *inside* the scrolling content (rather than
+/// pinning it to the Scaffold) means it scrolls away with the greeting it
+/// belongs to.
+class _HeaderBlock extends StatelessWidget {
+  const _HeaderBlock();
 
   @override
   Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: label,
-      child: Tactile(
-        onTap: onTap,
-        baseColor: AppColors.slate,
-        borderRadius: 99,
-        strength: 0.7,
-        child: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: AppColors.slate,
-            shape: BoxShape.circle,
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Icon(icon, size: 18, color: AppColors.muted),
-        ),
-      ),
-    );
-  }
-}
+    final p = MizanPalette.of(context);
+    final w = MediaQuery.sizeOf(context).width;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Greeting — replaces the old "Morning Wird" heading. Time-independent.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _Greeting extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(effectiveUserProvider).valueOrNull;
-    final name = user?.displayName.trim();
-    final showName = name != null && name.isNotEmpty && name != 'You';
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      clipBehavior: Clip.none,
       children: [
-        Text(
-          'السلام عليكم',
-          style: AppTypography.arabicDisplay(color: AppColors.gold, size: 24),
+        Positioned(
+          top: -14,
+          left: w * 0.10,
+          right: -6,
+          height: 296,
+          child: MizanArch(
+            // Gold reads as a warm hairline on cream; on navy the blue accent
+            // is the quieter of the two and matches the dark mockup.
+            color: p.isLight ? p.accent : p.link,
+            opacity: p.isLight ? 0.32 : 0.26,
+          ),
         ),
-        const SizedBox(height: 2),
-        Text(
-          showName ? 'Assalamu Alaikum, $name' : 'Assalamu Alaikum',
-          style: AppTypography.labelSmall(color: AppColors.muted),
-        ),
-      ],
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Today's Thread — the signature feature. A curated, verified Discover
-// entry, deterministic by day. Strongest visual treatment on the screen.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _TodaysThreadCard extends StatefulWidget {
-  @override
-  State<_TodaysThreadCard> createState() => _TodaysThreadCardState();
-}
-
-class _TodaysThreadCardState extends State<_TodaysThreadCard> {
-  int _stage = 0; // 0: question, 1: reveal, 2: source, 3: sit with this
-
-  late final Encounter _encounter = encounterForToday();
-
-  void _advance() {
-    if (_stage < 3) {
-      setState(() => _stage++);
-    } else {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ThreadDetailScreen(encounter: _encounter),
-        ),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final stageLabels = const ['THE QUESTION', 'THE REVEAL', 'THE SOURCE', 'SIT WITH THIS'];
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.night,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.35)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(26, 28, 26, 26),
-        child: Column(
+        const Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text("TODAY'S THREAD",
-                    style: AppTypography.labelSmall(color: AppColors.gold)
-                        .copyWith(letterSpacing: 3)),
-                Text(encounterIndexForToday().toString().padLeft(2, '0'),
-                    style: AppTypography.labelSmall(
-                        color: AppColors.gold.withValues(alpha: 0.5))),
-              ],
+            _HeaderRow(),
+            SizedBox(height: 26),
+            _Greeting(),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _HeaderRow extends ConsumerWidget {
+  const _HeaderRow();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Row(
+      children: [
+        MizanIconTile(
+          icon: Icons.person_outline_rounded,
+          semanticLabel: 'Your account',
+          onTap: () => context.go('/settings'),
+        ),
+        const Spacer(),
+        const _StreakPill(),
+        const SizedBox(width: 10),
+        MizanIconTile(
+          icon: Icons.notifications_none_rounded,
+          semanticLabel: 'Notifications',
+          // The mockup draws a gold unread dot here. There is no unread count in
+          // the app yet, and a dot that is always lit is a notification that
+          // never existed — so it stays off until something can actually set it.
+          badge: false,
+          onTap: () => context.go('/settings/notifications'),
+        ),
+      ],
+    );
+  }
+}
+
+class _StreakPill extends ConsumerWidget {
+  const _StreakPill();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+    final days = ref.watch(streakProvider);
+
+    return Semantics(
+      button: true,
+      label: '$days day journey. Opens Growth.',
+      excludeSemantics: true,
+      child: MizanSurface(
+        radius: const BorderRadius.all(
+          Radius.circular(MizanGeometry.pillRadius),
+        ),
+        padding: const EdgeInsets.fromLTRB(14, 7, 18, 7),
+        onTap: () => context.go('/growth'),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.local_fire_department_rounded,
+              size: 20,
+              // Bronze on cream, gold on navy — gold is never a text/icon
+              // colour on the light page.
+              color: p.accentText,
             ),
-            const SizedBox(height: 8),
-            // Progress: 01 → 02 → 03 → 04
-            Row(
+            const SizedBox(width: 10),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (var i = 0; i < 4; i++) ...[
-                  if (i > 0)
-                    Expanded(
-                      child: Container(
-                        height: 1,
-                        color: i <= _stage
-                            ? AppColors.gold.withValues(alpha: 0.5)
-                            : AppColors.border,
-                      ),
-                    ),
-                  Container(
-                    width: 7,
-                    height: 7,
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: i <= _stage
-                          ? AppColors.gold
-                          : AppColors.gold.withValues(alpha: 0.2),
-                    ),
-                  ),
-                ],
-              ],
-            ),
-            const SizedBox(height: 22),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 450),
-              switchInCurve: Curves.easeOutCubic,
-              switchOutCurve: Curves.easeInCubic,
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.06),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+                Text(
+                  '$days',
+                  style: MizanType.bodyStrong(color: p.ink)
+                      .copyWith(fontSize: 17, height: 1.05),
                 ),
-              ),
-              child: _StageContent(
-                key: ValueKey(_stage),
-                stageLabel: stageLabels[_stage],
-                encounter: _encounter,
-                stage: _stage,
-              ),
-            ),
-            const SizedBox(height: 24),
-            TactilePill(
-              onTap: _advance,
-              baseColor: AppColors.surfaceElevated,
-              strength: 1.1,
-              borderRadius: 12,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _stage < 3 ? 'CONTINUE' : 'FOLLOW THE THREAD',
-                    style: AppTypography.labelMedium(color: AppColors.gold)
-                        .copyWith(letterSpacing: 1),
-                  ),
-                  const SizedBox(width: 8),
-                  Icon(Icons.arrow_forward_rounded, size: 16, color: AppColors.gold),
-                ],
-              ),
+                const SizedBox(height: 3),
+                Text(
+                  'day journey',
+                  style: MizanType.body(color: p.muted)
+                      .copyWith(fontSize: 11, height: 1.0),
+                ),
+              ],
             ),
           ],
         ),
@@ -334,1319 +213,740 @@ class _TodaysThreadCardState extends State<_TodaysThreadCard> {
   }
 }
 
-class _StageContent extends StatelessWidget {
-  const _StageContent({
-    super.key,
-    required this.stageLabel,
-    required this.encounter,
-    required this.stage,
-  });
-
-  final String stageLabel;
-  final Encounter encounter;
-  final int stage;
+class _Greeting extends ConsumerWidget {
+  const _Greeting();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+    final name = ref.watch(currentUserProvider).valueOrNull?.displayName.trim();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(stageLabel,
-            style: AppTypography.labelSmall(color: AppColors.muted)
-                .copyWith(letterSpacing: 1.5)),
-        const SizedBox(height: 10),
-        if (stage == 0) ...[
-          Text(
-            encounter.hook,
-            style: AppTypography.displayLarge(color: AppColors.textPrimary)
-                .copyWith(height: 1.25, fontSize: 24),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            encounter.question,
-            style: AppTypography.quoteItalic(color: AppColors.textSecondary),
-          ),
-        ] else if (stage == 1) ...[
-          // The "aha" moment — the name, given weight.
-          Text(
-            encounter.subject,
-            style: AppTypography.displayLarge(color: AppColors.gold)
-                .copyWith(height: 1.2, fontSize: 28),
-          ),
-        ] else if (stage == 2) ...[
-          Text(
-            encounter.context,
-            style: AppTypography.bodyLarge(color: AppColors.textPrimary)
-                .copyWith(height: 1.6),
-          ),
-          const SizedBox(height: 14),
-          Text(encounter.reference,
-              style: AppTypography.labelSmall(color: AppColors.gold)),
-        ] else ...[
-          Text(
-            'Let this settle for a moment.',
-            style: AppTypography.displayMedium(color: AppColors.textPrimary)
-                .copyWith(height: 1.3, fontSize: 20),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            encounter.question,
-            style: AppTypography.quoteItalic(color: AppColors.textSecondary),
-          ),
-        ],
+        Text(
+          'السَّلَامُ عَلَيْكُمْ',
+          textDirection: TextDirection.rtl,
+          style: MizanType.arabic(color: p.ink, fontSize: 34),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          (name == null || name.isEmpty)
+              ? 'Assalamu Alaikum'
+              : 'Assalamu Alaikum, $name',
+          style: MizanType.body(color: p.muted).copyWith(fontSize: 16),
+        ),
       ],
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Daily Dua — one dua, deterministic by day. Full Dua tab is a future task.
-// ─────────────────────────────────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════
+//  TODAY'S MIZAN
+// ══════════════════════════════════════════════════════════════════════
 
-class _DailyDuaCard extends StatelessWidget {
+class _TodaysMizanCard extends ConsumerWidget {
+  const _TodaysMizanCard();
+
   @override
-  Widget build(BuildContext context) {
-    final dua = duaForToday();
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+    final mizan = ref.watch(todaysMizanProvider);
+    final now = DateTime.now();
+    final date = '${weekdayShort(now)} · ${HijriDate.today(now: now).dayAndMonth}';
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.slate,
-        borderRadius: BorderRadius.circular(20),
-        border: Border(left: BorderSide(color: AppColors.jade, width: 3)),
-      ),
+    return MizanSurface(
+      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('DAILY DUA',
-              style: AppTypography.labelSmall(color: AppColors.jade)),
+          Row(
+            children: [
+              const MizanSectionLabel("Today's Mizan"),
+              const Spacer(),
+              Text(
+                date,
+                style: MizanType.body(color: p.muted).copyWith(fontSize: 13),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: _Facet(
+                  icon: Icons.menu_book_outlined,
+                  label: 'Learned',
+                  done: mizan.learned,
+                ),
+              ),
+              _FacetDivider(color: p.hairline),
+              Expanded(
+                child: _Facet(
+                  icon: Icons.favorite_border_rounded,
+                  label: 'Reflected',
+                  done: mizan.reflected,
+                ),
+              ),
+              _FacetDivider(color: p.hairline),
+              Expanded(
+                child: _Facet(
+                  icon: Icons.directions_walk_rounded,
+                  label: 'Acted',
+                  done: mizan.acted,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 14),
-          Text(
-            dua['arabic']!,
-            style: AppTypography.arabicBody(color: AppColors.textPrimary),
-            textAlign: TextAlign.right,
-            textDirection: TextDirection.rtl,
-          ),
-          const SizedBox(height: 8),
-          Text(dua['translit']!,
-              style: AppTypography.quoteItalic(color: AppColors.textSecondary)),
-          const SizedBox(height: 6),
-          Text(dua['meaning']!,
-              style: AppTypography.bodySmall(color: AppColors.muted)),
-          const SizedBox(height: 6),
-          Text(dua['source']!,
-              style: AppTypography.labelSmall(color: AppColors.jade)),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Your Growth — gateway to the existing Growth screen; no second dashboard.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _GrowthGatewayCard extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final vocabCount = ref.watch(vocabCountProvider).valueOrNull;
-    final subtitle = (vocabCount != null && vocabCount > 0)
-        ? '$vocabCount ${vocabCount == 1 ? 'word' : 'words'} saved — your knowledge is growing'
-        : 'Continue your learning and reflection journey.';
-
-    return Semantics(
-      button: true,
-      label: 'Open Growth',
-      child: Tactile(
-        onTap: () => context.push('/growth'),
-        baseColor: AppColors.surface,
-        borderRadius: 20,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Icon(Icons.auto_awesome_rounded, size: 16, color: AppColors.gold),
-                  const SizedBox(width: 8),
-                  Text('YOUR GROWTH',
-                      style: AppTypography.labelSmall(color: AppColors.gold)),
-                ],
-              ),
-              const SizedBox(height: 10),
-              Text(subtitle,
-                  style: AppTypography.bodyMedium(color: AppColors.textPrimary)),
-              const SizedBox(height: 12),
-              Align(
-                alignment: Alignment.centerRight,
-                child: Text('OPEN GROWTH →',
-                    style: AppTypography.labelSmall(color: AppColors.gold)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// A Moment to Weigh — gateway to the existing Al-Meezan screen.
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MeezanGatewayCard extends StatefulWidget {
-  @override
-  State<_MeezanGatewayCard> createState() => _MeezanGatewayCardState();
-}
-
-class _MeezanGatewayCardState extends State<_MeezanGatewayCard> {
-  int? _daysLived;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getString('meezan_birth_date');
-    final birthDate = stored == null ? null : DateTime.tryParse(stored);
-    if (birthDate != null && mounted) {
-      setState(() => _daysLived = DateTime.now().difference(birthDate).inDays);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final preview = _daysLived != null
-        ? '$_daysLived days lived, and counting.'
-        : null;
-
-    return Tactile(
-      onTap: () => context.push('/growth/meezan'),
-      baseColor: AppColors.surface,
-      borderRadius: 20,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('A MOMENT TO WEIGH',
-                style: AppTypography.labelSmall(color: AppColors.violet)),
-            const SizedBox(height: 10),
-            Text(
-              'If today were placed on the scale,\nwhat would you want to see?',
-              style: AppTypography.quoteItalic(color: AppColors.textSecondary),
-            ),
-            if (preview != null) ...[
-              const SizedBox(height: 10),
-              Text(preview,
-                  style: AppTypography.bodySmall(color: AppColors.muted)),
-            ],
-            const SizedBox(height: 12),
-            Text('Reflect →',
-                style: AppTypography.labelSmall(color: AppColors.violet)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Streak Badge — the identity anchor
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _StreakBadge extends StatefulWidget {
-  @override
-  State<_StreakBadge> createState() => _StreakBadgeState();
-}
-
-class _StreakBadgeState extends State<_StreakBadge> {
-  int _streak = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadStreak();
-  }
-
-  Future<void> _loadStreak() async {
-    final prefs = await SharedPreferences.getInstance();
-    final last = prefs.getString('last_opened_at');
-    int streak = prefs.getInt('streak_count') ?? 1;
-    if (last != null) {
-      final lastDate = DateTime.tryParse(last);
-      if (lastDate != null) {
-        final diff = DateTime.now().difference(lastDate).inDays;
-        if (diff == 1) {
-          streak += 1;
-          await prefs.setInt('streak_count', streak);
-        } else if (diff > 1) {
-          streak = 1;
-          await prefs.setInt('streak_count', 1);
-        }
-      }
-    }
-    if (mounted) setState(() => _streak = streak);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppColors.gold.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('🔥', style: TextStyle(fontSize: 22)),
-          const SizedBox(width: 8),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '$_streak',
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.gold,
-                  height: 1,
-                ),
-              ),
-              Text(
-                _streak == 1 ? 'day' : 'days',
-                style: AppTypography.labelSmall(color: AppColors.muted),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Ayah of the Day — the hero card
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _AyahOfDayCard extends StatelessWidget {
-  // Rotates daily — one ayah per day. `surah` is the numeric surah number
-  // named in `reference`, added only to link "Read in context →" to the
-  // real Quran screen — not a new claim.
-  static const _ayahs = [
-    {
-      'arabic': 'أَفَلَا يَتَدَبَّرُونَ الْقُرْآنَ',
-      'translation': 'Will they not then ponder over the Quran?',
-      'reference': 'Muhammad 47:24',
-      'context': 'The ayah from which this app takes its name.',
-      'surah': 47,
-      'ayah': 24,
-    },
-    {
-      'arabic': 'وَبِالْأَسْحَارِ هُمْ يَسْتَغْفِرُونَ',
-      'translation':
-          'And in the hours before dawn, they would seek forgiveness.',
-      'reference': 'Adh-Dhariyat 51:18',
-      'context':
-          'Of those whom Allah praises — they sought forgiveness at Fajr.',
-      'surah': 51,
-      'ayah': 18,
-    },
-    {
-      'arabic': 'إِنَّ فِي ذَٰلِكَ لَذِكْرَىٰ لِمَن كَانَ لَهُ قَلْبٌ',
-      'translation': 'Indeed in that is a reminder for whoever has a heart.',
-      'reference': 'Qaf 50:37',
-      'context':
-          'The heart that receives. The Quran speaks to those who listen.',
-      'surah': 50,
-      'ayah': 37,
-    },
-    {
-      'arabic': 'وَاذْكُر رَّبَّكَ فِي نَفْسِكَ تَضَرُّعًا وَخِيفَةً',
-      'translation': 'Remember your Lord within yourself in humility and fear.',
-      'reference': 'Al-A\'raf 7:205',
-      'context': 'Remembrance that is real — felt inside, not only spoken.',
-      'surah': 7,
-      'ayah': 205,
-    },
-    {
-      'arabic': 'فَاذْكُرُونِي أَذْكُرْكُمْ',
-      'translation': 'Remember Me, and I will remember you.',
-      'reference': 'Al-Baqarah 2:152',
-      'context': 'The greatest exchange — your remembrance for His.',
-      'surah': 2,
-      'ayah': 152,
-    },
-    {
-      'arabic': 'إِنَّ اللَّهَ مَعَ الصَّابِرِينَ',
-      'translation': 'Indeed, Allah is with the patient.',
-      'reference': 'Al-Baqarah 2:153',
-      'context': 'Not a promise of ease. A promise of company.',
-      'surah': 2,
-      'ayah': 153,
-    },
-    {
-      'arabic':
-          'رَبَّنَا آتِنَا فِي الدُّنْيَا حَسَنَةً وَفِي الْآخِرَةِ حَسَنَةً',
-      'translation':
-          'Our Lord, give us good in this world and good in the Hereafter.',
-      'reference': 'Al-Baqarah 2:201',
-      'context': 'The du\'a the Prophet ﷺ made most often — Sahih Bukhari.',
-      'surah': 2,
-      'ayah': 201,
-    },
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final dayOfYear =
-        DateTime.now().difference(DateTime(DateTime.now().year)).inDays;
-    final ayah = _ayahs[dayOfYear % _ayahs.length];
-
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Label
-            Text(
-              'AYAH TO SIT WITH',
-              style: AppTypography.labelSmall(color: AppColors.gold),
-            ),
-            const SizedBox(height: 20),
-
-            // Arabic text — the centrepiece
-            Text(
-              ayah['arabic'] as String,
-              style: AppTypography.arabicHero(color: AppColors.textPrimary),
-              textAlign: TextAlign.right,
-              textDirection: TextDirection.rtl,
-            ),
-            const SizedBox(height: 16),
-
-            // Divider
-            Container(height: 1, color: AppColors.border),
-            const SizedBox(height: 16),
-
-            // Translation
-            Text(
-              ayah['translation'] as String,
-              style: AppTypography.quoteItalic(color: AppColors.textSecondary),
-            ),
-            const SizedBox(height: 8),
-
-            // Reference
-            Text(
-              ayah['reference'] as String,
-              style: AppTypography.labelSmall(color: AppColors.gold),
-            ),
-            const SizedBox(height: 16),
-
-            // Quiet action — opens the real surah
-            TactileChip(
-              baseColor: AppColors.surfaceElevated,
-              strength: 0.6,
-              borderRadius: 10,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              onTap: () => context
-                  .push('/quran/${ayah['surah']}?ayah=${ayah['ayah']}'),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    'Read in context',
-                    style: AppTypography.labelMedium(color: AppColors.muted),
-                  ),
-                  const SizedBox(width: 4),
-                  Icon(Icons.arrow_forward_rounded,
-                      size: 14, color: AppColors.muted),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// 7 Dhikr Cards — each tapped once to mark complete
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _DhikrList extends StatefulWidget {
-  @override
-  State<_DhikrList> createState() => _DhikrListState();
-}
-
-class _DhikrListState extends State<_DhikrList> {
-  final List<bool> _done = List.filled(7, false);
-
-  static const _dhikr = kMorningAdhkar;
-
-  @override
-  Widget build(BuildContext context) {
-    final completedCount = _done.where((d) => d).length;
-    final allDone = completedCount == 7;
-
-    return SliverList(
-      delegate: SliverChildListDelegate([
-        // Ring progress indicator at top
-        Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: _WirdRingCompact(
-            completed: completedCount,
-            total: 7,
-          ),
-        ),
-        // Each dhikr card
-        ..._dhikr.asMap().entries.map((e) {
-          final i = e.key;
-          final d = e.value;
-          return _SingleDhikrCard(
-            arabic: d['arabic']!,
-            translit: d['translit']!,
-            meaning: d['meaning']!,
-            source: d['source']!,
-            isDone: _done[i],
-            onTap: () {
-              if (!_done[i]) {
-                setState(() => _done[i] = true);
-              }
-            },
-          );
-        }),
-        if (allDone) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.jade.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.jade.withValues(alpha: 0.3)),
-            ),
-            child: Row(
-              children: [
-                 Text('✓',
-                    style: TextStyle(
-                        fontSize: 20,
-                        color: AppColors.jade,
-                        fontWeight: FontWeight.w300)),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Wird complete.',
-                          style:
-                              AppTypography.labelLarge(color: AppColors.jade)),
-                      Text('May Allah accept it from you.',
-                          style:
-                              AppTypography.bodySmall(color: AppColors.muted)),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-        const SizedBox(height: 16),
-      ]),
-    );
-  }
-}
-
-// Compact ring showing wird progress
-class _WirdRingCompact extends StatelessWidget {
-  final int completed;
-  final int total;
-  const _WirdRingCompact({required this.completed, required this.total});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: CustomPaint(
-            painter: _RingPainter(
-                progress: completed / total,
-                ringColor: AppColors.gold,
-                bgColor: AppColors.gold.withAlpha(25)),
-            child: Center(
-              child: Text(
-                '$completed',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: AppColors.gold,
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                completed == 0
-                    ? 'Start your morning dhikr'
-                    : completed == total
-                        ? 'All dhikr complete'
-                        : '$completed of $total dhikr done',
-                style: AppTypography.labelLarge(color: AppColors.parchment),
-              ),
-              const SizedBox(height: 4),
-              // 7 segment dots
-              Row(
-                children: List.generate(total, (i) {
-                  return Container(
-                    margin: const EdgeInsets.only(right: 5),
-                    width: i < completed ? 18 : 8,
-                    height: 6,
-                    decoration: BoxDecoration(
-                      color: i < completed
-                          ? AppColors.gold
-                          : AppColors.gold.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  );
-                }),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _RingPainter extends CustomPainter {
-  final double progress;
-  final Color ringColor;
-  final Color bgColor;
-  _RingPainter(
-      {required this.progress, required this.ringColor, required this.bgColor});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 5;
-
-    canvas.drawCircle(
-      center,
-      radius,
-      Paint()
-        ..color = bgColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 5,
-    );
-
-    if (progress > 0) {
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2,
-        2 * math.pi * progress,
-        false,
-        Paint()
-          ..color = ringColor
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 5
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_RingPainter old) => old.progress != progress;
-}
-
-// Individual tappable dhikr card
-class _SingleDhikrCard extends StatelessWidget {
-  final String arabic;
-  final String translit;
-  final String meaning;
-  final String source;
-  final bool isDone;
-  final VoidCallback onTap;
-
-  const _SingleDhikrCard({
-    required this.arabic,
-    required this.translit,
-    required this.meaning,
-    required this.source,
-    required this.isDone,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color:
-              isDone ? AppColors.jade.withValues(alpha: 0.08) : AppColors.slate,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isDone
-                ? AppColors.jade.withValues(alpha: 0.35)
-                : AppColors.gold.withValues(alpha: 0.1),
-            width: 1,
-          ),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Check circle
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isDone ? AppColors.jade : Colors.transparent,
-                border: Border.all(
-                  color: isDone
-                      ? AppColors.jade
-                      : AppColors.gold.withValues(alpha: 0.3),
-                  width: 1.5,
-                ),
-              ),
-              child: isDone
-                  ? const Icon(Icons.check_rounded,
-                      color: Colors.white, size: 14)
-                  : null,
-            ),
-            const SizedBox(width: 14),
-            // Content
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    arabic,
-                    style: AppTypography.arabicBody(
-                      color: isDone
-                          ? AppColors.jade.withValues(alpha: 0.7)
-                          : AppColors.parchment,
-                      size: 18,
-                    ),
-                    textDirection: TextDirection.rtl,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    translit,
-                    style: AppTypography.labelSmall(
-                        color: AppColors.gold.withValues(alpha: 0.6)),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    meaning,
-                    style: AppTypography.bodySmall(color: AppColors.muted),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FRIDAY STATE
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _FridayState extends ConsumerWidget {
-  const _FridayState();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final question = ref.watch(fridayQuestionProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.night,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('يَوْمُ الْجُمُعَةِ',
-                          style: AppTypography.arabicDisplay(
-                              color: AppColors.jade, size: 18)),
-                      Text('Friday — the best of days',
-                          style:
-                              AppTypography.labelSmall(color: AppColors.muted)),
-                    ],
-                  ),
-                  const Spacer(),
-                  _StreakBadge(),
-                ],
-              ),
-            ),
-
-            // Content
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('This week\'s question',
-                        style: AppTypography.labelSmall(color: AppColors.jade)),
-                    const SizedBox(height: 14),
-
-                    // The question — full width, commanding
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        color: AppColors.jade.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                            color: AppColors.jade.withValues(alpha: 0.25)),
-                      ),
-                      child: Text(
-                        question['question'] ?? '',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary,
-                          height: 1.5,
-                          letterSpacing: -0.3,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Context
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: AppColors.jade, width: 3),
-                        ),
-                      ),
-                      child: Text(
-                        question['context'] ?? '',
-                        style:
-                            AppTypography.quoteItalic(color: AppColors.muted),
-                      ),
-                    ),
-                    const SizedBox(height: 36),
-
-                    // Jumu'ah ayah
-                    _QuranCard(
-                      arabic:
-                          'يَا أَيُّهَا الَّذِينَ آمَنُوا إِذَا نُودِيَ لِلصَّلَاةِ مِن يَوْمِ الْجُمُعَةِ فَاسْعَوْا إِلَىٰ ذِكْرِ اللَّهِ',
-                      translation:
-                          'O you who believe, when the call to prayer is made on Friday, proceed to the remembrance of Allah.',
-                      reference: 'Al-Jumu\'ah 62:9',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-
-            // CTA
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: _ActionCard(
-                icon: Icons.menu_book_rounded,
-                label: 'Open the Quran',
-                color: AppColors.jade,
-                onTap: () => context.go('/quran'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// RETURNING STATE
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ReturningState extends ConsumerWidget {
-  const _ReturningState();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lastAyahAsync = ref.watch(lastAyahProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.night,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Row(
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('مَرْحَباً',
-                          style: AppTypography.arabicDisplay(
-                              color: AppColors.goldSoft, size: 20)),
-                      Text('Welcome back',
-                          style:
-                              AppTypography.labelSmall(color: AppColors.muted)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 32, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'The Quran was here\nwaiting for you.',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary,
-                        height: 1.3,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text('It always will be.',
-                        style:
-                            AppTypography.bodyMedium(color: AppColors.muted)),
-                    const SizedBox(height: 36),
-                    lastAyahAsync.when(
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, __) => const SizedBox.shrink(),
-                      data: (ayah) {
-                        if (ayah == null) return const SizedBox.shrink();
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('You left with this',
-                                style: AppTypography.labelSmall(
-                                    color: AppColors.gold)),
-                            const SizedBox(height: 12),
-                            _QuranCard(
-                              arabic: ayah['arabic'] ?? '',
-                              translation: ayah['translation'] ?? '',
-                              reference:
-                                  '${ayah['surahName']} ${ayah['surah']}:${ayah['ayah']}',
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: _ActionCard(
-                icon: Icons.menu_book_rounded,
-                label: 'Continue reading',
-                color: AppColors.jade,
-                onTap: () => context.go('/quran'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// MUHASABAH STATE (Evening)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MuhasabahState extends ConsumerWidget {
-  const _MuhasabahState();
-
-  static const _purple = Color(0xFF7C6EAF);
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final doneAsync = ref.watch(muhasabahDoneProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.night,
-      body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('الْمُحَاسَبَةُ',
-                      style: AppTypography.arabicDisplay(
-                          color: _purple, size: 20)),
-                  Text('Evening reckoning',
-                      style: AppTypography.labelSmall(color: AppColors.muted)),
-                ],
-              ),
-            ),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                      decoration: BoxDecoration(
-                        border: Border(
-                          left: BorderSide(color: _purple, width: 3),
-                        ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '"Take account of yourselves before you are taken to account."',
-                            style: AppTypography.quoteItalic(
-                                color: AppColors.muted),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            '— Umar ibn al-Khattab رضي الله عنه',
-                            style: AppTypography.labelSmall(color: _purple),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 32),
-                    doneAsync.when(
-                      loading: () => const SizedBox.shrink(),
-                      error: (_, __) => _MuhasabahPrompt(purple: _purple),
-                      data: (done) => done
-                          ? _MuhasabahDone()
-                          : _MuhasabahPrompt(purple: _purple),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: _ActionCard(
-                icon: Icons.menu_book_rounded,
-                label: 'Open the Quran',
-                color: AppColors.slate,
-                labelColor: AppColors.parchment,
-                onTap: () => context.go('/quran'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MuhasabahPrompt extends StatelessWidget {
-  final Color purple;
-  const _MuhasabahPrompt({required this.purple});
-
-  static const _questions = [
-    ('١', 'What did I do today for the sake of Allah alone?'),
-    ('٢', 'What did my nafs pull me toward that I should not have followed?'),
-    ('٣', 'What is my intention for tomorrow?'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Three questions.\nAnswer honestly.',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-              height: 1.35,
-            )),
-        const SizedBox(height: 24),
-        ..._questions.map((q) => Container(
-              margin: const EdgeInsets.only(bottom: 12),
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: purple.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(q.$1,
-                      style:
-                          AppTypography.arabicDisplay(color: purple, size: 22)),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(q.$2,
-                        style: AppTypography.bodyMedium(
-                            color: AppColors.parchment)),
-                  ),
-                ],
-              ),
-            )),
-        const SizedBox(height: 24),
-        GestureDetector(
-          onTap: () => context.go('/growth/muhasabah'),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 18),
-            decoration: BoxDecoration(
-              color: purple,
-              borderRadius: BorderRadius.circular(99),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.edit_rounded, color: Colors.white, size: 18),
-                const SizedBox(width: 10),
-                Text('Begin Muhasabah',
-                    style: AppTypography.labelLarge(color: Colors.white)),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _MuhasabahDone extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(28),
-      decoration: BoxDecoration(
-        color: AppColors.jade.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.jade.withValues(alpha: 0.4)),
-      ),
-      child: Column(
-        children: [
-           Text('✓',
-              style: TextStyle(
-                  fontSize: 36,
-                  color: AppColors.jade,
-                  fontWeight: FontWeight.w300)),
+          const MizanRule(),
           const SizedBox(height: 12),
-          Text('Muhasabah complete.',
-              style: AppTypography.displaySmall(color: AppColors.parchment)),
-          const SizedBox(height: 8),
-          Text('May Allah accept it from you.',
-              style: AppTypography.bodySmall(color: AppColors.muted)),
-        ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DEFAULT STATE
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _DefaultState extends StatelessWidget {
-  const _DefaultState();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.night,
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
-              Text('تَدَبُّر',
-                  style: AppTypography.arabicDisplay(
-                      color: AppColors.gold, size: 22)),
-              const SizedBox(height: 2),
-              Text('Reflect upon the Quran',
-                  style: AppTypography.labelSmall(color: AppColors.muted)),
-              const SizedBox(height: 32),
-              _AyahOfDayCard(),
-              const SizedBox(height: 24),
-              _ActionCard(
-                icon: Icons.menu_book_rounded,
-                label: 'Open the Quran',
-                color: AppColors.jade,
-                onTap: () => context.go('/quran'),
+              Expanded(
+                child: Text(
+                  'A record, not a score.',
+                  style: MizanType.translation(color: p.muted)
+                      .copyWith(fontSize: 14),
+                ),
               ),
-              const SizedBox(height: 10),
-              _ActionCard(
-                icon: Icons.explore_rounded,
-                label: 'Discover',
-                color: AppColors.slate,
-                labelColor: AppColors.parchment,
-                onTap: () => context.go('/discover'),
-              ),
-              const SizedBox(height: 10),
-              _ActionCard(
-                icon: Icons.trending_up_rounded,
-                label: 'Growth',
-                color: AppColors.slate,
-                labelColor: AppColors.parchment,
+              _TextLink(
+                label: 'Open Growth',
                 onTap: () => context.go('/growth'),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Shared widgets
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _QuranCard extends StatelessWidget {
-  final String arabic;
-  final String translation;
-  final String reference;
-
-  const _QuranCard({
-    required this.arabic,
-    required this.translation,
-    required this.reference,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.slate,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.gold.withValues(alpha: 0.15)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          if (arabic.isNotEmpty) ...[
-            Text(arabic,
-                style: AppTypography.arabicBody(color: AppColors.parchment),
-                textAlign: TextAlign.right,
-                textDirection: TextDirection.rtl),
-            const SizedBox(height: 14),
-            Divider(color: AppColors.gold.withValues(alpha: 0.15), height: 1),
-            const SizedBox(height: 14),
-          ],
-          Text(translation,
-              style: AppTypography.quoteItalic(color: AppColors.muted),
-              textAlign: TextAlign.left),
-          const SizedBox(height: 6),
-          Text(reference,
-              style: AppTypography.labelSmall(color: AppColors.gold),
-              textAlign: TextAlign.left),
         ],
       ),
     );
   }
 }
 
-class _ActionCard extends StatelessWidget {
+class _Facet extends StatelessWidget {
+  const _Facet({required this.icon, required this.label, required this.done});
+
   final IconData icon;
   final String label;
-  final Color color;
-  final Color? labelColor;
-  final VoidCallback onTap;
-
-  const _ActionCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    this.labelColor,
-    required this.onTap,
-  });
+  final bool done;
 
   @override
   Widget build(BuildContext context) {
-    final textColor = labelColor ?? AppColors.night;
+    final p = MizanPalette.of(context);
+    return Semantics(
+      label: '$label — ${done ? 'recorded today' : 'nothing recorded yet'}',
+      excludeSemantics: true,
+      child: Column(
+        children: [
+          Icon(icon, size: 21, color: p.ink),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: MizanType.bodyStrong(color: p.ink)
+                .copyWith(fontSize: 14, height: 1.1),
+          ),
+          const SizedBox(height: 9),
+          MizanDiamond(
+            size: 7,
+            filled: done,
+            // Solid sage when engaged, hollow when not. The shape carries the
+            // meaning; the colour only reinforces it.
+            color: done ? p.sage : p.muted.withValues(alpha: 0.42),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FacetDivider extends StatelessWidget {
+  const _FacetDivider({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: MizanGeometry.hairlineWidth,
+        height: 62,
+        color: color,
+      );
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  TODAY'S THREAD
+// ══════════════════════════════════════════════════════════════════════
+
+/// The one dark panel on the light screen, and a raised panel on the dark one —
+/// [MizanTone.inverse] handles both.
+///
+/// The copy is read synchronously from [encounterForToday] so the hero always
+/// renders; only the progress rail waits on the database. A hero that blinks in
+/// after a query is worse than a rail that appears a frame late.
+class _ThreadHero extends ConsumerWidget {
+  const _ThreadHero();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+    const tone = MizanTone.inverse;
+    final on = tone.onColor(p);
+    final onMuted = tone.mutedOn(p);
+
+    final encounter = encounterForToday();
+    final thread = ref.watch(threadTodayProvider).valueOrNull;
+
+    void open() {
+      // Opening today's thread is engagement with knowledge, which is what the
+      // "Learned" facet records. It is not a claim that anything was mastered —
+      // see todays_mizan.dart on why there is no score here.
+      ref.read(todaysMizanProvider.notifier).mark(MizanFacet.learned);
+      context.go(encounter.routePath);
+    }
+
+    return ClipRRect(
+      borderRadius: MizanGeometry.cardBorderRadius,
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          color: tone.resolve(p),
+          shape: RoundedRectangleBorder(
+            borderRadius: MizanGeometry.cardBorderRadius,
+            side: BorderSide(
+              color: tone.hairlineOn(p),
+              width: MizanGeometry.hairlineWidth,
+            ),
+          ),
+        ),
+        child: Stack(
+          children: [
+            // Two arches bleeding off the right edge, clipped by the card.
+            Positioned(
+              right: -38,
+              bottom: -62,
+              width: 196,
+              height: 236,
+              child: MizanArch(color: p.accent, opacity: 0.15, rings: 2),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(MizanGeometry.cardPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const MizanSectionLabel(
+                        "Today's Thread",
+                        onInverse: true,
+                      ),
+                      const Spacer(),
+                      if (thread != null)
+                        Text(
+                          thread.counter,
+                          style: MizanType.body(color: onMuted)
+                              .copyWith(fontSize: 13, letterSpacing: 0.6),
+                        ),
+                    ],
+                  ),
+                  if (thread != null) ...[
+                    const SizedBox(height: 18),
+                    _ThreadRail(
+                      stage: thread.stage,
+                      total: thread.totalLayers,
+                      accent: p.accent,
+                      dim: onMuted.withValues(alpha: 0.42),
+                    ),
+                  ],
+                  const SizedBox(height: 20),
+                  Text(
+                    'THE QUESTION',
+                    style: MizanType.sectionLabel(color: onMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    encounter.hook,
+                    style: MizanType.cardHeadline(color: on)
+                        .copyWith(fontSize: 26, height: 1.24),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    encounter.question,
+                    style: MizanType.translation(color: onMuted),
+                  ),
+                  const SizedBox(height: 20),
+                  MizanButton(
+                    label: (thread?.isStarted ?? false) ? 'Continue' : 'Begin',
+                    trailingIcon: Icons.arrow_forward_rounded,
+                    onInverse: true,
+                    onPressed: open,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The layer rail: completed layers are solid dots, the current layer is a ring,
+/// layers still ahead are dim dots. Nothing here is decorative — [total] is the
+/// entry's real layer count and [stage] is the user's real position in it.
+class _ThreadRail extends StatelessWidget {
+  const _ThreadRail({
+    required this.stage,
+    required this.total,
+    required this.accent,
+    required this.dim,
+  });
+
+  final int stage;
+  final int total;
+  final Color accent;
+  final Color dim;
+
+  @override
+  Widget build(BuildContext context) {
+    final nodes = <Widget>[];
+    for (var i = 1; i <= total; i++) {
+      if (i > 1) {
+        nodes.add(
+          Expanded(
+            child: Container(height: 1.4, color: i <= stage ? accent : dim),
+          ),
+        );
+      }
+      nodes.add(_RailNode(index: i, stage: stage, accent: accent, dim: dim));
+    }
+
+    return Semantics(
+      label: 'Layer $stage of $total',
+      excludeSemantics: true,
+      child: SizedBox(height: 18, child: Row(children: nodes)),
+    );
+  }
+}
+
+class _RailNode extends StatelessWidget {
+  const _RailNode({
+    required this.index,
+    required this.stage,
+    required this.accent,
+    required this.dim,
+  });
+
+  final int index;
+  final int stage;
+  final Color accent;
+  final Color dim;
+
+  @override
+  Widget build(BuildContext context) {
+    if (index == stage) {
+      return Container(
+        width: 18,
+        height: 18,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: accent, width: 2),
+        ),
+      );
+    }
+    final done = index < stage;
+    final d = done ? 10.0 : 7.0;
+    return Container(
+      width: 18,
+      height: 18,
+      alignment: Alignment.center,
+      child: Container(
+        width: d,
+        height: d,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: done ? accent : dim,
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  THE TWO HALF-WIDTH CARDS
+// ══════════════════════════════════════════════════════════════════════
+
+/// [IntrinsicHeight] so the two cards share a height and their footers line up,
+/// which is what lets each one push its rule and link to the bottom with a
+/// [Spacer].
+class _TwoUp extends StatelessWidget {
+  const _TwoUp();
+
+  @override
+  Widget build(BuildContext context) => const IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(child: _WordCard()),
+            SizedBox(width: MizanGeometry.gap),
+            Expanded(child: _SeerahCard()),
+          ],
+        ),
+      );
+}
+
+/// Today's Word — one word from the user's OWN vocabulary bank.
+///
+/// This is the honest version of the mockup's card. There is no editorial
+/// word-of-the-day list in the app, and writing one would mean authoring
+/// meanings for Quranic vocabulary, which needs verified sources. A word the
+/// user saved while reading already carries its surah and ayah, so the citation
+/// comes for free.
+class _WordCard extends ConsumerWidget {
+  const _WordCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+    final word = ref.watch(todaysWordProvider).valueOrNull;
+
+    return MizanSurface(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const MizanSectionLabel("Today's Word"),
+          const SizedBox(height: 8),
+          if (word == null)
+            ...[
+              Text(
+                'Nothing saved yet.',
+                style: MizanType.bodyStrong(color: p.ink)
+                    .copyWith(fontSize: 15, height: 1.3),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tap a word while you read and it will wait for you here.',
+                style: MizanType.body(color: p.muted)
+                    .copyWith(fontSize: 14, height: 1.45),
+              ),
+              const Spacer(),
+              const SizedBox(height: 12),
+              const MizanRule(),
+              const SizedBox(height: 8),
+              _TextLink(
+                label: 'Open the Quran',
+                onTap: () => context.go('/quran'),
+              ),
+            ]
+          else
+            ...[
+              Center(
+                child: Text(
+                  word.arabic,
+                  textDirection: TextDirection.rtl,
+                  style: MizanType.arabic(color: p.ink, fontSize: 32),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Center(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      word.transliteration,
+                      style: MizanType.bodyStrong(color: p.ink)
+                          .copyWith(fontSize: 14),
+                    ),
+                    const SizedBox(width: 7),
+                    MizanDiamond(size: 5, color: p.accentText),
+                    const SizedBox(width: 7),
+                    Flexible(
+                      child: Text(
+                        word.meaning,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: MizanType.body(color: p.muted)
+                            .copyWith(fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                word.insight,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: MizanType.body(color: p.muted)
+                    .copyWith(fontSize: 14, height: 1.45),
+              ),
+              const Spacer(),
+              const SizedBox(height: 12),
+              const MizanRule(),
+              const SizedBox(height: 8),
+              _TextLink(
+                label: 'Explore the word',
+                onTap: () => context.go('/growth/vocab'),
+              ),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+/// From the Seerah — a real entry, with the entry's own date string.
+///
+/// The mockup calls this "TODAY IN ISLAM" over "17 Ramadan, 2 AH". That is an
+/// anniversary claim, and the app has no verified hijri-dated event list to
+/// stand behind it. The card keeps its shape and shows what is actually known.
+class _SeerahCard extends ConsumerWidget {
+  const _SeerahCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+    final entry = ref.watch(seerahTodayProvider).valueOrNull;
+
+    return MizanSurface(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const MizanSectionLabel('From the Seerah'),
+          const SizedBox(height: 10),
+          if (entry == null)
+            Text(
+              'Loading…',
+              style: MizanType.body(color: p.muted).copyWith(fontSize: 14),
+            )
+          else
+            ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.event_outlined,
+                      size: 15,
+                      color: p.accentText,
+                    ),
+                  ),
+                  const SizedBox(width: 7),
+                  Expanded(
+                    child: Text(
+                      entry.year,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: MizanType.body(color: p.muted)
+                          .copyWith(fontSize: 12.5, height: 1.35),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                entry.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: MizanType.cardHeadline(color: p.ink)
+                    .copyWith(fontSize: 20, height: 1.18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                entry.teaser,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: MizanType.body(color: p.muted)
+                    .copyWith(fontSize: 14, height: 1.45),
+              ),
+              const Spacer(),
+              const SizedBox(height: 12),
+              const MizanRule(),
+              const SizedBox(height: 8),
+              _TextLink(
+                label: 'Read the day',
+                onTap: () {
+                  ref
+                      .read(todaysMizanProvider.notifier)
+                      .mark(MizanFacet.learned);
+                  context.go('/discover/seerah/${entry.id}');
+                },
+              ),
+            ],
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  AYAH TO SIT WITH
+// ══════════════════════════════════════════════════════════════════════
+
+class _AyahCard extends ConsumerWidget {
+  const _AyahCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final p = MizanPalette.of(context);
+    final ayah = ayahForToday();
+
+    return MizanSurface(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const MizanSectionLabel('Ayah to sit with'),
+              const Spacer(),
+              _BookmarkButton(
+                surahNumber: ayah.surahNumber,
+                ayahNumber: ayah.ayahNumber,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Rule #6: Arabic is always right-aligned and always paired with a
+          // translation. Both hold here.
+          Align(
+            alignment: Alignment.centerRight,
+            child: Text(
+              ayah.arabic,
+              textDirection: TextDirection.rtl,
+              textAlign: TextAlign.right,
+              style: MizanType.arabic(color: p.ink, fontSize: 26),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const MizanRule(),
+          const SizedBox(height: 16),
+          Text(
+            ayah.translation,
+            style: MizanType.translation(color: p.muted),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  ayah.reference,
+                  style: MizanType.bodyStrong(color: p.ink)
+                      .copyWith(fontSize: 14),
+                ),
+              ),
+              MizanButton.quiet(
+                label: 'Read in context',
+                trailingIcon: Icons.arrow_forward_rounded,
+                onPressed: () {
+                  ref
+                      .read(todaysMizanProvider.notifier)
+                      .mark(MizanFacet.learned);
+                  context.go('/quran/${ayah.surahNumber}');
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Toggles the ayah in [SavedAyatStore] — the same bookmark list the reader
+/// writes to, so an ayah saved here shows as saved there.
+class _BookmarkButton extends StatefulWidget {
+  const _BookmarkButton({required this.surahNumber, required this.ayahNumber});
+
+  final int surahNumber;
+  final int ayahNumber;
+
+  @override
+  State<_BookmarkButton> createState() => _BookmarkButtonState();
+}
+
+class _BookmarkButtonState extends State<_BookmarkButton> {
+  bool _saved = false;
+
+  @override
+  void initState() {
+    super.initState();
+    SavedAyatStore.isSaved(widget.surahNumber, widget.ayahNumber).then((v) {
+      if (mounted) setState(() => _saved = v);
+    });
+  }
+
+  Future<void> _toggle() async {
+    HapticFeedback.selectionClick();
+    final now = await SavedAyatStore.toggle(
+      widget.surahNumber,
+      widget.ayahNumber,
+    );
+    if (mounted) setState(() => _saved = now);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+    return Semantics(
+      button: true,
+      label: _saved ? 'Saved. Tap to remove.' : 'Save this ayah',
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _toggle,
+        child: SizedBox(
+          width: MizanGeometry.tapTarget,
+          height: MizanGeometry.tapTarget,
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Icon(
+              _saved ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+              size: 21,
+              color: _saved ? p.accentText : p.muted,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  SHARED BITS
+// ══════════════════════════════════════════════════════════════════════
+
+/// The quiet inline link at the foot of a card: bronze on cream, gold on navy,
+/// with a 44px-high tap area even though the text is 14px.
+class _TextLink extends StatelessWidget {
+  const _TextLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
     return Semantics(
       button: true,
       label: label,
-      child: Material(
-        color: Colors.transparent,
-        shape: const StadiumBorder(),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
-          child: Ink(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 20),
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(99),
-              border: labelColor != null
-                  ? Border.all(color: AppColors.gold.withValues(alpha: 0.1))
-                  : null,
-            ),
-            child: Row(
-              children: [
-                Icon(icon, color: textColor, size: 20),
-                const SizedBox(width: 12),
-                Text(label, style: AppTypography.labelLarge(color: textColor)),
-                const SizedBox(width: 4),
-                Icon(Icons.arrow_forward_rounded, color: textColor, size: 16),
-              ],
-            ),
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                style: MizanType.button(color: p.accentText)
+                    .copyWith(fontSize: 14),
+              ),
+              const SizedBox(width: 6),
+              Icon(Icons.arrow_forward_rounded, size: 15, color: p.accentText),
+            ],
           ),
         ),
       ),

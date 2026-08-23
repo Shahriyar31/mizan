@@ -98,8 +98,8 @@ class ScholarAIService {
       // Find the specific ayah
       final ayahs = _ibnKathirCache[surahNumber]!;
       for (final ayah in ayahs) {
-        final num = (ayah['ayah'] as num?)?.toInt() ?? 0;
-        if (num == ayahNumber) {
+        final ayahNo = (ayah['ayah'] as num?)?.toInt() ?? 0;
+        if (ayahNo == ayahNumber) {
           final text = (ayah['text'] as String? ?? '').trim();
           AppLogger.info(
             'Ibn Kathir commentary: ${text.length} chars for $surahNumber:$ayahNumber',

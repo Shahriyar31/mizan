@@ -1,14 +1,22 @@
-/// Home Providers — state detection for the 4 Home screen states
+/// Home Providers — the small reads Home and Growth share.
 ///
-/// States (detected automatically, no user input needed):
-/// 1. Friday      — If today is Friday, regardless of time
-/// 2. Returning   — Last opened 3+ days ago
-/// 3. Muhasabah   — After Isha time (approx 9 PM local)
-/// 4. Morning Wird — Fajr to Dhuhr (approx 5 AM – 12 PM local)
-/// 5. Default     — Everything else (afternoon/early evening)
+/// ── What used to be here, and why it is gone ──────────────────────────
+/// This file used to own `HomeState` and `homeStateProvider`: a five-way switch
+/// (Friday / Returning / Muhasabah / Wird / Default) that swapped the entire Home
+/// screen depending on the hour and the weekday. The redesigned Home is one
+/// composed screen — header, Today's Mizan, Today's Thread, two-up, ayah — so
+/// nothing selects a state any more, and the enum had no readers left.
 ///
-/// Times are approximate — proper prayer time API integration in Phase 5.
-/// For now: Fajr ~5AM, Dhuhr ~12PM, Asr ~3PM, Maghrib ~6PM, Isha ~9PM
+/// Deleting it also removed a real bug rather than just dead lines. That provider
+/// wrote `last_opened_at` in two places, and `StreakStore` (in
+/// `streak_provider.dart`) writes the same key from `main()`. Whichever ran
+/// second won, so the streak could silently freeze. `StreakStore` is now the
+/// single owner of `last_opened_at` and `streak_count` — do not write either key
+/// from anywhere else.
+///
+/// The Friday question below is kept deliberately: its seven entries are verified
+/// Quran and hadith citations, and they will be needed again when Jumu'ah gets a
+/// home in the new design. Do not delete them to tidy up.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,60 +24,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../../shared/models/vocab_word.dart';
 import '../../growth/data/vocab_repository.dart';
 
-// ── Home State Enum ───────────────────────────────────────────
-enum HomeState {
-  friday,      // Jumu'ah — special question replaces everything
-  returning,   // 3+ days away — welcome back, no guilt
-  muhasabah,   // Evening — private 3-question reckoning
-  wird,        // Morning — daily dhikr + vocab review
-  defaultState // Afternoon/default
-}
-
-// ── Home State Provider ───────────────────────────────────────
-final homeStateProvider = FutureProvider<HomeState>((ref) async {
-  return HomeState.wird; // TEMP: force wird for testing
-  final now = DateTime.now();
-
-  // 1. Friday always wins — Jumu'ah is sacred
-  // if (now.weekday == DateTime.friday) {
-  //   return HomeState.friday;
-  // }
-
-  // 2. Check last opened — returning state if 3+ days
-  final prefs = await SharedPreferences.getInstance();
-  final lastOpenedStr = prefs.getString('last_opened_at');
-  if (lastOpenedStr != null) {
-    final lastOpened = DateTime.tryParse(lastOpenedStr);
-    if (lastOpened != null) {
-      final daysSince = now.difference(lastOpened).inDays;
-      if (daysSince >= 3) {
-        // Record this open before returning
-        await prefs.setString('last_opened_at', now.toIso8601String());
-        return HomeState.returning;
-      }
-    }
-  }
-
-  // Record this open
-  await prefs.setString('last_opened_at', now.toIso8601String());
-
-  // 3. Time-based states (approximate prayer times)
-  final hour = now.hour;
-
-  // Isha time ~ 9 PM to midnight
-  if (hour >= 21 || hour < 2) {
-    return HomeState.muhasabah;
-  }
-
-  // Morning Wird: Fajr ~ 5 AM to Dhuhr ~ 12 PM
-  if (hour >= 5 && hour < 12) {
-    return HomeState.wird;
-  }
-
-  return HomeState.defaultState;
-});
-
-// ── Last Ayah Provider — for Returning state ──────────────────
+// ── Last Ayah Provider — where the reader left off ─────────────
 final lastAyahProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   final prefs = await SharedPreferences.getInstance();
   final surah = prefs.getInt('last_surah');

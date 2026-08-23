@@ -5,8 +5,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'core/theme/app_theme.dart';
 import 'core/router/app_router.dart';
+import 'core/theme/app_colors.dart';
+import 'core/theme/mizan_theme.dart';
 import 'features/settings/domain/settings_providers.dart';
 import 'l10n/app_localizations.dart';
 
@@ -24,51 +25,49 @@ class TadabburApp extends StatelessWidget {
 class _TadabburMaterialApp extends ConsumerWidget {
   const _TadabburMaterialApp();
 
-  Brightness _resolveBrightness(BuildContext context, ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.light:
-        return Brightness.light;
-      case ThemeMode.dark:
-        return Brightness.dark;
-      case ThemeMode.system:
-        return MediaQuery.platformBrightnessOf(context);
-    }
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
-    final brightness = _resolveBrightness(context, themeMode);
-
-    // AppColors is a single mutable palette, not one-per-ThemeData — so we
-    // resolve brightness ourselves and build exactly one ThemeData from it.
-    // (Handing MaterialApp separate `theme`/`darkTheme` objects would call
-    // AppTheme.build() twice, and the second call — always `darkTheme` —
-    // would silently overwrite AppColors back to dark regardless of what
-    // the user picked.)
-    final theme = AppTheme.build(brightness);
 
     return MaterialApp.router(
-        title: 'Taddabur',
-        debugShowCheckedModeBanner: false,
-        theme: theme,
-        routerConfig: AppRouter.router,
-        // Remount the current screen when brightness changes so it picks up
-        // the new AppColors values immediately, without waiting for its own
-        // next natural rebuild.
-        builder: (context, child) => KeyedSubtree(
+      title: 'Mizan',
+      debugShowCheckedModeBanner: false,
+
+      // Mizan carries its palette in a `ThemeExtension`, so the light and dark
+      // ThemeData objects are independent const values and `themeMode` — system
+      // included — is handled by MaterialApp natively.
+      theme: MizanTheme.light,
+      darkTheme: MizanTheme.dark,
+      themeMode: themeMode,
+
+      routerConfig: AppRouter.router,
+      builder: (context, child) {
+        // ── Transitional bridge, delete with the last AppColors reference ──
+        // Screens not yet migrated to Mizan read the legacy `AppColors`, which
+        // is one *mutable static* palette rather than a per-ThemeData value.
+        // Priming it here — rather than resolving brightness ourselves — means
+        // it always agrees with the theme MaterialApp actually resolved, so
+        // ThemeMode.system and a mid-session OS theme change both stay correct.
+        final brightness = Theme.of(context).brightness;
+        AppColors.applyBrightness(brightness);
+
+        // And because that palette is global rather than inherited, a legacy
+        // screen has no way to know it changed. Remounting on brightness forces
+        // one. Goes away with AppColors; Mizan screens need neither.
+        return KeyedSubtree(
           key: ValueKey(brightness),
           child: child ?? const SizedBox.shrink(),
-        ),
-        localizationsDelegates: const [
-          AppLocalizations.delegate,
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        // Only English is actually translated (lib/l10n/app_en.arb).
-        // Real foundation for more languages, not a promise of them yet.
-        supportedLocales: AppLocalizations.supportedLocales,
-      );
+        );
+      },
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      // Only English is actually translated (lib/l10n/app_en.arb).
+      // Real foundation for more languages, not a promise of them yet.
+      supportedLocales: AppLocalizations.supportedLocales,
+    );
   }
 }

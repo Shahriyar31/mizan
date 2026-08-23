@@ -13,6 +13,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/util/hijri_date.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 
@@ -373,48 +375,13 @@ int _fridaysBetween(DateTime from, DateTime to) {
 }
 
 /// Full Hijri years elapsed between two Gregorian dates — i.e. the number of
-/// Ramadans a person has lived through. Uses the tabular (arithmetic) Islamic
-/// calendar, the standard offline conversion.
-int _hijriYearsBetween(DateTime from, DateTime to) {
-  final b = _toHijri(from);
-  final n = _toHijri(to);
-  var years = n[0] - b[0];
-  // Subtract one if this Hijri year's birthday (month/day) hasn't arrived yet.
-  if (n[1] < b[1] || (n[1] == b[1] && n[2] < b[2])) years -= 1;
-  return years < 0 ? 0 : years;
-}
-
-/// Gregorian → Hijri [year, month, day] via Julian Day Number (tabular civil
-/// Islamic calendar / "Kuwaiti algorithm").
-List<int> _toHijri(DateTime d) {
-  final jdn = _gregorianToJdn(d.year, d.month, d.day);
-  var l = jdn - 1948440 + 10632;
-  final nCycles = (l - 1) ~/ 10631;
-  l = l - 10631 * nCycles + 354;
-  final j = ((10985 - l) ~/ 5316) * ((50 * l) ~/ 17719) +
-      (l ~/ 5670) * ((43 * l) ~/ 15238);
-  l = l -
-      ((30 - j) ~/ 15) * ((17719 * j) ~/ 50) -
-      (j ~/ 16) * ((15238 * j) ~/ 43) +
-      29;
-  final month = (24 * l) ~/ 709;
-  final day = l - (709 * month) ~/ 24;
-  final year = 30 * nCycles + j - 30;
-  return [year, month, day];
-}
-
-int _gregorianToJdn(int y, int m, int d) {
-  final a = (14 - m) ~/ 12;
-  final yy = y + 4800 - a;
-  final mm = m + 12 * a - 3;
-  return d +
-      ((153 * mm + 2) ~/ 5) +
-      365 * yy +
-      (yy ~/ 4) -
-      (yy ~/ 100) +
-      (yy ~/ 400) -
-      32045;
-}
+/// Ramadans a person has lived through.
+///
+/// The conversion itself now lives in `core/util/hijri_date.dart` so that Home's
+/// date line and this screen's Ramadan count can never disagree. See that file
+/// for the accuracy caveat: it is the tabular calendar, not moon sighting.
+int _hijriYearsBetween(DateTime from, DateTime to) =>
+    HijriDate.yearsBetween(from, to);
 
 /// 12345 → "12,345".
 String _grouped(int n) => n
