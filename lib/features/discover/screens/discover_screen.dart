@@ -495,52 +495,54 @@ class _FrontPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final searching = query.trim().length >= 2;
 
-    return Stack(
+    // Column + Expanded rather than Stack + Positioned. A docked bar over a
+    // scroll view is the classic Stack case, but here the bar is opaque and
+    // full width, so it hides the list's last row instead of floating over it —
+    // and a non-positioned ListView in a loose Stack is one bad constraint away
+    // from laying out at zero height, which is exactly what it did.
+    return Column(
       children: [
-        ListView(
-          padding: const EdgeInsets.only(bottom: 104),
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                MizanGeometry.gutter,
-                0,
-                MizanGeometry.gutter,
-                MizanGeometry.gap,
-              ),
-              child: TextField(
-                controller: controller,
-                onChanged: onQuery,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: 'Search stories, names, places',
-                  prefixIcon: const Icon(Icons.search, size: 18),
-                  suffixIcon: query.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: () {
-                            controller.clear();
-                            onQuery('');
-                          },
-                        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(bottom: MizanGeometry.gap),
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  MizanGeometry.gutter,
+                  0,
+                  MizanGeometry.gutter,
+                  MizanGeometry.gap,
+                ),
+                child: TextField(
+                  controller: controller,
+                  onChanged: onQuery,
+                  textInputAction: TextInputAction.search,
+                  decoration: InputDecoration(
+                    hintText: 'Search stories, names, places',
+                    prefixIcon: const Icon(Icons.search, size: 18),
+                    suffixIcon: query.isEmpty
+                        ? null
+                        : IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () {
+                              controller.clear();
+                              onQuery('');
+                            },
+                          ),
+                  ),
                 ),
               ),
-            ),
-            if (searching)
-              _SearchResults(query: query.trim())
-            else ...[
-              const _ContinueReading(),
-              _CollectionsGrid(onOpen: onOpenSection),
-              const _RecentlyAdded(),
+              if (searching)
+                _SearchResults(query: query.trim())
+              else ...[
+                const _ContinueReading(),
+                _CollectionsGrid(onOpen: onOpenSection),
+                const _RecentlyAdded(),
+              ],
             ],
-          ],
+          ),
         ),
-        const Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: _BrowseMoreBar(),
-        ),
+        const _BrowseMoreBar(),
       ],
     );
   }
@@ -803,13 +805,23 @@ class _CollectionsGrid extends ConsumerWidget {
               MizanGeometry.gutter,
               MizanGeometry.gap,
             ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(child: cards[row * 2]),
-                const SizedBox(width: MizanGeometry.gap),
-                Expanded(child: cards[row * 2 + 1]),
-              ],
+            // IntrinsicHeight, and it is load-bearing. The two cards in a row
+            // must match height even when one title wraps, which needs
+            // CrossAxisAlignment.stretch — but stretch inside a ListView has an
+            // unbounded cross axis, so the Row throws during layout. A thrown
+            // layout does not draw a red box; the viewport simply paints
+            // nothing, which blanked this entire page while the header and the
+            // docked bar, both outside the list, kept rendering. IntrinsicHeight
+            // bounds the Row first, so stretch has a height to stretch to.
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(child: cards[row * 2]),
+                  const SizedBox(width: MizanGeometry.gap),
+                  Expanded(child: cards[row * 2 + 1]),
+                ],
+              ),
             ),
           ),
       ],
