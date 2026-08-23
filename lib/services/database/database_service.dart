@@ -3,6 +3,12 @@
 /// v3 adds the social tables for Halaqa (private circles) and Al-Minbar
 /// (public feed), plus the local user_profile used as the "current user".
 /// v4 adds hadith_cache, so a hadith fetched once stays readable offline.
+/// v5 adds api_cache — one generic store for every UmmahAPI payload (tafsir,
+/// word-by-word, mutashabihat, reciters, Quran text), which is what turns
+/// offline reading from a claim into a property of the app.
+/// v6 adds hadith_reflections, the fifth layer of the hadith page. Keyed by
+/// (collection, number) like the citations themselves, rather than forced into
+/// the ayah `reflections` table's two integer columns.
 library;
 
 import 'package:sqflite/sqflite.dart';
@@ -14,7 +20,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._();
   static Database? _database;
   static const String _tag = 'DatabaseService';
-  static const int _version = 4; // v4 adds hadith_cache (knowledge layer)
+  static const int _version = 6; // v6 adds hadith_reflections
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -92,6 +98,9 @@ class DatabaseService {
     // Knowledge platform tables (hadith cache)
     await _createKnowledgeTables(db);
 
+    // Generic UmmahAPI response cache
+    await _createApiCacheTable(db);
+
     AppLogger.info('Database schema created', tag: _tag);
   }
 
@@ -120,6 +129,55 @@ class DatabaseService {
 
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_hadith_cache_fetched ON hadith_cache (fetched_at)');
+
+    await _createHadithReflectionTable(db);
+  }
+
+  /// The reader's own words on a hadith — the fifth layer of the hadith page.
+  ///
+  /// Its own helper, and its own `oldVersion < 6` step, because it arrived after
+  /// `hadith_cache`: a device already on v4 or v5 has the cache table and needs
+  /// only this one. `IF NOT EXISTS` makes the double call from the two paths a
+  /// no-op rather than a migration hazard.
+  ///
+  /// Unlike `hadith_cache`, this is *not* a cache. Clearing saved hadith texts
+  /// must never touch it, which is why it is a separate table with a separate
+  /// name rather than four more nullable columns on the cache row.
+  Future<void> _createHadithReflectionTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS hadith_reflections (
+        collection TEXT NOT NULL,
+        number     TEXT NOT NULL,
+        reflection TEXT NOT NULL,
+        saved_at   TEXT NOT NULL,
+        PRIMARY KEY (collection, number)
+      )
+    ''');
+
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_hadith_reflections_saved ON hadith_reflections (saved_at)');
+  }
+
+  /// The generic response cache — shared by [_onCreate] and [_onUpgrade].
+  ///
+  /// `cache_key` is a request path with its query string, so it is stable across
+  /// app versions and readable in a debugger. It never contains the API key: the
+  /// key travels as a header precisely so it cannot end up in a cache key.
+  ///
+  /// `payload` is the unwrapped `data` from the response, re-encoded. Nothing
+  /// queries inside it — entries are read whole — which is why one table serves
+  /// tafsir, word-by-word, mutashabihat, catalogues and Quran text alike.
+  Future<void> _createApiCacheTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS api_cache (
+        cache_key  TEXT PRIMARY KEY,
+        payload    TEXT NOT NULL,
+        fetched_at TEXT NOT NULL
+      )
+    ''');
+
+    await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_api_cache_fetched ON api_cache (fetched_at)');
   }
 
   /// Social feature tables — shared by [_onCreate] (fresh installs) and
@@ -263,6 +321,17 @@ class DatabaseService {
     if (oldVersion < 4) {
       // Hadith cache — new in v4.
       await _createKnowledgeTables(db);
+    }
+
+    if (oldVersion < 5) {
+      // Generic UmmahAPI response cache — new in v5.
+      await _createApiCacheTable(db);
+    }
+
+    if (oldVersion < 6) {
+      // Hadith reflections — new in v6. Devices upgrading from v4 or v5 already
+      // have hadith_cache and need only this table.
+      await _createHadithReflectionTable(db);
     }
   }
 

@@ -248,18 +248,18 @@ class _SectionChips extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Knowledge strip — the four cross-cutting ways in
+// Knowledge strip — the five cross-cutting ways in
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Themes, Journeys, Scholars and Places, under the section chips.
+/// Hadith, Themes, Journeys, Scholars and Places, under the section chips.
 ///
 /// The four tabs above are *kinds of entry*: pick a prophet, read his five
-/// layers. These four are *ways across* them — a theme gathers every entry whose
+/// layers. These are *ways across* them — a theme gathers every entry whose
 /// sources speak to it, a journey walks a path through several, a scholar page
-/// collects what he is cited on, a place collects what happened there. Neither
-/// belongs inside the other, which is why this is a separate strip rather than
-/// two more tabs: adding them as tabs would also have made the header's "FIVE
-/// LAYERS" pill a lie, since a theme has no layers.
+/// collects what he is cited on, a place collects what happened there, and Hadith
+/// enters the narrations by topic. None belongs inside another, which is why this
+/// is a separate strip rather than more tabs: adding them as tabs would also have
+/// made the header's "FIVE LAYERS" pill a lie, since a theme has no layers.
 ///
 /// Quiet chips with glyphs, visibly not the filled/outlined selection pills
 /// above, so it reads as "go somewhere" rather than "filter this list". Each is
@@ -268,6 +268,10 @@ class _KnowledgeStrip extends StatelessWidget {
   const _KnowledgeStrip();
 
   static const List<(String, IconData, String)> _items = [
+    // First because it is the only one of the five that is a section in its own
+    // right rather than a cross-index, and because the strip scrolls: a chip
+    // that needs a swipe to find would hide the whole hadith section.
+    ('Hadith', Icons.format_quote_outlined, KnowledgeRoutes.hadithTopicsIndex),
     ('Themes', Icons.category_outlined, KnowledgeRoutes.themesIndex),
     ('Journeys', Icons.route_outlined, KnowledgeRoutes.journeysIndex),
     ('Scholars', Icons.account_balance_outlined, KnowledgeRoutes.scholarsIndex),

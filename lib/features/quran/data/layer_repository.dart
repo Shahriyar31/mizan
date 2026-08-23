@@ -53,7 +53,9 @@ class LayerRepository {
   /// Checks if a specific layer is unlocked for an ayah.
   Future<bool> isLayerUnlocked(
       int surahNumber, int ayahNumber, int layerIndex) async {
-    if (layerIndex == 0) return true; // Words always unlocked
+    // The first layer *shown* needs no wait. Asked of LayerMeta rather than
+    // compared to 0, so this stays true if the display order ever changes.
+    if (LayerMeta.predecessorOf(layerIndex) == null) return true;
     final db = await _db.database;
     final maps = await db.query(
       'layer_unlocks',
@@ -66,11 +68,16 @@ class LayerRepository {
   }
 
   /// Returns when the next layer becomes available, or null if already unlocked.
-  /// Logic: previous layer must be unlocked, then +24 hours.
+  /// Logic: the layer shown before this one must have been opened, then +24 hours.
+  ///
+  /// "The layer before this one" is a position on screen, not `layerIndex - 1`:
+  /// Similar is stored at index 5 but shown before Reflection at index 4, so
+  /// arithmetic on the storage index would schedule both layers wrongly. See
+  /// [LayerMeta.displayOrder].
   Future<DateTime?> getNextUnlockTime(
       int surahNumber, int ayahNumber, int layerIndex) async {
-    if (layerIndex == 0) return null; // Words always available
-    final previousLayerIndex = layerIndex - 1;
+    final previousLayerIndex = LayerMeta.predecessorOf(layerIndex);
+    if (previousLayerIndex == null) return null; // first layer, always available
     final db = await _db.database;
     final maps = await db.query(
       'layer_unlocks',

@@ -10,6 +10,7 @@ import '../../features/discover/screens/sahabi_detail_screen.dart';
 import '../../features/discover/screens/seerah_detail_screen.dart';
 import '../../features/discover/screens/divine_name_detail_screen.dart';
 import '../../features/knowledge/presentation/hadith_detail_screen.dart';
+import '../../features/knowledge/presentation/hadith_topics_screen.dart';
 import '../../features/knowledge/presentation/knowledge_entity_screen.dart';
 import '../../features/knowledge/presentation/knowledge_index_screen.dart';
 import '../knowledge/entity_ref.dart';
@@ -297,6 +298,17 @@ class AppRouter {
           GoRoute(
             path: '/knowledge/saved-hadith',
             builder: (context, state) => const SavedHadithScreen(),
+          ),
+          // The learning section: ten topics in, citations out. Not an index of
+          // collections — a reader arrives with a question, not a book number.
+          GoRoute(
+            path: '/knowledge/hadith-topics',
+            builder: (context, state) => const HadithTopicsScreen(),
+          ),
+          GoRoute(
+            path: '/knowledge/hadith-topic/:id',
+            builder: (context, state) =>
+                HadithTopicScreen(topicId: state.pathParameters['id']!),
           ),
           GoRoute(
             path: '/auth',

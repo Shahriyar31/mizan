@@ -36,6 +36,10 @@ final layerContentProvider = FutureProvider.family<LayerData?, String>(
 );
 
 // ── Layer States Provider ─────────────────────────────────────
+//
+// Unlocking follows the order the layers are *shown*, not the order they are
+// stored: the layer before Similar is Isnad, and the layer before Reflection is
+// Similar. See [LayerMeta.displayOrder] for why those differ.
 final layerStatesProvider =
     FutureProvider.family<List<LayerState>, String>((ref, ayahKey) async {
   final parts = ayahKey.split(':');
@@ -45,24 +49,41 @@ final layerStatesProvider =
   final unlocks = await repo.getUnlocksForAyah(surahNumber, ayahNumber);
   final now = DateTime.now();
 
-  return List.generate(5, (index) {
-    if (index == 0) {
+  DateTime? openedAt(int index) =>
+      unlocks.where((u) => u.layerIndex == index).firstOrNull?.unlockedAt;
+
+  // Indexed by storage index, so `states[4]` is Reflection whatever its
+  // position on screen. The tab bar reorders; this list does not.
+  return List.generate(LayerMeta.count, (index) {
+    final ownUnlock = openedAt(index);
+
+    // Already opened once — unlocked forever. Checked before anything else,
+    // because a layer the reader has already read must never close again. Adding
+    // Similar between Isnad and Reflection changed Reflection's predecessor, and
+    // without this an already-unlocked Reflection would have re-locked on
+    // upgrade purely because the layer in front of it had never been opened.
+    if (ownUnlock != null) {
       return LayerState(
         index: index,
         isUnlocked: true,
-        unlockedAt: unlocks
-            .where((u) => u.layerIndex == 0)
-            .firstOrNull
-            ?.unlockedAt,
+        unlockedAt: ownUnlock,
         availableAt: null,
       );
     }
 
-    final previousUnlock = unlocks
-        .where((u) => u.layerIndex == index - 1)
-        .firstOrNull;
+    final predecessor = LayerMeta.predecessorOf(index);
+    if (predecessor == null) {
+      // The first layer shown is always open — there is nothing to wait for.
+      return LayerState(
+        index: index,
+        isUnlocked: true,
+        unlockedAt: null,
+        availableAt: null,
+      );
+    }
 
-    if (previousUnlock == null) {
+    final predecessorOpenedAt = openedAt(predecessor);
+    if (predecessorOpenedAt == null) {
       return LayerState(
         index: index,
         isUnlocked: false,
@@ -71,18 +92,13 @@ final layerStatesProvider =
       );
     }
 
-    final availableAt =
-        previousUnlock.unlockedAt.add(LayerMeta.unlockInterval);
-    final isUnlocked = now.isAfter(availableAt) ||
-        unlocks.any((u) => u.layerIndex == index);
+    final availableAt = predecessorOpenedAt.add(LayerMeta.unlockInterval);
+    final isUnlocked = now.isAfter(availableAt);
 
     return LayerState(
       index: index,
       isUnlocked: isUnlocked,
-      unlockedAt: unlocks
-          .where((u) => u.layerIndex == index)
-          .firstOrNull
-          ?.unlockedAt,
+      unlockedAt: null,
       availableAt: isUnlocked ? null : availableAt,
     );
   });
@@ -116,8 +132,4 @@ class LayerState {
     if (diff.inHours >= 1) return '${diff.inHours}h ${diff.inMinutes % 60}m';
     return '${diff.inMinutes}m';
   }
-}
-
-extension _ListExtension<T> on List<T> {
-  T? get firstOrNull => isEmpty ? null : first;
 }

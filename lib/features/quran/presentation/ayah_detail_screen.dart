@@ -77,7 +77,6 @@ import '../../../shared/widgets/word_tap_sheet.dart';
 import '../../settings/domain/reading_preferences_provider.dart';
 import '../../sharing/share_target_sheet.dart';
 import '../data/ayah_share_mapper.dart';
-import '../domain/audio_providers.dart';
 import '../domain/ayah_audio_provider.dart';
 import '../domain/quran_providers.dart';
 import 'layer_screen.dart';
@@ -989,9 +988,8 @@ class _ListenTile extends ConsumerWidget {
       semanticLabel: playing ? 'Pause recitation' : 'Recite this ayah',
       onTap: () {
         HapticFeedback.selectionClick();
-        // Two players, never both: the surah-at-a-time one stops here so a tap
-        // can never leave two recitations overlapping.
-        ref.read(quranAudioProvider.notifier).stop();
+        // Mutual exclusion between the two players now lives in the controllers,
+        // so neither this call site nor any future one has to remember it.
         ref.read(ayahAudioProvider.notifier).playAyah(
               surahNumber,
               ayahNumber,
@@ -1559,71 +1557,97 @@ void _showReciterSheet(BuildContext context) {
   showModalBottomSheet<void>(
     context: context,
     backgroundColor: Colors.transparent,
+    // The list grows with the catalogue, so it has to be allowed past the
+    // default half-screen ceiling and it has to scroll. See the ConstrainedBox.
+    isScrollControlled: true,
     builder: (sheetContext) => Consumer(
       builder: (context, ref, _) {
         final p = MizanPalette.of(context);
         final current = ref.watch(ayahReciterProvider);
         final audio = ref.watch(ayahAudioProvider);
+        // The bundled five while the catalogue loads or if it never does, so the
+        // sheet is never empty and never loses a working voice.
+        final reciters = ref.watch(ayahRecitersProvider).value ?? kAyahReciters;
 
         return Padding(
           padding: const EdgeInsets.all(MizanGeometry.gutter),
           child: MizanSurface(
             padding: EdgeInsets.zero,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
-                  child: MizanSectionLabel('RECITER'),
-                ),
-                MizanRule(color: p.hairline),
-                for (final r in kAyahReciters) ...[
-                  MizanPressable(
-                    fill: Colors.transparent,
-                    shadowsEnabled: false,
-                    borderRadius: BorderRadius.zero,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 15,
-                    ),
-                    semanticLabel: r.name,
-                    onTap: () async {
-                      await ref.read(ayahReciterProvider.notifier).select(r);
-                      // Re-load the same ayah in the new voice so the change is
-                      // audible immediately rather than at the next ayah.
-                      if (audio.isActive) {
-                        await ref.read(ayahAudioProvider.notifier).playAyah(
-                              audio.surahNumber!,
-                              audio.ayahNumber!,
-                              lastAyah: audio.lastAyah,
-                            );
-                      }
-                      if (sheetContext.mounted) {
-                        Navigator.of(sheetContext).pop();
-                      }
-                    },
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            r.name,
-                            style: r.id == current.id
-                                ? MizanType.bodyStrong(color: p.ink)
-                                : MizanType.body(color: p.ink),
-                          ),
-                        ),
-                        if (r.id == current.id)
-                          Icon(Icons.check_rounded,
-                              size: 19, color: p.accentText),
-                      ],
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.62,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.fromLTRB(20, 18, 20, 12),
+                    child: MizanSectionLabel('RECITER'),
+                  ),
+                  MizanRule(color: p.hairline),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          for (final r in reciters) ...[
+                            MizanPressable(
+                              fill: Colors.transparent,
+                              shadowsEnabled: false,
+                              borderRadius: BorderRadius.zero,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 15,
+                              ),
+                              semanticLabel: r.name,
+                              onTap: () async {
+                                await ref
+                                    .read(ayahReciterProvider.notifier)
+                                    .select(r);
+                                // Re-load the same ayah in the new voice so the
+                                // change is audible immediately rather than at
+                                // the next ayah.
+                                if (audio.isActive) {
+                                  await ref
+                                      .read(ayahAudioProvider.notifier)
+                                      .playAyah(
+                                        audio.surahNumber!,
+                                        audio.ayahNumber!,
+                                        lastAyah: audio.lastAyah,
+                                      );
+                                }
+                                if (sheetContext.mounted) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                              },
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      r.name,
+                                      style: r.id == current.id
+                                          ? MizanType.bodyStrong(color: p.ink)
+                                          : MizanType.body(color: p.ink),
+                                    ),
+                                  ),
+                                  if (r.id == current.id)
+                                    Icon(Icons.check_rounded,
+                                        size: 19, color: p.accentText),
+                                ],
+                              ),
+                            ),
+                            if (r != reciters.last)
+                              MizanRule(color: p.hairline, indent: 20),
+                          ],
+                        ],
+                      ),
                     ),
                   ),
-                  if (r != kAyahReciters.last)
-                    MizanRule(color: p.hairline, indent: 20),
+                  const SizedBox(height: 8),
                 ],
-                const SizedBox(height: 8),
-              ],
+              ),
             ),
           ),
         );

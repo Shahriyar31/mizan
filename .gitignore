@@ -64,3 +64,6 @@ app.*.map.json
 
 # Logs
 *.log
+
+# UmmahAPI probe output — regenerable response samples, not source.
+tools/.ummah_samples/

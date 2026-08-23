@@ -42,6 +42,11 @@ dependencies:
     sdk: flutter
   intl: ^0.20.3
   just_audio: ^0.10.6
+  # Declared directly, not left transitive: just_audio requires the audio session
+  # to be configured explicitly (iOS routes to the ambient stream otherwise, and
+  # Android never requests audio focus). Already resolved at 0.2.4 via just_audio,
+  # so this adds no new package to fetch.
+  audio_session: ^0.2.4
   flutter_local_notifications: ^22.3.0
   timezone: ^0.11.1
   flutter_timezone: ^5.1.0

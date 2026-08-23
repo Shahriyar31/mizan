@@ -10,6 +10,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../quran/domain/audio_providers.dart';
+import '../../quran/domain/ayah_audio_provider.dart';
 import 'widgets/settings_row.dart';
 
 class AudioScreen extends ConsumerWidget {
@@ -151,13 +152,19 @@ class _SpeedRow extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final controller = ref.read(quranAudioProvider.notifier);
+    // Pointed at the ayah player, not the surah one.
+    //
+    // This row used to read and write `quranAudioProvider`'s player, which
+    // nothing in the app ever starts — no screen calls playSurah — so dragging
+    // the slider changed the speed of silence. Recitation in the reader comes
+    // from the ayah player, so that is what a speed control has to address.
+    final controller = ref.read(ayahAudioProvider.notifier);
     return SettingsGroup(children: [
       StreamBuilder<double>(
         stream: controller.player.speedStream,
-        initialData: controller.player.speed,
+        initialData: controller.speed,
         builder: (context, snapshot) {
-          final speed = snapshot.data ?? 1.0;
+          final speed = snapshot.data ?? controller.speed;
           return SettingsRow(
             icon: Icons.speed_rounded,
             title: 'Speed',
@@ -165,7 +172,7 @@ class _SpeedRow extends ConsumerWidget {
             trailing: SizedBox(
               width: 160,
               child: Slider(
-                value: speed,
+                value: speed.clamp(0.5, 2.0),
                 min: 0.5,
                 max: 2.0,
                 divisions: 6,

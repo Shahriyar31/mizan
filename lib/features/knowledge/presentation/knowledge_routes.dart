@@ -27,6 +27,13 @@ class KnowledgeRoutes {
   static const String scholarsIndex = '/knowledge/scholars';
   static const String placesIndex = '/knowledge/places';
 
+  /// The hadith learning section. Not in [indexFor] because it is not the index
+  /// of an [EntityType] — `hadith` entities are reached by citation, and this is
+  /// the topic-based way in rather than a list of every hadith in the graph.
+  static const String hadithTopicsIndex = '/knowledge/hadith-topics';
+
+  static String hadithTopic(String topicId) => '/knowledge/hadith-topic/$topicId';
+
   /// The index path for a type, where one exists.
   static String? indexFor(EntityType type) => switch (type) {
         EntityType.theme => themesIndex,

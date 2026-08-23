@@ -1,10 +1,29 @@
 /// The hadith screen — a hadith as a first-class page, not a footnote.
 ///
-/// Reached from any numbered citation, from the evidence sheet, and from a
-/// Connected Hadith row. It shows the text where we have it, the collection it
-/// belongs to, and — the part that makes it a knowledge page rather than a lookup
-/// — everything else in the app that cites the same hadith, plus the hadiths cited
-/// alongside it.
+/// Reached from any numbered citation, from the evidence sheet, from a Connected
+/// Hadith row, and from the topic lists in the learning section. It shows the text
+/// where we have it, the collection it belongs to, and — the part that makes it a
+/// knowledge page rather than a lookup — everything else in the app that cites the
+/// same hadith, plus the hadiths cited alongside it.
+///
+/// The page is five layers deep, in the order the brief specifies:
+///
+///  1. **The hadith** — Arabic, translation, narrator, authenticity, collection.
+///  2. **Vocabulary** — the words, when a verified glossary is bundled.
+///  3. **Context** — the book and chapter it sits in, and what the corpus said
+///     when it cited it.
+///  4. **Scholar commentary** — named scholar, named work, or nothing at all.
+///  5. **Reflection** — the reader's own, kept on the device.
+///
+/// Layers 2 and 4 have no source shipping today, and they say so rather than
+/// disappearing: an empty slot with an honest sentence is information, and a
+/// paraphrase generated to fill it would be the one thing this app must never do.
+/// See [HadithExtrasSource] for the drop-in that turns them on.
+///
+/// The narrator is a link. Tapping it opens the companion's existing biography —
+/// the same five-layer story the Discover tab opens — because a second, thinner
+/// profile of Abu Hurayrah would be a duplicate of content the app already has.
+/// [NarratorIndex] does the matching, and refuses ambiguous names.
 ///
 /// When the text is not on the device it says so and shows the citation anyway,
 /// because a complete citation is useful on its own: collection plus number can be
@@ -18,11 +37,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/knowledge/entity_ref.dart';
 import '../../../core/knowledge/hadith_ref.dart';
 import '../../../core/knowledge/knowledge_providers.dart';
+import '../../../core/knowledge/narrator_index.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
+import '../data/hadith_extras.dart';
 import '../data/hadith_record.dart';
 import '../domain/hadith_providers.dart';
+import 'knowledge_routes.dart';
 import 'widgets/connected_sections.dart';
 import 'widgets/knowledge_scaffold.dart';
 
@@ -44,6 +66,7 @@ class HadithDetailScreen extends ConsumerWidget {
     final p = MizanPalette.of(context);
     final book = HadithCollections.bySlug(collection);
     final record = ref.watch(hadithProvider(hadithRef));
+    final extras = ref.watch(hadithExtrasProvider(hadithRef));
     final graph = ref.watch(knowledgeGraphOrNullProvider);
     final entity = graph?[hadithRef.entityRef];
 
@@ -59,7 +82,7 @@ class HadithDetailScreen extends ConsumerWidget {
         _CitationCard(hadithRef: hadithRef, book: book),
 
         const SizedBox(height: 26),
-        const KnowledgeSectionHeader('TEXT'),
+        const KnowledgeSectionHeader('THE HADITH', trailingText: '1 OF 5'),
         const SizedBox(height: 12),
         record.when(
           loading: () => const KnowledgePlaceholder(title: '', loading: true),
@@ -72,26 +95,42 @@ class HadithDetailScreen extends ConsumerWidget {
               : _HadithText(record: value),
         ),
 
-        // What the corpus said when it cited this hadith — the description its
-        // author wrote, kept because for many citations it is the only pointer to
-        // *which* hadith is meant.
-        if (entity != null && entity.teaser != null) ...[
-          const SizedBox(height: 26),
-          const KnowledgeSectionHeader('CITED IN THE APP AS'),
-          const SizedBox(height: 12),
-          MizanSurface(
-            child: Text(
-              entity.teaser!,
-              style: MizanType.body(color: p.ink).copyWith(height: 1.6),
-            ),
-          ),
-        ],
+        const SizedBox(height: 26),
+        const KnowledgeSectionHeader('VOCABULARY', trailingText: '2 OF 5'),
+        const SizedBox(height: 12),
+        _Vocabulary(extras: extras),
+
+        const SizedBox(height: 26),
+        const KnowledgeSectionHeader('CONTEXT', trailingText: '3 OF 5'),
+        const SizedBox(height: 12),
+        _Context(
+          record: record.valueOrNull,
+          citedAs: entity?.teaser,
+        ),
+
+        const SizedBox(height: 26),
+        const KnowledgeSectionHeader('SCHOLAR COMMENTARY', trailingText: '4 OF 5'),
+        const SizedBox(height: 12),
+        _Commentary(extras: extras),
+
+        const SizedBox(height: 26),
+        const KnowledgeSectionHeader('YOUR REFLECTION', trailingText: '5 OF 5'),
+        const SizedBox(height: 12),
+        _ReflectionCard(hadithRef: hadithRef),
 
         // Related = the same hadith cited elsewhere; Connected = what it appears
         // beside. Both come from the graph, so no list is maintained by hand.
         ConnectedSections(
           entityRef: hadithRef.entityRef,
           heading: 'CONNECTED',
+        ),
+
+        const SizedBox(height: 8),
+        Text(
+          'Vocabulary and commentary appear here only from verified sources. '
+          'Where a source is not available the layer stays empty — the app does '
+          'not write either one itself.',
+          style: MizanType.body(color: p.muted).copyWith(fontSize: 12.5),
         ),
       ],
     );
@@ -142,14 +181,19 @@ class _CitationCard extends StatelessWidget {
   }
 }
 
-class _HadithText extends StatelessWidget {
+/// Layer 1. Arabic, translation, and the fields the source stated.
+class _HadithText extends ConsumerWidget {
   const _HadithText({required this.record});
 
   final HadithRecord record;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final p = MizanPalette.of(context);
+
+    // Null until the graph has loaded, and null for a narrator we have no
+    // biography for. Both mean the same thing to this widget: plain text.
+    final narrator = ref.watch(narratorIndexProvider)?.match(record.narrator);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -183,8 +227,17 @@ class _HadithText extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                if (record.narrator != null &&
+                    record.narrator!.trim().isNotEmpty)
+                  _FieldRow(
+                    label: 'Narrator',
+                    value: record.narrator!,
+                    // The companion's own page, not a second profile of him.
+                    onTap: narrator == null
+                        ? null
+                        : () => KnowledgeRoutes.open(context, narrator),
+                  ),
                 for (final field in <(String, String?)>[
-                  ('Narrator', record.narrator),
                   ('Book', record.bookName),
                   ('Chapter', record.chapter),
                   ('Grade', record.grade),
@@ -206,15 +259,20 @@ class _HadithText extends StatelessWidget {
 }
 
 class _FieldRow extends StatelessWidget {
-  const _FieldRow({required this.label, required this.value});
+  const _FieldRow({required this.label, required this.value, this.onTap});
 
   final String label;
   final String value;
 
+  /// Set only for a narrator we can open. A row that does nothing must not look
+  /// like a row that does something, so the chevron follows the callback.
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
-    return Padding(
+
+    final body = Padding(
       padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,8 +288,365 @@ class _FieldRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: MizanType.body(color: p.ink).copyWith(height: 1.45),
+              style: MizanType.body(color: onTap == null ? p.ink : p.sage)
+                  .copyWith(height: 1.45),
             ),
+          ),
+          if (onTap != null)
+            Icon(Icons.chevron_right_rounded, size: 20, color: p.muted),
+        ],
+      ),
+    );
+
+    if (onTap == null) return body;
+    return InkWell(
+      onTap: onTap,
+      child: Semantics(button: true, label: '$label $value', child: body),
+    );
+  }
+}
+
+/// Layer 2. The words, when a glossary is bundled for this collection.
+class _Vocabulary extends StatelessWidget {
+  const _Vocabulary({required this.extras});
+
+  final AsyncValue<HadithExtras> extras;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+    final glosses = extras.valueOrNull?.vocabulary ?? const <HadithGloss>[];
+
+    if (glosses.isEmpty) {
+      return const _EmptyLayer(
+        icon: Icons.translate_outlined,
+        title: 'No glossary for this narration',
+        message:
+            'Word meanings appear here from a verified glossary. The app will '
+            'not gloss a word itself — a meaning invented for a hadith is a '
+            'claim about revelation, not a convenience.',
+      );
+    }
+
+    return MizanSurface(
+      padding: EdgeInsets.zero,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < glosses.length; i++) ...[
+            if (i > 0) MizanRule(color: p.hairline, indent: 18),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        glosses[i].arabic,
+                        textDirection: TextDirection.rtl,
+                        style: MizanType.arabic(color: p.ink, fontSize: 21),
+                      ),
+                      if (glosses[i].transliteration != null) ...[
+                        const SizedBox(width: 10),
+                        Text(
+                          glosses[i].transliteration!,
+                          style: MizanType.body(color: p.muted)
+                              .copyWith(fontSize: 13),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    glosses[i].meaning,
+                    style: MizanType.body(color: p.ink).copyWith(height: 1.45),
+                  ),
+                  if (glosses[i].note != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      glosses[i].note!,
+                      style: MizanType.body(color: p.muted)
+                          .copyWith(fontSize: 12.5, height: 1.45),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Layer 3. Where the narration sits, and why the app cited it.
+///
+/// Everything here is quoted, not composed: the book and chapter come from the
+/// hadith source, and the description is the sentence the corpus author wrote when
+/// they cited it. For many citations that sentence is the only pointer to *which*
+/// hadith is meant, which is why it is shown verbatim rather than summarised.
+class _Context extends StatelessWidget {
+  const _Context({required this.record, required this.citedAs});
+
+  final HadithRecord? record;
+  final String? citedAs;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    final book = record?.bookName;
+    final chapter = record?.chapter;
+    final hasPlacement = (book != null && book.trim().isNotEmpty) ||
+        (chapter != null && chapter.trim().isNotEmpty);
+    final hasCitedAs = citedAs != null && citedAs!.trim().isNotEmpty;
+
+    if (!hasPlacement && !hasCitedAs) {
+      return const _EmptyLayer(
+        icon: Icons.account_tree_outlined,
+        title: 'No context recorded',
+        message:
+            'Context here means the book and chapter the narration sits in, and '
+            'the words the app used when it cited it. Neither is available for '
+            'this one yet.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (hasPlacement)
+          MizanSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Where it sits',
+                    style: MizanType.bodyStrong(color: p.ink)),
+                const SizedBox(height: 8),
+                Text(
+                  [
+                    if (book != null && book.trim().isNotEmpty) book.trim(),
+                    if (chapter != null && chapter.trim().isNotEmpty)
+                      chapter.trim(),
+                  ].join(' · '),
+                  style: MizanType.body(color: p.muted).copyWith(height: 1.5),
+                ),
+              ],
+            ),
+          ),
+        if (hasCitedAs) ...[
+          if (hasPlacement) const SizedBox(height: 12),
+          MizanSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Cited in the app as',
+                    style: MizanType.bodyStrong(color: p.ink)),
+                const SizedBox(height: 8),
+                Text(
+                  citedAs!,
+                  style: MizanType.body(color: p.ink).copyWith(height: 1.6),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Layer 4. Named scholar, named work, or nothing.
+class _Commentary extends StatelessWidget {
+  const _Commentary({required this.extras});
+
+  final AsyncValue<HadithExtras> extras;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+    final items = extras.valueOrNull?.commentary ?? const <HadithCommentary>[];
+
+    if (items.isEmpty) {
+      return const _EmptyLayer(
+        icon: Icons.menu_book_outlined,
+        title: 'No verified commentary',
+        message:
+            'Commentary appears here only with the scholar and the work it comes '
+            'from. Unattributed explanation is opinion, and opinion presented as '
+            'scholarship is not something this app will show.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < items.length; i++) ...[
+          if (i > 0) const SizedBox(height: 12),
+          MizanSurface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(items[i].scholar,
+                    style: MizanType.bodyStrong(color: p.ink)),
+                const SizedBox(height: 3),
+                Text(
+                  items[i].reference == null
+                      ? items[i].work
+                      : '${items[i].work} · ${items[i].reference}',
+                  style: MizanType.body(color: p.muted).copyWith(fontSize: 12.5),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  items[i].text,
+                  style: MizanType.body(color: p.ink).copyWith(height: 1.6),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Layer 5. The reader's own words, on the device only.
+class _ReflectionCard extends ConsumerStatefulWidget {
+  const _ReflectionCard({required this.hadithRef});
+
+  final HadithRef hadithRef;
+
+  @override
+  ConsumerState<_ReflectionCard> createState() => _ReflectionCardState();
+}
+
+class _ReflectionCardState extends ConsumerState<_ReflectionCard> {
+  final TextEditingController _controller = TextEditingController();
+
+  /// Whether what is in the field is what is in the database. Starts true
+  /// because an empty field matches an empty row.
+  bool _saved = true;
+
+  /// Set once the stored reflection has been put into the field, so a rebuild
+  /// never overwrites what the reader is in the middle of typing.
+  bool _seeded = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    final text = _controller.text;
+    await ref
+        .read(hadithRepositoryProvider)
+        .saveReflection(widget.hadithRef, text);
+    ref.invalidate(hadithReflectionProvider(widget.hadithRef));
+    if (!mounted) return;
+    setState(() => _saved = true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+    final stored = ref.watch(hadithReflectionProvider(widget.hadithRef));
+
+    if (!_seeded && stored.hasValue) {
+      _seeded = true;
+      final existing = stored.valueOrNull;
+      if (existing != null) _controller.text = existing;
+    }
+
+    return MizanSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Private — kept on this device, and shared only if you choose to '
+            'share it.',
+            style: MizanType.body(color: p.muted).copyWith(fontSize: 12.5),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _controller,
+            maxLines: 5,
+            minLines: 3,
+            style: MizanType.body(color: p.ink).copyWith(height: 1.5),
+            cursorColor: p.accentText,
+            // The global input theme is a pill, which is right for a search
+            // field and wrong for five lines of writing. This is the same
+            // rounded-well shape the ayah reader's inputs use.
+            decoration: InputDecoration(
+              hintText: 'What does this narration ask of you?',
+              hintStyle: MizanType.body(color: p.muted),
+              filled: true,
+              fillColor: p.sunk,
+              border: OutlineInputBorder(
+                borderRadius: MizanGeometry.rowBorderRadius,
+                borderSide: BorderSide(color: p.hairline),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: MizanGeometry.rowBorderRadius,
+                borderSide: BorderSide(color: p.hairline),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: MizanGeometry.rowBorderRadius,
+                borderSide: BorderSide(color: p.accentText),
+              ),
+            ),
+            onChanged: (_) {
+              if (_saved) setState(() => _saved = false);
+            },
+          ),
+          const SizedBox(height: 12),
+          MizanButton.secondary(
+            label: _saved ? 'Saved' : 'Save reflection',
+            icon: _saved ? Icons.check_rounded : Icons.edit_outlined,
+            onPressed: _saved ? null : _save,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A layer with nothing in it, said plainly and identically everywhere.
+class _EmptyLayer extends StatelessWidget {
+  const _EmptyLayer({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    return MizanSurface(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 17, color: p.muted),
+              const SizedBox(width: 9),
+              Expanded(
+                child: Text(title, style: MizanType.bodyStrong(color: p.ink)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            message,
+            style: MizanType.body(color: p.muted).copyWith(height: 1.55),
           ),
         ],
       ),
@@ -241,10 +656,9 @@ class _FieldRow extends StatelessWidget {
 
 /// The offline / not-configured state, said plainly.
 ///
-/// This is the honest default today: no hadith collection is bundled and no
-/// endpoint is configured, so a numbered citation shows its citation and this
-/// note. Setting `HADITH_API_BASE_URL`, or dropping a verified collection file
-/// into `assets/data/hadith/`, turns the text on with no code change.
+/// A numbered citation shows its citation and this note when no source on the
+/// chain has the text — the local database, the bundle, UmmahAPI and any
+/// separately configured endpoint have all been asked.
 class _NotDownloaded extends StatelessWidget {
   const _NotDownloaded({required this.hadithRef});
 
@@ -327,20 +741,15 @@ class SavedHadithScreen extends ConsumerWidget {
                       size: 40,
                       iconSize: 18,
                     ),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => HadithDetailScreen(
-                          collection: items[i].collection,
-                          number: items[i].number,
-                        ),
-                      ),
-                    ),
+                    onTap: () =>
+                        KnowledgeRoutes.open(context, items[i].ref.entityRef),
                   ),
                 ],
                 const SizedBox(height: 18),
                 Text(
                   'Clearing these removes only the saved copies. Every citation '
-                  'in the app stays exactly as it is.',
+                  'in the app stays exactly as it is. Reflections you have '
+                  'written are never cleared with them.',
                   style: MizanType.body(color: p.muted).copyWith(fontSize: 12.5),
                 ),
               ],

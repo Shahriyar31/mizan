@@ -139,6 +139,7 @@ class GrowthMetrics {
     required this.vocabCount,
     required this.streak,
     required this.reflectionsWritten,
+    required this.hadithReflections,
     required this.reflectedToday,
     required this.discoverCompleted,
   });
@@ -148,6 +149,11 @@ class GrowthMetrics {
   final int vocabCount;
   final int streak;
   final int reflectionsWritten;
+
+  /// Reflections written on a hadith rather than an ayah. Counted separately so
+  /// the detail line can say which is which — "12 ayah reflections" when four of
+  /// them were hadith would be wrong.
+  final int hadithReflections;
   final bool reflectedToday;
   final int discoverCompleted;
 
@@ -157,6 +163,7 @@ class GrowthMetrics {
     vocabCount: 0,
     streak: 0,
     reflectionsWritten: 0,
+    hadithReflections: 0,
     reflectedToday: false,
     discoverCompleted: 0,
   );
@@ -303,9 +310,11 @@ GrowthMapData buildGrowthMap(GrowthMetrics m) {
     headline: m.streak == 0 ? 'No streak yet' : '${m.streak}-day streak',
     detail: [
       if (m.reflectionsWritten > 0)
-        plural(m.reflectionsWritten, 'ayah reflection') + ' written'
-      else
+        '${plural(m.reflectionsWritten, 'ayah reflection')} written'
+      else if (m.hadithReflections == 0)
         'Reflect nightly to keep it alive',
+      if (m.hadithReflections > 0)
+        plural(m.hadithReflections, 'hadith reflection'),
       if (m.reflectedToday) 'reflected today',
     ].join(' · '),
   );

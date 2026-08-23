@@ -8,6 +8,8 @@ import 'core/branding/mizan_brand.dart';
 import 'features/home/domain/streak_provider.dart';
 import 'features/onboarding/domain/onboarding_flags.dart';
 import 'services/database/database_service.dart';
+import 'services/audio/audio_session_setup.dart';
+import 'services/audio/playback_arbiter.dart';
 import 'services/seed/social_seeder.dart';
 import 'app.dart';
 
@@ -16,6 +18,21 @@ Future<void> main() async {
 
   // Load environment variables from .env file
   await dotenv.load(fileName: '.env');
+
+  // Tell the OS this app plays speech, before any player exists. Without this
+  // iOS routes recitation to the ambient stream (thin, silenced by the ringer
+  // switch, stopped by screen lock) and Android never requests audio focus, so
+  // recitation and whatever else is playing are mixed into one output. See
+  // AudioSessionSetup.
+  await AudioSessionSetup.configure();
+
+  // A phone call pauses recitation; unplugged headphones stop it. Routed through
+  // the arbiter, so neither player has to know these events exist.
+  await AudioSessionSetup.attachInterruptionHandling(
+    onPause: PlaybackArbiter.instance.pauseAll,
+    onStop: PlaybackArbiter.instance.stopAll,
+    isPlaying: () => PlaybackArbiter.instance.anyPlaying,
+  );
 
   // Read the chosen app-icon variant before the first frame, so the mark on the
   // welcome screen is right immediately instead of flashing the theme default.

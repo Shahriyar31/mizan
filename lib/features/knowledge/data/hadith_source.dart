@@ -1,16 +1,21 @@
 /// Where a hadith text can come from, in the order they are tried.
 ///
-/// The chain is offline-first because it has to be: there is no hadith endpoint
-/// configured in this repo, so a system that could only fetch would show nothing
-/// at all. A numbered citation resolves against the bundle, then the local
-/// database, and only then the network — and when none of them has it, the screen
-/// says the text has not been downloaded instead of pretending the citation is
-/// broken.
+/// The chain is offline-first because it has to be: a citation must render on a
+/// train. A numbered citation resolves against the local database, then the
+/// bundle, then UmmahAPI, then any separately configured endpoint — and when none
+/// of them has it, the screen says the text has not been downloaded instead of
+/// pretending the citation is broken.
 ///
 /// [BundledHadithSource] reads `assets/data/hadith/{collection}.json` if such a
 /// file exists. None ships today. That is not a stub — it is the drop-in point:
 /// put a verified collection file in that folder and every citation to it starts
 /// resolving offline, with no code change.
+///
+/// [UmmahHadithSource] is the live one: it goes through [HadithSearchRepository]
+/// so the collection-slug translation and the "not carried" short-circuit live in
+/// exactly one place. [RemoteHadithSource] stays behind it, inert unless
+/// `HADITH_API_BASE_URL` is set, because a second endpoint remains a legitimate
+/// configuration and removing it would be a regression for anyone using it.
 library;
 
 import 'dart:convert';
@@ -22,6 +27,7 @@ import 'package:http/http.dart' as http;
 import '../../../core/config/hadith_api_config.dart';
 import '../../../core/knowledge/hadith_ref.dart';
 import 'hadith_record.dart';
+import 'hadith_search_repository.dart';
 
 abstract class HadithSource {
   const HadithSource();
@@ -32,6 +38,13 @@ abstract class HadithSource {
 }
 
 /// Verified collections shipped inside the app.
+///
+/// Nothing is shipped there today, so this source always misses and the chain
+/// falls through to UmmahAPI. It exists so that a collection *can* be shipped —
+/// add `assets/data/hadith/{collection}.json`, add the matching
+/// `- assets/data/hadith/` line to `pubspec.yaml`, and that collection becomes
+/// available with no network at all. The pubspec line is absent on purpose:
+/// Flutter fails the build on a declared asset directory that does not exist.
 ///
 /// Expected shape, either form:
 ///
@@ -100,6 +113,23 @@ class BundledHadithSource extends HadithSource {
       return null;
     }
   }
+}
+
+/// UmmahAPI, through the shared client.
+///
+/// Thin on purpose. The slug translation, the "not carried" short-circuit and the
+/// tolerant field reading all belong to [HadithSearchRepository], which the topic
+/// screens use too — so a hadith fetched by citation and a hadith fetched by topic
+/// are parsed by the same code and cannot disagree about what a narrator field is
+/// called.
+class UmmahHadithSource extends HadithSource {
+  UmmahHadithSource({HadithSearchRepository? search})
+      : _search = search ?? HadithSearchRepository();
+
+  final HadithSearchRepository _search;
+
+  @override
+  Future<HadithRecord?> fetch(HadithRef ref) => _search.byRef(ref);
 }
 
 /// The configured endpoint, if there is one.

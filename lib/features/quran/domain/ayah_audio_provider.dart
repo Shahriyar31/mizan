@@ -21,15 +21,21 @@
 /// could never count to five and then continue.
 ///
 /// ── Where the audio comes from ────────────────────────────────────────
-/// everyayah.com, whose file layout is completely deterministic:
+/// [AudioRepository] resolves a URL — computed on the device for the bundled
+/// everyayah reciters, looked up from UmmahAPI for catalogue ones — and
+/// [RecitationCache] keeps the file. That ordering matters:
 ///
-///     https://everyayah.com/data/<folder>/<surah:3><ayah:3>.mp3
-///     e.g.  .../data/Alafasy_128kbps/002255.mp3   → Al-Baqarah 255
+///   1. Already on disk → play the local file. No network at all, so a repeat
+///      for memorisation is instant and an ayah heard once is heard again on a
+///      train with no signal.
+///   2. Not on disk → stream it *while writing it to disk* through just_audio's
+///      caching source, so the first listen costs one download and the second
+///      costs none.
 ///
-/// No index request, no API key, no response parsing — which is why per-ayah
-/// playback can start on the first tap. The one thing that can go wrong is a
-/// wrong `folder` string in [kAyahReciters]: that produces a 404, which surfaces
-/// as this player's error state naming the reciter, never as silence.
+/// The next ayah is fetched to disk while the current one plays, which is what
+/// removes the stall at each boundary. Before this, every ayah and every repeat
+/// was a cold `setUrl` with no buffer ahead of the playhead — see
+/// [RecitationCache] for why that, and not the audio source, was the distortion.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,6 +43,12 @@ import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/utils/logger.dart';
+import '../../../services/audio/playback_arbiter.dart';
+import '../../../services/audio/recitation_cache.dart';
+import '../data/audio_repository.dart';
+import '../data/ayah_reciters.dart';
+
+export '../data/ayah_reciters.dart';
 
 const String _tag = 'AyahAudio';
 
@@ -47,58 +59,17 @@ const int kRepeatForever = -1;
 const List<int> kRepeatChoices = [1, 3, 5, 10, kRepeatForever];
 
 // ── Reciters ──────────────────────────────────────────────────────────
+//
+// The model and the bundled list live in `../data/ayah_reciters.dart` and are
+// re-exported above, so nothing that imports this file had to change.
 
-/// A reciter with a complete ayah-by-ayah set on everyayah.com.
-class AyahReciter {
-  const AyahReciter({
-    required this.id,
-    required this.name,
-    required this.folder,
-  });
-
-  /// Stable key used to persist the choice — never the list index, so the list
-  /// can be reordered without silently changing someone's reciter.
-  final String id;
-
-  final String name;
-
-  /// The everyayah.com directory. See the library comment.
-  final String folder;
-
-  String urlFor(int surahNumber, int ayahNumber) {
-    final s = surahNumber.toString().padLeft(3, '0');
-    final a = ayahNumber.toString().padLeft(3, '0');
-    return 'https://everyayah.com/data/$folder/$s$a.mp3';
-  }
-}
-
-const List<AyahReciter> kAyahReciters = [
-  AyahReciter(
-    id: 'alafasy',
-    name: 'Mishary Rashid Alafasy',
-    folder: 'Alafasy_128kbps',
-  ),
-  AyahReciter(
-    id: 'husary',
-    name: 'Mahmoud Khalil Al-Husary',
-    folder: 'Husary_128kbps',
-  ),
-  AyahReciter(
-    id: 'abdulbasit',
-    name: 'Abdul Basit (Murattal)',
-    folder: 'Abdul_Basit_Murattal_192kbps',
-  ),
-  AyahReciter(
-    id: 'minshawy',
-    name: 'Muhammad Siddiq Al-Minshawi',
-    folder: 'Minshawy_Murattal_128kbps',
-  ),
-  AyahReciter(
-    id: 'sudais',
-    name: 'Abdurrahman As-Sudais',
-    folder: 'Abdurrahmaan_As-Sudais_192kbps',
-  ),
-];
+/// Every reciter on offer: the bundled five, plus whatever UmmahAPI adds.
+///
+/// Never fails — [AudioRepository.reciters] falls back to the bundled list — so
+/// callers can read `.value ?? kAyahReciters` and always have something to show.
+final ayahRecitersProvider = FutureProvider<List<AyahReciter>>(
+  (ref) => AudioRepository.instance.reciters(),
+);
 
 class AyahReciterNotifier extends StateNotifier<AyahReciter> {
   AyahReciterNotifier() : super(kAyahReciters.first) {
@@ -111,13 +82,25 @@ class AyahReciterNotifier extends StateNotifier<AyahReciter> {
     final prefs = await SharedPreferences.getInstance();
     final id = prefs.getString(_key);
     if (id == null) return;
+
+    // The bundled list first, so a saved bundled reciter is restored without
+    // waiting on the network.
     for (final r in kAyahReciters) {
       if (r.id == id) {
         state = r;
         return;
       }
     }
-    // Unknown id (list changed between versions) — keep the default.
+
+    // Otherwise it was a catalogue reciter, which means resolving the catalogue.
+    // A failure here leaves the default in place rather than a broken selection.
+    final all = await AudioRepository.instance.reciters();
+    for (final r in all) {
+      if (r.id == id) {
+        state = r;
+        return;
+      }
+    }
   }
 
   Future<void> select(AyahReciter reciter) async {
@@ -205,6 +188,12 @@ class AyahAudioState {
 
 class AyahAudioController extends StateNotifier<AyahAudioState> {
   AyahAudioController(this._ref) : super(const AyahAudioState()) {
+    PlaybackArbiter.instance.register(
+      this,
+      stop: stop,
+      pause: pause,
+      isPlaying: () => state.status == AyahAudioStatus.playing,
+    );
     _player.playerStateStream.listen(_onPlayerState);
     // A network drop after setUrl succeeded arrives here, not as a throw.
     _player.playbackEventStream.listen(
@@ -221,6 +210,12 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
 
   final Ref _ref;
   final AudioPlayer _player = AudioPlayer();
+  final RecitationCache _cache = RecitationCache.instance;
+  final AudioRepository _repository = AudioRepository.instance;
+
+  /// Playback speed, held here rather than read off the player so it survives
+  /// loading a new ayah — `setAudioSource` resets the rate to 1.0.
+  double _speed = 1.0;
 
   /// Guards the completion handler: seeking back to zero and playing again
   /// re-enters `playerStateStream`, and without this a repeat would fire twice.
@@ -229,6 +224,8 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
   AudioPlayer get player => _player;
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
+
+  double get speed => _speed;
 
   AyahReciter get reciter => _ref.read(ayahReciterProvider);
 
@@ -288,7 +285,11 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     }
 
     final r = reciter;
-    final url = r.urlFor(surahNumber, ayahNumber);
+
+    // The two players share one output and one audio session, so exactly one of
+    // them may be running. Enforced by the arbiter rather than at the call sites
+    // — that is what let a Settings preview and a reader recitation overlap.
+    await PlaybackArbiter.instance.claim(this);
 
     state = state.copyWith(
       status: AyahAudioStatus.loading,
@@ -300,11 +301,28 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     );
 
     try {
-      await _player.setUrl(url);
+      final source = await _sourceFor(r, surahNumber, ayahNumber);
+      if (source == null) {
+        state = state.copyWith(
+          status: AyahAudioStatus.error,
+          errorMessage: 'No recitation available for this ayah in ${r.name}.',
+        );
+        return;
+      }
+
+      // A tap while this was resolving already moved the player on; finishing
+      // this one would play the wrong ayah over the new one.
+      if (!state.isOn(surahNumber, ayahNumber)) return;
+
+      await _player.setAudioSource(source);
+      await _player.setSpeed(_speed);
       await _player.play();
       state = state.copyWith(status: AyahAudioStatus.playing);
+
+      _warmNext(r, surahNumber, ayahNumber, lastAyah);
     } catch (e) {
-      AppLogger.error('Ayah playback failed for $url', error: e, tag: _tag);
+      AppLogger.error('Ayah playback failed for $surahNumber:$ayahNumber',
+          error: e, tag: _tag);
       state = state.copyWith(
         status: AyahAudioStatus.error,
         // Names the reciter, because a missing set is reciter-specific and
@@ -313,6 +331,54 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
             'Check your connection, or try another reciter.',
       );
     }
+  }
+
+  /// A local file when this ayah has been heard before, otherwise a caching
+  /// stream that writes it to that same file as it plays. Null when no URL for
+  /// this ayah exists at all.
+  Future<AudioSource?> _sourceFor(
+    AyahReciter r,
+    int surahNumber,
+    int ayahNumber,
+  ) async {
+    final cached = await _cache.cached(r.id, surahNumber, ayahNumber);
+    if (cached != null) return AudioSource.file(cached.path);
+
+    final url = await _repository.urlFor(r, surahNumber, ayahNumber);
+    if (url == null) return null;
+
+    // LockCachingAudioSource streams and writes at once, so the first listen
+    // pays for the download and every later one is a disk read. It writes a
+    // `.part` file and renames on completion, so an interrupted listen cannot
+    // leave a truncated file behind to be played as if it were whole.
+    try {
+      final file = await _cache.fileFor(r.id, surahNumber, ayahNumber);
+      // Experimental in just_audio 0.10.x, and used deliberately: it is the only
+      // way to stream and cache in one download. If it is ever removed, the
+      // fallback is the line below — stream without keeping the file — which
+      // costs a re-download per repeat but never breaks playback.
+      // ignore: experimental_member_use
+      return LockCachingAudioSource(Uri.parse(url), cacheFile: file);
+    } catch (_) {
+      // No writable cache directory — stream without keeping it.
+      return AudioSource.uri(Uri.parse(url));
+    }
+  }
+
+  /// Pulls the next ayah onto disk while this one plays. This is the fix for the
+  /// stall at every ayah boundary: by the time the current ayah ends, the next
+  /// one is a local file.
+  ///
+  /// Only for pattern reciters, because a lookup reciter would need a request to
+  /// learn the URL and a speculative request for an ayah that may never be
+  /// reached is not worth it.
+  void _warmNext(AyahReciter r, int surahNumber, int ayahNumber, int lastAyah) {
+    if (!state.continuous) return;
+    if (ayahNumber >= lastAyah) return;
+    final next = ayahNumber + 1;
+    final url = r.urlFor(surahNumber, next);
+    if (url == null) return;
+    _cache.prefetch(r.id, surahNumber, next, url);
   }
 
   Future<void> pause() async {
@@ -343,6 +409,19 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
 
   Future<void> seek(Duration position) => _player.seek(position);
 
+  /// Playback speed, applied now and re-applied to every ayah after this one.
+  ///
+  /// Kept in the controller because `setAudioSource` resets the player's rate,
+  /// so a speed set once would otherwise silently revert at the next ayah.
+  Future<void> setSpeed(double value) async {
+    _speed = value.clamp(0.5, 2.0);
+    try {
+      await _player.setSpeed(_speed);
+    } catch (_) {
+      // Nothing loaded yet — it is applied when the next ayah starts.
+    }
+  }
+
   /// Step by whole ayat. Clamped to the surah, so the end is the end.
   Future<void> step(int delta) async {
     final surah = state.surahNumber;
@@ -370,6 +449,7 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
 
   @override
   void dispose() {
+    PlaybackArbiter.instance.unregister(this);
     _player.dispose();
     super.dispose();
   }

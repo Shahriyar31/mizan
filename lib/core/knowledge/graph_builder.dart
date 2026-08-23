@@ -42,6 +42,7 @@ import 'hadith_ref.dart';
 import 'knowledge_assets.dart';
 import 'knowledge_entity.dart';
 import 'knowledge_graph.dart';
+import 'narrator_index.dart';
 import 'reference_parser.dart';
 import 'relation.dart';
 
@@ -82,7 +83,13 @@ abstract final class KnowledgeBuilder {
     // Kept so a co-citation edge can name the citation it came from.
     final citationSample = <String, Evidence>{};
 
-    final narratorIndex = _NarratorIndex(sahabah);
+    final narratorIndex = NarratorIndex();
+    for (final s in sahabah) {
+      narratorIndex.add(
+        EntityRef(EntityType.sahabi, s.id),
+        [s.nameEnglish, s.kunyah],
+      );
+    }
 
     void record({
       required KnowledgeEntity owner,
@@ -679,49 +686,4 @@ abstract final class KnowledgeBuilder {
         ],
         metadata: {'steps': '${j.steps.length}'},
       );
-}
-
-/// Matches "narrated by Anas ibn Malik" to `sahabi:anas_ibn_malik`.
-///
-/// Exact normalised match first; a shorter form ("Jabir") is accepted only when it
-/// prefixes exactly one companion id, so "Asma" — which prefixes both Asma bint
-/// Abi Bakr and Asma bint Umays — resolves to neither rather than to the wrong
-/// one. This is the only place the app matches a person by name, and it is why the
-/// rule is written down.
-class _NarratorIndex {
-  _NarratorIndex(List<SahabiEntry> sahabah) {
-    for (final s in sahabah) {
-      final ref = EntityRef(EntityType.sahabi, s.id);
-      _byKey[_normalise(s.id)] = ref;
-      _byKey.putIfAbsent(_normalise(s.nameEnglish), () => ref);
-      _byKey.putIfAbsent(_normalise(s.kunyah), () => ref);
-      _ids.add((key: _normalise(s.id), ref: ref));
-    }
-  }
-
-  final Map<String, EntityRef> _byKey = {};
-  final List<({String key, EntityRef ref})> _ids = [];
-
-  EntityRef? match(String? narrator) {
-    if (narrator == null) return null;
-    final key = _normalise(narrator);
-    if (key.length < 3) return null;
-
-    final exact = _byKey[key];
-    if (exact != null) return exact;
-
-    EntityRef? only;
-    for (final candidate in _ids) {
-      if (!candidate.key.startsWith('${key}_')) continue;
-      if (only != null) return null; // Ambiguous — better nothing than wrong.
-      only = candidate.ref;
-    }
-    return only;
-  }
-
-  static String _normalise(String raw) => raw
-      .toLowerCase()
-      .replaceAll(RegExp(r"[''`ʿʾ]"), '')
-      .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-      .replaceAll(RegExp(r'^_+|_+$'), '');
 }

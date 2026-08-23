@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/utils/logger.dart';
 import '../../../services/audio/mp3quran_service.dart';
+import '../../../services/audio/playback_arbiter.dart';
 import '../../../shared/models/reciter.dart';
 
 const String _tag = 'QuranAudio';
@@ -135,6 +136,12 @@ class QuranAudioState {
 
 class QuranAudioController extends StateNotifier<QuranAudioState> {
   QuranAudioController() : super(const QuranAudioState()) {
+    PlaybackArbiter.instance.register(
+      this,
+      stop: stop,
+      pause: pause,
+      isPlaying: () => state.status == QuranAudioStatus.playing,
+    );
     _player.playerStateStream.listen((s) {
       if (s.processingState == ProcessingState.completed) {
         state = state.copyWith(status: QuranAudioStatus.idle);
@@ -184,6 +191,12 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
       await resume();
       return;
     }
+
+    // One output, one audio session, so exactly one player may run. Stopping the
+    // other one is the arbiter's job rather than this method's or a widget's —
+    // which is the half of the rule that was missing: a Settings preview used to
+    // start on top of a recitation already playing in the reader.
+    await PlaybackArbiter.instance.claim(this);
 
     state = QuranAudioState(
         status: QuranAudioStatus.loading, surahNumber: surahNumber);
@@ -247,6 +260,7 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
 
   @override
   void dispose() {
+    PlaybackArbiter.instance.unregister(this);
     _player.dispose();
     super.dispose();
   }

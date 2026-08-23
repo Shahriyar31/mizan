@@ -1,9 +1,9 @@
 /// GrowthStatsRepository — read-only roll-ups that feed the Growth Map.
 ///
 /// Gathers the user's real progress from every local source: the main database
-/// (tafseer layers opened, ayah reflections, saved words), the separate
-/// Discover database (entries whose quiz was passed), and shared preferences
-/// (the daily streak + whether tonight's muhasabah is done).
+/// (tafseer layers opened, ayah reflections, hadith reflections, saved words),
+/// the separate Discover database (entries whose quiz was passed), and shared
+/// preferences (the daily streak + whether tonight's muhasabah is done).
 ///
 /// Nothing here writes. The streak in particular is *owned* by the Home
 /// screen's streak badge — we only read it, so the Home count and the Growth
@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/utils/logger.dart';
 import '../../discover/data/discover_database.dart';
+import '../../knowledge/data/hadith_repository.dart';
 import '../../quran/data/layer_repository.dart';
 import '../domain/growth_map_models.dart';
 import 'vocab_repository.dart';
@@ -22,11 +23,14 @@ class GrowthStatsRepository {
   GrowthStatsRepository({
     LayerRepository? layerRepository,
     VocabRepository? vocabRepository,
+    HadithRepository? hadithRepository,
   })  : _layers = layerRepository ?? LayerRepository(),
-        _vocab = vocabRepository ?? VocabRepository();
+        _vocab = vocabRepository ?? VocabRepository(),
+        _hadith = hadithRepository ?? HadithRepository();
 
   final LayerRepository _layers;
   final VocabRepository _vocab;
+  final HadithRepository _hadith;
 
   static const String _tag = 'GrowthStatsRepository';
 
@@ -37,6 +41,7 @@ class GrowthStatsRepository {
     final quranLayers = await _safe(_layers.countUnlocks);
     final quranAyahs = await _safe(_layers.countAyahsTouched);
     final reflections = await _safe(_layers.countReflections);
+    final hadithReflections = await _safe(_hadith.reflectionCount);
     final vocabCount = await _safe(_vocab.getWordCount);
     final discover = await _safe(_discoverCompleted);
     final signals = await _prefsSignals();
@@ -47,6 +52,7 @@ class GrowthStatsRepository {
       vocabCount: vocabCount,
       streak: signals.streak,
       reflectionsWritten: reflections,
+      hadithReflections: hadithReflections,
       reflectedToday: signals.reflectedToday,
       discoverCompleted: discover,
     );

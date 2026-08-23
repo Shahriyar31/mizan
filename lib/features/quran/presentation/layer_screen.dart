@@ -6,9 +6,14 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../domain/layer_providers.dart';
+import '../domain/tafsir_providers.dart';
 import '../data/layer_content.dart';
+import '../data/mutashabihat_repository.dart';
 import '../data/surah_metadata.dart';
+import '../data/tafsir_repository.dart';
+import '../data/word_analysis_repository.dart';
 import '../models/layer_unlock.dart';
 import '../../../core/knowledge/entity_ref.dart';
 import '../../../core/theme/app_colors.dart';
@@ -39,13 +44,17 @@ class LayerScreen extends ConsumerStatefulWidget {
 class _LayerScreenState extends ConsumerState<LayerScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+
+  /// Position in the tab bar, not a storage index. [LayerMeta.displayOrder]
+  /// converts between the two.
   int _currentTab = 0;
+
   String get _ayahKey => '${widget.surahNumber}:${widget.ayahNumber}';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 5, vsync: this);
+    _tabController = TabController(length: LayerMeta.count, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() => _currentTab = _tabController.index);
@@ -92,21 +101,48 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
   }
 
   Widget _buildTabViews(LayerData? content) {
+    // Built in display order, so tab position N and view N line up. The switch
+    // below is on the storage index, which is what each layer is identified by
+    // everywhere else — see LayerMeta.
     return TabBarView(
       controller: _tabController,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _WordsLayer(content: content),
-        _ContextLayer(content: content, surahNumber: widget.surahNumber),
-        _ScholarsLayer(content: content),
-        _IsnadLayer(content: content),
-        _ReflectionLayer(
+        for (final index in LayerMeta.displayOrder) _viewFor(index, content),
+      ],
+    );
+  }
+
+  Widget _viewFor(int storageIndex, LayerData? content) {
+    switch (storageIndex) {
+      case 0:
+        return _WordsLayer(
+          content: content,
+          surahNumber: widget.surahNumber,
+          ayahNumber: widget.ayahNumber,
+        );
+      case 1:
+        return _ContextLayer(content: content, surahNumber: widget.surahNumber);
+      case 2:
+        return _ScholarsLayer(
+          content: content,
+          surahNumber: widget.surahNumber,
+          ayahNumber: widget.ayahNumber,
+        );
+      case 3:
+        return _IsnadLayer(content: content);
+      case 5:
+        return _SimilarVersesLayer(
+          surahNumber: widget.surahNumber,
+          ayahNumber: widget.ayahNumber,
+        );
+      default:
+        return _ReflectionLayer(
           surahNumber: widget.surahNumber,
           ayahNumber: widget.ayahNumber,
           ayahKey: _ayahKey,
-        ),
-      ],
-    );
+        );
+    }
   }
 
   Widget _buildHeader(BuildContext context) {
@@ -141,7 +177,7 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
                   color: AppColors.jade.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(99),
                 ),
-                child: Text('5 Layers',
+                child: Text('${LayerMeta.count} Layers',
                     style: AppTypography.caption(color: AppColors.jade)),
               ),
             ],
@@ -176,14 +212,19 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
       child: SafeArea(
         top: false,
         child: Row(
-          children: List.generate(5, (index) {
-            final isActive = _currentTab == index;
+          // Walks display order, so `position` is where the tab sits and
+          // `index` is the layer it stands for. Six tabs now fit where five did
+          // by dropping the label to 8pt and letting it ellipsize rather than
+          // overflow — the icon above it carries the recognition.
+          children: List.generate(LayerMeta.count, (position) {
+            final index = LayerMeta.displayOrder[position];
+            final isActive = _currentTab == position;
             final isReflection = index == 4;
             return Expanded(
               child: GestureDetector(
                 onTap: () {
                   if (!isActive) HapticFeedback.selectionClick();
-                  _tabController.animateTo(index);
+                  _tabController.animateTo(position);
                 },
                 behavior: HitTestBehavior.opaque,
                 child: Column(
@@ -215,16 +256,22 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Text(
-                      LayerMeta.names[index],
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        color: isActive
-                            ? (isReflection ? AppColors.jade : AppColors.gold)
-                            : AppColors.muted,
-                        fontFamily: 'Inter',
-                        letterSpacing: 0.3,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      child: Text(
+                        LayerMeta.names[index],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 8.5,
+                          fontWeight: FontWeight.w700,
+                          color: isActive
+                              ? (isReflection ? AppColors.jade : AppColors.gold)
+                              : AppColors.muted,
+                          fontFamily: 'Inter',
+                          letterSpacing: 0.2,
+                        ),
                       ),
                     ),
                   ],
@@ -239,24 +286,71 @@ class _LayerScreenState extends ConsumerState<LayerScreen>
 }
 
 // ── Words Layer ───────────────────────────────────────────────
-class _WordsLayer extends StatefulWidget {
-  const _WordsLayer({required this.content});
+//
+// Two sources feed this layer, rendered by the same cards:
+//
+//   • The curated `words` string on [LayerData], written by hand and only for
+//     al-Fātihah. Where it exists it is the better text, so it wins.
+//   • Per-word morphology from UmmahAPI, which covers the rest of the Qur'an —
+//     the 6,229 ayat that used to show "Content for this ayah is being prepared."
+//
+// Both are normalised to [QuranWord] first so there is one render path, not two.
+class _WordsLayer extends ConsumerStatefulWidget {
+  const _WordsLayer({
+    required this.content,
+    required this.surahNumber,
+    required this.ayahNumber,
+  });
+
   final LayerData? content;
+  final int surahNumber;
+  final int ayahNumber;
 
   @override
-  State<_WordsLayer> createState() => _WordsLayerState();
+  ConsumerState<_WordsLayer> createState() => _WordsLayerState();
 }
 
-class _WordsLayerState extends State<_WordsLayer> {
+class _WordsLayerState extends ConsumerState<_WordsLayer> {
   final Set<int> _revealed = {};
+
+  /// Turns one curated `"العربية — meaning"` line into the same shape the API
+  /// rows arrive in, so the render loop below never has to know which it got.
+  static QuranWord _fromCuratedLine(String line, int position) {
+    final parts = line.split(' — ');
+    return QuranWord(
+      position: position,
+      arabic: parts[0].trim(),
+      translation: parts.length > 1 ? parts[1].trim() : '',
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.content == null) return _NoCuratedContent(layerIndex: 0);
+    final curated = widget.content?.words ?? '';
+    final curatedLines =
+        curated.split('\n').where((l) => l.contains(' — ')).toList();
 
-    final wordsText = widget.content!.words;
-    final wordLines =
-        wordsText.split('\n').where((l) => l.contains(' — ')).toList();
+    final remote =
+        ref.watch(ayahWordsProvider('${widget.surahNumber}:${widget.ayahNumber}'));
+
+    final words = curatedLines.isNotEmpty
+        ? [
+            for (var i = 0; i < curatedLines.length; i++)
+              _fromCuratedLine(curatedLines[i], i + 1),
+          ]
+        : (remote.value ?? const <QuranWord>[]);
+
+    // Nothing yet and still asking — a spinner rather than an empty state that
+    // would be replaced a moment later.
+    if (words.isEmpty && curated.trim().isEmpty && remote.isLoading) {
+      return Center(
+        child: CircularProgressIndicator(color: AppColors.gold, strokeWidth: 2),
+      );
+    }
+
+    if (words.isEmpty && curated.trim().isEmpty) {
+      return _NoCuratedContent(layerIndex: 0);
+    }
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -269,11 +363,9 @@ class _WordsLayerState extends State<_WordsLayer> {
           Text('Tap each word to reveal its meaning',
               style: AppTypography.bodySmall(color: AppColors.muted)),
           const SizedBox(height: 20),
-          if (wordLines.isNotEmpty)
-            ...List.generate(wordLines.length, (i) {
-              final parts = wordLines[i].split(' — ');
-              final arabic = parts[0].trim();
-              final meaning = parts.length > 1 ? parts[1].trim() : '';
+          if (words.isNotEmpty)
+            ...List.generate(words.length, (i) {
+              final word = words[i];
               final isRevealed = _revealed.contains(i);
 
               return GestureDetector(
@@ -301,11 +393,12 @@ class _WordsLayerState extends State<_WordsLayer> {
                     padding: const EdgeInsets.all(16),
                     child: isRevealed
                         ? Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Expanded(
                                 flex: 2,
                                 child: Text(
-                                  arabic,
+                                  word.arabic,
                                   style:  TextStyle(
                                     fontFamily: 'Amiri',
                                     fontSize: 24,
@@ -322,10 +415,30 @@ class _WordsLayerState extends State<_WordsLayer> {
                               const SizedBox(width: 14),
                               Expanded(
                                 flex: 3,
-                                child: Text(
-                                  meaning,
-                                  style: AppTypography.bodyMedium(
-                                      color: AppColors.textPrimary),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      word.gloss,
+                                      style: AppTypography.bodyMedium(
+                                          color: AppColors.textPrimary),
+                                    ),
+                                    // Transliteration and grammar only exist on
+                                    // API rows; curated lines skip both.
+                                    if (word.transliteration.isNotEmpty &&
+                                        word.translation.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(word.transliteration,
+                                          style: AppTypography.caption()),
+                                    ],
+                                    if (word.detail.isNotEmpty) ...[
+                                      const SizedBox(height: 4),
+                                      Text(word.detail,
+                                          style: AppTypography.caption(
+                                              color: AppColors.muted)),
+                                    ],
+                                  ],
                                 ),
                               ),
                             ],
@@ -334,7 +447,7 @@ class _WordsLayerState extends State<_WordsLayer> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                arabic,
+                                word.arabic,
                                 style: TextStyle(
                                   fontFamily: 'Amiri',
                                   fontSize: 24,
@@ -352,10 +465,10 @@ class _WordsLayerState extends State<_WordsLayer> {
               );
             })
           else
-            _RichArabicText(text: wordsText),
+            _RichArabicText(text: curated),
           const SizedBox(height: 24),
           _TomorrowTeaser(
-              text: widget.content!.tomorrowTeasers.isNotEmpty
+              text: (widget.content?.tomorrowTeasers.isNotEmpty ?? false)
                   ? widget.content!.tomorrowTeasers[0]
                   : ''),
         ],
@@ -548,21 +661,60 @@ class _StatPill extends StatelessWidget {
 }
 
 // ── Scholars Layer ────────────────────────────────────────────
-class _ScholarsLayer extends StatefulWidget {
-  const _ScholarsLayer({required this.content});
+//
+// Already the layer where classical commentary lives — this adds a source
+// switcher above the card it already had, and a second place the text can come
+// from. The order is: the selected tafsīr from UmmahAPI, and if that source has
+// nothing for this ayah, the bundled commentary the app has always shipped. So
+// switching source can add commentary but never take it away.
+//
+// The switcher stays on screen in the empty case on purpose: a source with
+// nothing for this ayah is a reason to offer another one, not a dead end.
+class _ScholarsLayer extends ConsumerStatefulWidget {
+  const _ScholarsLayer({
+    required this.content,
+    required this.surahNumber,
+    required this.ayahNumber,
+  });
+
   final LayerData? content;
+  final int surahNumber;
+  final int ayahNumber;
 
   @override
-  State<_ScholarsLayer> createState() => _ScholarsLayerState();
+  ConsumerState<_ScholarsLayer> createState() => _ScholarsLayerState();
 }
 
-class _ScholarsLayerState extends State<_ScholarsLayer> {
+class _ScholarsLayerState extends ConsumerState<_ScholarsLayer> {
   bool _expanded = false;
 
   @override
   Widget build(BuildContext context) {
-    if (widget.content == null) return _NoCuratedContent(layerIndex: 2);
-    final scholar = widget.content!.scholars;
+    final ayahKey = '${widget.surahNumber}:${widget.ayahNumber}';
+    final selected = ref.watch(selectedTafsirProvider);
+    final sources =
+        ref.watch(tafsirSourcesProvider).value ?? const <TafsirSource>[kBundledTafsir];
+    final remote = ref.watch(ayahTafsirProvider(ayahKey));
+
+    final passage = remote.value;
+    final curated = widget.content?.scholars;
+
+    // Remote first, bundled second. `passage` is null both while loading and
+    // when the source has nothing, which is why the loading check comes before
+    // the empty check further down.
+    final body = passage?.text ?? curated?.insight ?? '';
+    final arabic = passage != null ? passage.arabic : (curated?.arabicQuote ?? '');
+
+    final title = passage?.sourceName ??
+        (selected.isBundled ? (curated?.scholarName ?? selected.name) : selected.name);
+    final subtitle = passage != null
+        ? (passage.author.isNotEmpty ? passage.author : selected.attribution)
+        : (curated != null && selected.isBundled
+            ? '${curated.scholarEra} · ${curated.work}'
+            : selected.attribution);
+
+    final isTruncatable = body.length > 500;
+    final shown = _expanded || !isTruncatable ? body : body.substring(0, 500);
 
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -571,6 +723,13 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
         children: [
           Text('Scholar insight',
               style: AppTypography.displaySmall(color: AppColors.textPrimary)),
+
+          // Only worth a row when there is something to switch between.
+          if (sources.length > 1) ...[
+            const SizedBox(height: 14),
+            _TafsirSourceChips(sources: sources, selectedKey: selected.key),
+          ],
+
           const SizedBox(height: 20),
 
           // Scholar card
@@ -601,11 +760,11 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(scholar.scholarName,
+                      Text(title,
                           style:
                               AppTypography.labelLarge(color: AppColors.textPrimary)),
-                      Text('${scholar.scholarEra} · ${scholar.work}',
-                          style: AppTypography.caption()),
+                      if (subtitle.isNotEmpty)
+                        Text(subtitle, style: AppTypography.caption()),
                     ],
                   ),
                 ),
@@ -614,88 +773,178 @@ class _ScholarsLayerState extends State<_ScholarsLayer> {
           ),
           const SizedBox(height: 14),
 
-          // Key insight
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: AppColors.quranSurface,
-              borderRadius: BorderRadius.circular(14),
-              border:
-                  Border(left: BorderSide(color: AppColors.violet, width: 3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('💡  Key insight',
-                    style: AppTypography.caption(color: AppColors.jade)),
-                const SizedBox(height: 10),
-                _ParagraphFlow(
-                  text: _expanded
-                      ? scholar.insight
-                      : (scholar.insight.length > 500
-                          ? scholar.insight.substring(0, 500)
-                          : scholar.insight),
-                  style: AppTypography.bodyMedium(
-                      color: AppColors.textPrimary),
-                ),
-              ],
-            ),
-          ),
-
-          if (scholar.arabicQuote.isNotEmpty) ...[
-            const SizedBox(height: 12),
+          if (body.isEmpty && arabic.isEmpty)
+            _TafsirEmpty(isLoading: remote.isLoading, sourceName: selected.shortName)
+          else ...[
+            // Key insight
             Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: AppColors.surfaceDim,
+                color: AppColors.quranSurface,
                 borderRadius: BorderRadius.circular(14),
+                border:
+                    Border(left: BorderSide(color: AppColors.violet, width: 3)),
               ),
-              child: Text(
-                scholar.arabicQuote,
-                style:  TextStyle(
-                  fontFamily: 'Amiri',
-                  fontSize: 20,
-                  color: AppColors.gold,
-                  height: 1.9,
-                ),
-                textDirection: ui.TextDirection.rtl,
-                textAlign: TextAlign.right,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('💡  Key insight',
+                      style: AppTypography.caption(color: AppColors.jade)),
+                  const SizedBox(height: 10),
+                  _ParagraphFlow(
+                    text: shown,
+                    style: AppTypography.bodyMedium(
+                        color: AppColors.textPrimary),
+                  ),
+                ],
               ),
             ),
+
+            if (arabic.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceDim,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Text(
+                  arabic,
+                  style:  TextStyle(
+                    fontFamily: 'Amiri',
+                    fontSize: 20,
+                    color: AppColors.gold,
+                    height: 1.9,
+                  ),
+                  textDirection: ui.TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                ),
+              ),
+            ],
+            if (isTruncatable) ...[
+              // Button always at the very bottom — after all content
+              const SizedBox(height: 12),
+              GestureDetector(
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _expanded = !_expanded);
+                },
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.quranSurface,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _expanded ? 'Show less ▲' : 'Read full commentary ▼',
+                      style: AppTypography.labelMedium(color: AppColors.jade),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
-          if (scholar.insight.length > 500) ...[
-            // Continuation shown directly after preview — no gap
-            // Continuation now inside the single card above — nothing here
-            // Button always at the very bottom — after all content
-            const SizedBox(height: 12),
+          const SizedBox(height: 24),
+          _TomorrowTeaser(
+              text: (widget.content?.tomorrowTeasers.length ?? 0) > 2
+                  ? widget.content!.tomorrowTeasers[2]
+                  : ''),
+        ],
+      ),
+    );
+  }
+}
+
+/// The tafsīr switcher — one chip per source, scrolling horizontally so a long
+/// catalogue cannot overflow the row.
+class _TafsirSourceChips extends ConsumerWidget {
+  const _TafsirSourceChips({required this.sources, required this.selectedKey});
+
+  final List<TafsirSource> sources;
+  final String selectedKey;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          for (final source in sources) ...[
             GestureDetector(
               onTap: () {
+                if (source.key == selectedKey) return;
                 HapticFeedback.selectionClick();
-                setState(() => _expanded = !_expanded);
+                ref.read(tafsirSourceProvider.notifier).select(source.key);
               },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 14),
+              behavior: HitTestBehavior.opaque,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 180),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.quranSurface,
-                  borderRadius: BorderRadius.circular(12),
+                  color: source.key == selectedKey
+                      ? AppColors.jade.withValues(alpha: 0.15)
+                      : AppColors.quranSurface,
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                    color: source.key == selectedKey
+                        ? AppColors.jade.withValues(alpha: 0.5)
+                        : Colors.transparent,
+                  ),
                 ),
-                child: Center(
-                  child: Text(
-                    _expanded ? 'Show less ▲' : 'Read full commentary ▼',
-                    style: AppTypography.labelMedium(color: AppColors.jade),
+                child: Text(
+                  source.shortName,
+                  style: AppTypography.labelMedium(
+                    color: source.key == selectedKey
+                        ? AppColors.jade
+                        : AppColors.muted,
                   ),
                 ),
               ),
             ),
+            if (source != sources.last) const SizedBox(width: 8),
           ],
-          const SizedBox(height: 24),
-          _TomorrowTeaser(
-              text: widget.content!.tomorrowTeasers.length > 2
-                  ? widget.content!.tomorrowTeasers[2]
-                  : ''),
         ],
+      ),
+    );
+  }
+}
+
+/// Shown when the selected tafsīr has nothing for this ayah. Deliberately small
+/// and inline rather than a full-screen empty state, so the switcher above it
+/// stays reachable.
+class _TafsirEmpty extends StatelessWidget {
+  const _TafsirEmpty({required this.isLoading, required this.sourceName});
+
+  final bool isLoading;
+  final String sourceName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.quranSurface,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Center(
+        child: isLoading
+            ? SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                    color: AppColors.gold, strokeWidth: 2),
+              )
+            : Text(
+                '$sourceName has no commentary on this ayah.',
+                style: AppTypography.bodySmall(color: AppColors.muted),
+                textAlign: TextAlign.center,
+              ),
       ),
     );
   }
@@ -1137,6 +1386,195 @@ class _TomorrowTeaser extends StatelessWidget {
           Text(text,
               style: AppTypography.bodySmall(color: AppColors.quranMuted)),
         ],
+      ),
+    );
+  }
+}
+
+// ── Similar Verses Layer (mutashabihat) ───────────────────────
+//
+// Storage index 5, shown between Isnad and Reflection. See LayerMeta for why
+// those two numbers differ.
+//
+// Tapping a verse closes this sheet and routes to the reader the app already
+// has, at that ayah. Nothing here duplicates the reader or opens a second one.
+class _SimilarVersesLayer extends ConsumerWidget {
+  const _SimilarVersesLayer({
+    required this.surahNumber,
+    required this.ayahNumber,
+  });
+
+  final int surahNumber;
+  final int ayahNumber;
+
+  void _open(BuildContext context, SimilarVerse verse) {
+    HapticFeedback.selectionClick();
+    // Pop first: leaving the layer sheet stacked over the reader would mean the
+    // reader scrolls to the new ayah behind a sheet still showing the old one.
+    Navigator.of(context).pop();
+    context.go(verse.location);
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(similarVersesProvider('$surahNumber:$ayahNumber'));
+    final verses = async.value ?? const <SimilarVerse>[];
+
+    if (verses.isEmpty && async.isLoading) {
+      return Center(
+        child: CircularProgressIndicator(color: AppColors.gold, strokeWidth: 2),
+      );
+    }
+
+    if (verses.isEmpty) {
+      // Not a failure — most ayat have no mutashabihat, and saying so plainly is
+      // more useful than "content is being prepared", which implies it is coming.
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text('🔀', style: TextStyle(fontSize: 48)),
+              const SizedBox(height: 16),
+              Text('No similar verses',
+                  style:
+                      AppTypography.labelLarge(color: AppColors.textPrimary)),
+              const SizedBox(height: 8),
+              Text(
+                'This ayah has no close parallel elsewhere in the Qur’an.',
+                style: AppTypography.bodySmall(color: AppColors.muted),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Similar verses',
+              style: AppTypography.displaySmall(color: AppColors.textPrimary)),
+          const SizedBox(height: 4),
+          Text(
+            verses.length == 1
+                ? 'One other ayah resembles this one'
+                : '${verses.length} other ayat resemble this one',
+            style: AppTypography.bodySmall(color: AppColors.muted),
+          ),
+          const SizedBox(height: 20),
+          for (final verse in verses) ...[
+            _SimilarVerseCard(verse: verse, onTap: () => _open(context, verse)),
+            const SizedBox(height: 10),
+          ],
+          const SizedBox(height: 8),
+          // The reason the layer exists, stated once at the bottom rather than
+          // as a header nobody reads twice.
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.quranSurface,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              'Verses that resemble each other are where recitation slips from '
+              'one sūrah into another. Knowing them is how the slip is '
+              'caught.',
+              style: AppTypography.bodySmall(color: AppColors.muted),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SimilarVerseCard extends StatelessWidget {
+  const _SimilarVerseCard({required this.verse, required this.onTap});
+
+  final SimilarVerse verse;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.quranSurface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border(left: BorderSide(color: AppColors.gold, width: 3)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(verse.label,
+                      style:
+                          AppTypography.labelMedium(color: AppColors.gold)),
+                ),
+                if (verse.matchType.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.jade.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                    child: Text(verse.matchType,
+                        style: AppTypography.caption(color: AppColors.jade)),
+                  ),
+                const SizedBox(width: 6),
+                Icon(Icons.arrow_forward_ios_rounded,
+                    color: AppColors.muted, size: 12),
+              ],
+            ),
+            if (verse.arabic.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Text(
+                verse.arabic,
+                style: TextStyle(
+                  fontFamily: 'Amiri',
+                  fontSize: 20,
+                  color: AppColors.textPrimary,
+                  height: 1.9,
+                ),
+                textDirection: ui.TextDirection.rtl,
+                textAlign: TextAlign.right,
+              ),
+            ],
+            if (verse.translation.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(verse.translation,
+                  style: AppTypography.bodySmall(color: AppColors.quranMuted)),
+            ],
+            if (verse.sharedPhrase.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Shared: ',
+                      style: AppTypography.caption(color: AppColors.muted)),
+                  Expanded(
+                    child: Text(
+                      verse.sharedPhrase,
+                      style: AppTypography.caption(color: AppColors.jade),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

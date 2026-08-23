@@ -19,15 +19,23 @@ import 'hadith_source.dart';
 class HadithRepository {
   HadithRepository({
     HadithSource? bundled,
+    HadithSource? ummah,
     HadithSource? remote,
     DatabaseService? database,
   })  : _bundled = bundled ?? const BundledHadithSource(),
+        _ummah = ummah ?? UmmahHadithSource(),
         _remote = remote ?? const RemoteHadithSource(),
         _db = database ?? DatabaseService.instance;
 
   static const String table = 'hadith_cache';
 
+  /// Personal reflections on a hadith. Separate table from the ayah
+  /// `reflections` one, because a hadith is keyed by collection and number and
+  /// squeezing that into two integer columns would be a lie about the schema.
+  static const String reflectionTable = 'hadith_reflections';
+
   final HadithSource _bundled;
+  final HadithSource _ummah;
   final HadithSource _remote;
   final DatabaseService _db;
 
@@ -86,12 +94,16 @@ class HadithRepository {
       return null;
     }
 
-    final fetched = await _remote.fetch(ref);
-    if (fetched != null) {
-      _memory[key] = fetched;
-      _missing.remove(key);
-      await _writeRow(fetched);
-      return fetched;
+    // UmmahAPI first — it is the app's own configured service, and it declines
+    // collections it does not carry without spending a request.
+    for (final source in [_ummah, _remote]) {
+      final fetched = await source.fetch(ref);
+      if (fetched != null) {
+        _memory[key] = fetched;
+        _missing.remove(key);
+        await _writeRow(fetched);
+        return fetched;
+      }
     }
 
     _missing.add(key);
@@ -195,6 +207,84 @@ class HadithRepository {
       _memory.removeWhere((_, v) => v.origin == HadithOrigin.cached);
     } catch (_) {
       // Nothing to do.
+    }
+  }
+
+  /// Takes records the topic search already fetched into the same cache a
+  /// citation lookup reads from.
+  ///
+  /// Without this, opening a hadith from a topic list would re-fetch a text that
+  /// arrived in the search payload seconds earlier — and would fail offline for a
+  /// hadith the reader had, in every sense that matters, already read.
+  Future<void> remember(Iterable<HadithRecord> records) async {
+    for (final record in records) {
+      if (!record.hasText) continue;
+      final key = record.ref.canonical;
+      _memory[key] = record;
+      _missing.remove(key);
+      await _writeRow(record);
+    }
+  }
+
+  // ── Reflections ─────────────────────────────────────────────────────
+  //
+  // The fifth layer of the hadith page. Stored locally and never uploaded: a
+  // reflection is the reader's, and the Halaqa share sheet is the only thing that
+  // ever moves one anywhere.
+
+  Future<void> saveReflection(HadithRef ref, String text) async {
+    final trimmed = text.trim();
+    try {
+      final db = await _db.database;
+      if (trimmed.isEmpty) {
+        await db.delete(
+          reflectionTable,
+          where: 'collection = ? AND number = ?',
+          whereArgs: [ref.collection, ref.number],
+        );
+        return;
+      }
+      await db.insert(
+        reflectionTable,
+        {
+          'collection': ref.collection,
+          'number': ref.number,
+          'reflection': trimmed,
+          'saved_at': DateTime.now().toIso8601String(),
+        },
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    } catch (_) {
+      // A reflection that cannot be written must not take the screen down.
+    }
+  }
+
+  Future<String?> reflection(HadithRef ref) async {
+    try {
+      final db = await _db.database;
+      final rows = await db.query(
+        reflectionTable,
+        where: 'collection = ? AND number = ?',
+        whereArgs: [ref.collection, ref.number],
+        limit: 1,
+      );
+      if (rows.isEmpty) return null;
+      final value = rows.first['reflection'] as String?;
+      return (value == null || value.trim().isEmpty) ? null : value;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Counted into the Growth map alongside ayah reflections.
+  Future<int> reflectionCount() async {
+    try {
+      final db = await _db.database;
+      final rows =
+          await db.rawQuery('SELECT COUNT(*) AS c FROM $reflectionTable');
+      return (rows.first['c'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
     }
   }
 }
