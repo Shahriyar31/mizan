@@ -75,6 +75,15 @@ class MyHalaqasNotifier extends AsyncNotifier<List<Halaqa>> {
     return halaqa;
   }
 
+  /// The circle behind an invite code, without joining it.
+  ///
+  /// Used for one case only: [join] threw [HalaqaErrorKind.alreadyMember], which
+  /// is not really a failure — the person typed a code for a circle they are in,
+  /// and what they wanted was to be inside it. The join sheet looks the circle up
+  /// and opens it instead of showing an error about it.
+  Future<Halaqa?> lookUp(String inviteCode) =>
+      ref.read(halaqaRepositoryProvider).getHalaqaByInviteCode(inviteCode);
+
   Future<void> leave(String halaqaId) async {
     final user = await ref.read(effectiveUserProvider.future);
     await ref

@@ -30,13 +30,42 @@ class HalaqaException implements Exception {
   String toString() => 'HalaqaException($kind): ${message ?? ''}';
 }
 
+/// One place that decides what an invite code *is*, so a code that was shared
+/// and a code that was typed can never disagree.
+///
+/// ── Why this exists ───────────────────────────────────────────────────
+/// Codes travel by hand: a friend copies one out of the circle screen and sends
+/// it over WhatsApp, and it arrives wrapped in a sentence, or with a trailing
+/// newline, or the sender broke it up as `K7P2-QM` to make it readable. Both
+/// repositories used to normalise with `trim().toUpperCase()` only, so every one
+/// of those pastes missed a circle that exists and the user was told "no circle
+/// found with that code" — the least useful thing to say when the code is right.
+///
+/// [IdGenerator.inviteCode] draws from `A–Z` minus I/O plus `2–9`, so nothing
+/// outside `[A-Z0-9]` can ever be part of a real code and stripping the rest is
+/// lossless. Digits are kept even though 0 and 1 are never generated: a code
+/// that came back with one in it should fail as "not found", not be silently
+/// rewritten into a different circle's code.
+class HalaqaInviteCode {
+  HalaqaInviteCode._();
+
+  static final RegExp _notCode = RegExp(r'[^A-Z0-9]');
+
+  /// The comparable form of [raw] — uppercased, with spaces, dashes, quotes and
+  /// anything else that is not a code character removed.
+  static String canonical(String raw) =>
+      raw.toUpperCase().replaceAll(_notCode, '');
+}
+
 abstract class HalaqaRepository {
   /// All circles the given user is a member of, newest first.
   Future<List<Halaqa>> getHalaqasForUser(String userId);
 
   Future<Halaqa?> getHalaqaById(String halaqaId);
 
-  /// Look up a circle by its invite code (case-insensitive). Null if none.
+  /// Look up a circle by its invite code. The code is put through
+  /// [HalaqaInviteCode.canonical] first, so case, spaces and dashes in a pasted
+  /// code do not matter. Null if no circle has it.
   Future<Halaqa?> getHalaqaByInviteCode(String inviteCode);
 
   /// Create a new circle and add [creator] as its first member.

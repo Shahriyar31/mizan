@@ -60,8 +60,9 @@ class LocalHalaqaRepository implements HalaqaRepository {
 
   @override
   Future<Halaqa?> getHalaqaByInviteCode(String inviteCode) async {
+    final code = HalaqaInviteCode.canonical(inviteCode);
+    if (code.isEmpty) return null;
     final db = await _db.database;
-    final code = inviteCode.trim().toUpperCase();
     final rows = await db.query(_halaqas,
         where: 'invite_code = ?', whereArgs: [code], limit: 1);
     return rows.isEmpty ? null : Halaqa.fromMap(rows.first);

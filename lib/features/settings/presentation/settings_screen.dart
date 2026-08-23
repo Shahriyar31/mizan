@@ -28,6 +28,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -141,6 +142,7 @@ class SettingsScreen extends ConsumerWidget {
                   subtitle: 'Sources, scholars, terms and privacy',
                   onTap: () => context.push('/settings/more'),
                 ),
+                const _DeveloperRow(),
               ],
             ),
           ],
@@ -391,6 +393,55 @@ Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
 
   if (confirmed == true) {
     await ref.read(authControllerProvider.notifier).deleteAccount();
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  DEVELOPER
+// ══════════════════════════════════════════════════════════════════════
+
+/// The one row on this screen that points off the device: where to find the
+/// person who built the app.
+///
+/// ── Why it copies instead of opening a browser ─────────────────────────
+/// Opening a URL needs `url_launcher`, which is not a dependency of this
+/// project, and adding a plugin means a new native build — not something to do
+/// on the way to a release. The app already has one meaning for "share a link":
+/// the Halaqa invite code copies to the clipboard and says so. This row does
+/// exactly the same thing, so there is one behaviour to learn rather than two,
+/// and it works with no network and no browser installed.
+///
+/// The handle is written out in the subtitle rather than hidden behind the tap,
+/// because a copy action gives no visible destination — if you cannot read where
+/// it goes before you tap it, the row is asking for blind trust.
+class _DeveloperRow extends StatelessWidget {
+  const _DeveloperRow();
+
+  static const String _handle = 'github.com/Shahriyar31';
+  static const String _url = 'https://$_handle';
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+
+    return _SettingsRow(
+      icon: Icons.code_rounded,
+      title: 'Built by Shahriyar',
+      subtitle: '$_handle · tap to copy',
+      onTap: () async {
+        await Clipboard.setData(const ClipboardData(text: _url));
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: p.ink,
+            content: Text(
+              'Link copied — $_handle',
+              style: MizanType.body(color: p.page),
+            ),
+          ),
+        );
+      },
+    );
   }
 }
 

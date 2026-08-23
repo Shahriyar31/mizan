@@ -1,6 +1,8 @@
-/// Settings state: theme mode and the local account.
+/// Settings state: theme mode and the signed-in account.
 ///
-/// Both are persisted in SharedPreferences so the choice survives a restart.
+/// The theme choice is persisted in SharedPreferences so it survives a restart.
+/// The account is **not** stored here — it lives in Supabase Auth, and this file
+/// only mirrors the current session so the UI can react to it.
 library;
 
 import 'dart:async';
@@ -112,27 +114,34 @@ class AuthController extends StateNotifier<AuthState> {
     state = AuthState(account: account, hasAccount: has, loading: false);
   }
 
-  Future<String?> signUp({
+  Future<AuthResult> signUp({
     required String name,
     required String email,
     required String password,
   }) async {
-    final error = await _repo.signUp(name: name, email: email, password: password);
-    if (error == null) {
+    final result =
+        await _repo.signUp(name: name, email: email, password: password);
+    // A notice means the account was created but there is no session yet
+    // (email confirmation pending), so the state still has to be re-read —
+    // `hasAccount` has changed even though `signedIn` has not.
+    if (!result.isFailure) {
       await refresh();
-      await _syncIdentityName(name);
+      if (result.isOk) await _syncIdentityName(name);
     }
-    return error;
+    return result;
   }
 
-  Future<String?> logIn({required String email, required String password}) async {
-    final error = await _repo.logIn(email: email, password: password);
-    if (error == null) {
+  Future<AuthResult> logIn({
+    required String email,
+    required String password,
+  }) async {
+    final result = await _repo.logIn(email: email, password: password);
+    if (result.isOk) {
       await refresh();
       final name = state.account?.name;
       if (name != null) await _syncIdentityName(name);
     }
-    return error;
+    return result;
   }
 
   Future<String?> rename(String name) async {

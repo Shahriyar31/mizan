@@ -6,6 +6,18 @@
 /// The [UserProfile] passed in here must already carry the authenticated
 /// user's real id (see halaqa_providers.dart's `effectiveUserProvider`) —
 /// this repository never invents an id.
+///
+/// ── A member's name is read, never written ────────────────────────────
+/// `halaqa_members` has no `display_name` column — 001 defines it as
+/// `(id, halaqa_id, user_id, joined_at, last_opened_at)` and 003 adds only
+/// `last_active_at`. This file used to insert `display_name` anyway on both
+/// create and join, which meant Postgres rejected every member insert a
+/// signed-in user made: creating a circle wrote the `halaqas` row and then
+/// failed, leaving a circle with no members holding a burnt invite code, and
+/// joining one failed outright. Names now come from `users.display_name`
+/// through the `user_id` foreign key, which is also the only way a member list
+/// can show a *current* name — a copy written at join time would still say
+/// whatever the person was called months ago.
 library;
 
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -43,10 +55,12 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
 
   @override
   Future<Halaqa?> getHalaqaByInviteCode(String inviteCode) async {
+    final code = HalaqaInviteCode.canonical(inviteCode);
+    if (code.isEmpty) return null;
     final row = await _c
         .from('halaqas')
         .select()
-        .eq('invite_code', inviteCode.trim().toUpperCase())
+        .eq('invite_code', code)
         .maybeSingle();
     return row == null ? null : Halaqa.fromMap(row);
   }
@@ -75,11 +89,26 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
         .single();
     final halaqa = Halaqa.fromMap(row);
 
-    await _c.from('halaqa_members').insert({
-      'halaqa_id': halaqa.id,
-      'user_id': creator.id,
-      'display_name': creator.displayName,
-    });
+    // Two inserts, and Postgrest gives no transaction across them. If the
+    // second one fails the first must be undone: a circle with no members is
+    // invisible to its own creator (the list is built from memberships) while
+    // still holding its invite code, so the code is spent on something nobody
+    // can reach or delete.
+    try {
+      await _c.from('halaqa_members').insert({
+        'halaqa_id': halaqa.id,
+        'user_id': creator.id,
+      });
+    } catch (e) {
+      AppLogger.error('Member insert failed, rolling back circle: $e',
+          tag: _tag);
+      try {
+        await _c.from('halaqas').delete().eq('id', halaqa.id);
+      } catch (cleanupError) {
+        AppLogger.error('Rollback failed too: $cleanupError', tag: _tag);
+      }
+      rethrow;
+    }
 
     AppLogger.info('Created halaqa "${halaqa.name}" (${halaqa.inviteCode})',
         tag: _tag);
@@ -101,7 +130,6 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
       await _c.from('halaqa_members').insert({
         'halaqa_id': halaqa.id,
         'user_id': user.id,
-        'display_name': user.displayName,
       });
     } on PostgrestException catch (e) {
       if (e.code == '23505') {
@@ -111,6 +139,14 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
       if (e.code == 'P0001' || e.message.contains('halaqa_full')) {
         throw HalaqaException(HalaqaErrorKind.full,
             'This circle is full (${halaqa.maxMembers} members).');
+      }
+      // 23503 is a foreign-key violation, which here means there is no
+      // `users` row for this account — the profile mirror never ran. Logged
+      // plainly because the generic "could not join" message the UI shows
+      // would otherwise hide a cause that is fixable.
+      if (e.code == '23503') {
+        AppLogger.error(
+            'No users row for ${user.id} — profile mirror missing', tag: _tag);
       }
       rethrow;
     }
@@ -134,13 +170,19 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
 
   @override
   Future<List<HalaqaMember>> getMembers(String halaqaId) async {
+    // `users(display_name)` follows the halaqa_members.user_id → users.id
+    // foreign key, so each row arrives with a nested {display_name: …}. This is
+    // the only FK from this table to `users`, so the embed is unambiguous, and
+    // `users_select_authenticated` (002) makes the join readable by any
+    // signed-in member.
     final rows = await _c
         .from('halaqa_members')
-        .select()
+        .select('id, halaqa_id, user_id, joined_at, last_active_at, '
+            'users(display_name)')
         .eq('halaqa_id', halaqaId)
         .order('joined_at', ascending: true);
     return (rows as List)
-        .map((r) => HalaqaMember.fromMap(r as Map<String, dynamic>))
+        .map((r) => _memberFromRow(r as Map<String, dynamic>))
         .toList();
   }
 
@@ -284,6 +326,31 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
   }
 
   // ── helpers ────────────────────────────────────────────────────
+
+  /// A member row plus its embedded profile. The name lives in `users`, not in
+  /// `halaqa_members`, so it is unwrapped here rather than in
+  /// [HalaqaMember.fromMap] — that factory reads flat SQLite rows and should not
+  /// have to know about Postgrest's nested embeds.
+  ///
+  /// A missing name falls back to "Member": the FK guarantees a `users` row
+  /// exists, but `display_name` arriving empty must not take down a member list
+  /// that is otherwise perfectly readable.
+  HalaqaMember _memberFromRow(Map<String, dynamic> row) {
+    final profile = row['users'];
+    final name = profile is Map<String, dynamic>
+        ? (profile['display_name'] as String?)?.trim()
+        : null;
+    return HalaqaMember(
+      id: row['id'] as String,
+      halaqaId: row['halaqa_id'] as String,
+      userId: row['user_id'] as String,
+      displayName: (name == null || name.isEmpty) ? 'Member' : name,
+      joinedAt: DateTime.parse(row['joined_at'] as String),
+      lastActiveAt: (row['last_active_at'] as String?) != null
+          ? DateTime.parse(row['last_active_at'] as String)
+          : null,
+    );
+  }
 
   HalaqaShare _shareFromRow(Map<String, dynamic> row) {
     // content_json is the source of truth; content_id/content_type columns

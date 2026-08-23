@@ -94,11 +94,17 @@ class HalaqaMember {
         'last_active_at': lastActiveAt?.toIso8601String(),
       };
 
+  /// Reads a flat SQLite row (see DatabaseService's `halaqa_members` table,
+  /// where `display_name` is a real NOT NULL column). The Supabase side has no
+  /// such column and reads the name through the `users` foreign key instead —
+  /// see `SupabaseHalaqaRepository._memberFromRow`. The name is still read
+  /// defensively here so a row written by an older build can't crash a member
+  /// list.
   factory HalaqaMember.fromMap(Map<String, dynamic> m) => HalaqaMember(
         id: m['id'] as String,
         halaqaId: m['halaqa_id'] as String,
         userId: m['user_id'] as String,
-        displayName: m['display_name'] as String,
+        displayName: (m['display_name'] as String?) ?? 'Member',
         joinedAt: DateTime.parse(m['joined_at'] as String),
         lastActiveAt: (m['last_active_at'] as String?) != null
             ? DateTime.parse(m['last_active_at'] as String)
