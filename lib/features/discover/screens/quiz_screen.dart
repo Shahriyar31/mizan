@@ -8,8 +8,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
-import 'package:taddabur/core/theme/app_colors.dart';
-import 'package:taddabur/core/theme/app_typography.dart';
+import 'package:mizan/core/theme/app_colors.dart';
+import 'package:mizan/core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/discover_models.dart';
 import '../providers/discover_providers.dart';

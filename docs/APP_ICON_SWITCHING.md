@@ -184,11 +184,14 @@ mark change freely, and put the launcher swap behind its own explicit action.
 3. Test: cold start on each variant, swap while backgrounded, swap twice quickly,
    and confirm the app still appears in the launcher after each.
 
-## Unrelated but blocking release
+## Unrelated: the application id (resolved 2026-08-23)
 
-`android/app/build.gradle.kts` still has `applicationId = "com.example.ummahapp"`
-and a matching `namespace`. Google Play rejects any `com.example.*` ID. Changing it
-is not a rename-and-go: it changes the app's identity, so existing installs are
-treated as a different app, and it has to be updated anywhere the package name is
-registered — OAuth redirect URIs and push credentials in particular. Worth doing
-early, while the install base is only you.
+`android/app/build.gradle.kts` now has
+`applicationId = "io.github.shahriyar31.mizan"` and a matching `namespace`, and
+the MainActivity package plus its directory moved with it. It was
+`com.example.ummahapp`, which Google Play rejects outright.
+
+This changed the app's identity, so the next install is a fresh install rather
+than an update — deliberately done now, while the install base is one device. If
+OAuth redirect URIs or push credentials are ever registered against the package
+name, they must use the new id.

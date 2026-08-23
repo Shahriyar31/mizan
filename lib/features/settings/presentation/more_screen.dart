@@ -1,4 +1,4 @@
-/// More — FAQ, How Taddabur Works, Terms, Privacy, About, Licenses.
+/// More — FAQ, How Mizan Works, Terms, Privacy, About, Licenses.
 /// FAQ/How-it-works describe the app's actual real behavior — nothing
 /// fabricated. Terms/Privacy have no real legal text in the project;
 /// their screens say so plainly rather than inventing legal claims.
@@ -28,7 +28,7 @@ class MoreScreen extends StatelessWidget {
             ),
             SettingsRow(
               icon: Icons.explore_outlined,
-              title: 'How Taddabur Works',
+              title: 'How Mizan Works',
               onTap: () => context.push('/settings/more/how-it-works'),
             ),
             SettingsRow(
@@ -43,7 +43,7 @@ class MoreScreen extends StatelessWidget {
             ),
             SettingsRow(
               icon: Icons.info_outline_rounded,
-              title: 'About Taddabur',
+              title: 'About Mizan',
               onTap: () => context.push('/settings/more/about'),
             ),
             SettingsRow(
@@ -51,7 +51,7 @@ class MoreScreen extends StatelessWidget {
               title: 'Open-source licenses',
               onTap: () => showLicensePage(
                 context: context,
-                applicationName: 'Taddabur',
+                applicationName: 'Mizan',
                 applicationVersion: '0.1.0',
               ),
             ),

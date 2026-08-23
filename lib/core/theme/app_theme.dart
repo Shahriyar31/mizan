@@ -1,4 +1,4 @@
-/// Taddabur App Theme
+/// Mizan App Theme
 ///
 /// Assembles AppColors and AppTypography into Flutter's ThemeData.
 /// Every Material widget in the app inherits these styles automatically.

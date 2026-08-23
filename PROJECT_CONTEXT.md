@@ -1,4 +1,4 @@
-# Taddabur (تَدَبُّر) — Project Context for Claude Code
+# Mizan (ميزان) — Project Context for Claude Code
 
 *Generated from a full read of the codebase on 2026-08-21. This is a working handoff doc, not marketing copy — update it as the app evolves.*
 
@@ -8,7 +8,7 @@
 
 Muslims globally fall into a recurring cycle: spiritual motivation → engagement with deen → dunya pulls them away → guilt → return → repeat. Existing Islamic apps (Quran readers, hadith apps, tafseer sites) solve *content access* but not this *behavioral* cycle — they're libraries, not companions.
 
-Specific gaps that motivated Taddabur:
+Specific gaps that motivated Mizan:
 - Tafseer exists but reads like an encyclopedia — no narrative pull, no context.
 - No community-accountability feature in any mainstream Islamic app.
 - People recite the same surahs in salah 17×/day without understanding the meaning.
@@ -22,7 +22,7 @@ Specific gaps that motivated Taddabur:
 | Curiosity | Episodic content that can't be binged (1 layer/day) | Ayah of the Week / 5-layer tafseer |
 | Identity mirror | Seeing your own growth reflected back | Growth Map |
 
-The name itself — *Taddabur* — is Quranic: "Will they not reflect (yatadabbarūna) upon the Quran?" (47:24). The whole app is a bet that **reflection**, not just information, is the missing layer in Muslim digital habits.
+The app was called *Taddabur* while it was being built, after the Quranic "Will they not reflect (yatadabbarūna) upon the Quran?" (47:24). It is now **Mizan** (ميزان, "the scale") — same bet, that **reflection** rather than information is the missing layer in Muslim digital habits, weighed rather than skimmed.
 
 ## 2. What kind of project this is
 

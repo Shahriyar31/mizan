@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.ummahapp"
+    namespace = "io.github.shahriyar31.mizan"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -17,8 +17,8 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.ummahapp"
+        // Reverse-domain id derived from github.com/Shahriyar31. Play rejects com.example.*.
+        applicationId = "io.github.shahriyar31.mizan"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

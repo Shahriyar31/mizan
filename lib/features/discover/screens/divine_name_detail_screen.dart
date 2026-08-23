@@ -1,12 +1,12 @@
 // divine_name_detail_screen.dart — same pattern as prophet/sahabi/seerah
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:taddabur/core/theme/app_colors.dart';
-import 'package:taddabur/core/theme/app_typography.dart';
-import 'package:taddabur/core/knowledge/entity_ref.dart';
-import 'package:taddabur/shared/widgets/layer_story_scaffold.dart';
-import 'package:taddabur/features/sharing/share_target_sheet.dart';
-import 'package:taddabur/features/discover/data/discover_share_mapper.dart';
+import 'package:mizan/core/theme/app_colors.dart';
+import 'package:mizan/core/theme/app_typography.dart';
+import 'package:mizan/core/knowledge/entity_ref.dart';
+import 'package:mizan/shared/widgets/layer_story_scaffold.dart';
+import 'package:mizan/features/sharing/share_target_sheet.dart';
+import 'package:mizan/features/discover/data/discover_share_mapper.dart';
 import '../models/discover_models.dart';
 import '../providers/discover_providers.dart';
 import 'quiz_screen.dart';

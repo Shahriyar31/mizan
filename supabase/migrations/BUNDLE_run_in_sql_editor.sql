@@ -1,11 +1,11 @@
--- Taddabur — full schema bundle for a fresh cloud project.
+-- Mizan — full schema bundle for a fresh cloud project.
 -- Paste into Supabase Studio → SQL Editor → Run. Safe to run once, in this order.
 
 -- ============================================================
 -- 001_initial_schema.sql
 -- ============================================================
 -- ═══════════════════════════════════════════════════════════════
--- Taddabur Initial Database Schema
+-- Mizan Initial Database Schema
 -- Migration: 001_initial_schema.sql
 -- ═══════════════════════════════════════════════════════════════
 

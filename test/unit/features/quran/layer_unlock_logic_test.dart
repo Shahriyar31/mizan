@@ -3,7 +3,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-// import 'package:taddabur/features/quran/domain/layer_unlock_logic.dart';
+// import 'package:mizan/features/quran/domain/layer_unlock_logic.dart';
 
 void main() {
   group('LayerUnlockLogic', () {

@@ -11,7 +11,7 @@
 3. **Inter is not actually bundled.** Six places set `fontFamily: 'Inter'` as a raw string against a family that was never declared, so they silently render in Roboto — including the bottom navigation labels. This is a live bug, visible today.
 4. **Two fonts are fetched over the network at runtime.** Lora and Inter come from `google_fonts` with no bundled offline fallback. For an offline-first app aiming at worldwide use, first launch on a poor connection degrades typography.
 5. **The bottom nav has 5 items, not 6.** Growth has a route but no nav item, and because `/growth` isn't in the nav's route list the nav highlights HOME while Growth is on screen. Same for Settings.
-6. **The app has two competing identities**: the Dart package is `taddabur`, every native platform is `ummahapp`. A rename has to reconcile both. Section 6 is the complete checklist.
+6. **The app had two competing identities**: the Dart package was `taddabur`, every native platform `ummahapp`. Both were reconciled to `mizan` on 2026-08-23 — section 6 records what was found and what shipped.
 7. **No brand assets exist yet.** Every launcher icon is the stock Flutter template, and the splash screen is still default white — a white flash before a dark app. `assets/` contains no imagery at all.
 
 ---
@@ -201,6 +201,21 @@ These are the consolidation targets, and they're the reason a redesign currently
 
 ## 6. Rename checklist
 
+> **Status: executed 2026-08-23.** Everything below is the "before" survey and is
+> kept as a record of what was found, not as outstanding work. What actually
+> shipped: `pubspec.yaml` `name: mizan` and every `package:` import rewritten;
+> `TadabburApp` → `MizanApp`; `AboutTaddaburScreen` → `AboutMizanScreen`; all
+> user-visible strings and the four notification bodies; `mizan.db` and
+> `mizan_discover_v2.db` **each with a rename-on-open migration** so existing
+> data survives; channel id `mizan_daily` with the legacy channel deleted on
+> launch; `applicationId`/`namespace` → `io.github.shahriyar31.mizan` with the
+> MainActivity package and directory moved; iOS/web/Linux/Windows names;
+> `test/widget_test.dart` rewritten (it was uncompilable boilerplate). Two things
+> deliberately left: the seerah JSON's content use of the word, and the macOS
+> Xcode product references (macOS is not a build target, and sed-ing a pbxproj
+> product reference breaks builds for no gain). The GitHub repository name is a
+> manual step for the account owner.
+
 The app currently has **two identities**: the Dart package is `taddabur`, every native platform target is `ummahapp`. Both need reconciling to the new name. Build artefacts excluded.
 
 ### Dart package name — 30 `package:taddabur` references in 10 files
@@ -243,7 +258,7 @@ Changing these strings makes the app look for a database that doesn't exist, sil
 
 **Windows** — `windows/CMakeLists.txt:3,7` · `windows/runner/Runner.rc:93,95,97,98` · `windows/runner/main.cpp:30`
 
-⚠️ `applicationId` / `PRODUCT_BUNDLE_IDENTIFIER` are still `com.example.*`, which **cannot be published** to either store. Fix this as part of the rename.
+⚠️ `applicationId` / `PRODUCT_BUNDLE_IDENTIFIER` were `com.example.*`, which **cannot be published** to either store. Both are now `io.github.shahriyar31.mizan`.
 
 ### Infra and docs
 

@@ -11,6 +11,8 @@
 /// the ayah `reflections` table's two integer columns.
 library;
 
+import 'dart:io';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../../core/utils/logger.dart';
@@ -21,6 +23,8 @@ class DatabaseService {
   static Database? _database;
   static const String _tag = 'DatabaseService';
   static const int _version = 6; // v6 adds hadith_reflections
+  static const String _dbName = 'mizan.db';
+  static const String _legacyDbName = 'taddabur.db';
 
   Future<Database> get database async {
     if (_database != null) return _database!;
@@ -30,7 +34,8 @@ class DatabaseService {
 
   Future<Database> _openDatabase() async {
     final databasesPath = await getDatabasesPath();
-    final path = join(databasesPath, 'taddabur.db');
+    final path = join(databasesPath, _dbName);
+    await _migrateLegacyFile(databasesPath);
     AppLogger.info('Opening database at $path', tag: _tag);
     return openDatabase(
       path,
@@ -38,6 +43,35 @@ class DatabaseService {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// The app was called Taddabur, so the file was `taddabur.db`. Renaming the
+  /// product renamed the file, and simply pointing at a new name would have
+  /// left every existing install staring at an empty app — saved words,
+  /// reflections, unlocked layers, Halaqa rows, all still on disk but
+  /// unreachable. So on first open under the new name, the old file is moved
+  /// across. `openDatabase` then runs `onUpgrade` against it exactly as it
+  /// would have before; nothing about the schema changes here.
+  ///
+  /// Only ever moves *into* an absent target. If `mizan.db` already exists the
+  /// migration has happened (or the user is genuinely new) and the legacy file,
+  /// if any, is stale — overwriting live data with it would be the one
+  /// unrecoverable mistake available in this function.
+  Future<void> _migrateLegacyFile(String databasesPath) async {
+    final target = join(databasesPath, _dbName);
+    final legacy = join(databasesPath, _legacyDbName);
+    try {
+      if (await databaseExists(target)) return;
+      if (!await databaseExists(legacy)) return;
+      await File(legacy).rename(target);
+      AppLogger.info('Migrated $_legacyDbName → $_dbName', tag: _tag);
+    } catch (e) {
+      // A failed rename must not stop the app booting: falling through leaves
+      // the old file untouched and opens a fresh database, which is degraded
+      // but usable. Losing the launch entirely would be worse.
+      AppLogger.error('Legacy database rename failed',
+          error: e, tag: _tag);
+    }
   }
 
   Future<void> _onCreate(Database db, int version) async {

@@ -12,8 +12,9 @@ MIRROR=/tmp/mizan-analyze
 DART="$MNT/flutter/bin/cache/dart-sdk/bin/dart"
 
 mkdir -p "$MIRROR/.dart_tool"
-rm -rf "$MIRROR/lib"
+rm -rf "$MIRROR/lib" "$MIRROR/test"
 cp -a "$PROJ/lib" "$MIRROR/lib"
+[ -d "$PROJ/test" ] && cp -a "$PROJ/test" "$MIRROR/test"
 cp -a "$PROJ/pubspec.yaml" "$MIRROR/pubspec.yaml"
 [ -f "$PROJ/analysis_options.yaml" ] && cp -a "$PROJ/analysis_options.yaml" "$MIRROR/analysis_options.yaml"
 
@@ -28,7 +29,7 @@ for p in d['packages']:
                   develop_mnt)
     u = u.replace('file:///home/shahriyar/.pub-cache/',
                   cache_mnt)
-    if p['name'] == 'ummahapp':
+    if p['name'] in ('mizan', 'ummahapp', 'taddabur'):
         u = 'file://' + mirror
     p['rootUri'] = u
 json.dump(d, open(mirror + '/.dart_tool/package_config.json', 'w'), indent=2)

@@ -1,4 +1,4 @@
-/// TadabburApp — root widget
+/// MizanApp — root widget
 /// Sets up: theme, router, localization, Riverpod
 library;
 
@@ -11,19 +11,19 @@ import 'core/theme/mizan_theme.dart';
 import 'features/settings/domain/settings_providers.dart';
 import 'l10n/app_localizations.dart';
 
-class TadabburApp extends StatelessWidget {
-  const TadabburApp({super.key});
+class MizanApp extends StatelessWidget {
+  const MizanApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const ProviderScope(
-      child: _TadabburMaterialApp(),
+      child: _MizanMaterialApp(),
     );
   }
 }
 
-class _TadabburMaterialApp extends ConsumerWidget {
-  const _TadabburMaterialApp();
+class _MizanMaterialApp extends ConsumerWidget {
+  const _MizanMaterialApp();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

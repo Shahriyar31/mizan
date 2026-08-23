@@ -1,7 +1,7 @@
 /// LocalHalaqaRepository — SQLite implementation of [HalaqaRepository].
 ///
 /// This is the "now" implementation: everything lives in the on-device
-/// `taddabur.db`. It is deliberately the ONLY place that knows about tables
+/// `mizan.db`. It is deliberately the ONLY place that knows about tables
 /// and columns for circles. Because it implements [HalaqaRepository], the rest
 /// of the app is insulated from it — swapping in a Supabase version later is a
 /// one-line change in the provider.

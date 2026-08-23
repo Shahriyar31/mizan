@@ -140,13 +140,13 @@ class NotificationPreferencesController
     }
 
     await apply(state.dailyAyah, NotificationIds.dailyAyah,
-        'Ayah to sit with', 'Today\'s ayah is ready for you in Taddabur.');
+        'Ayah to sit with', 'Today\'s ayah is ready for you in Mizan.');
     await apply(state.dailyDua, NotificationIds.dailyDua, 'Daily Dua',
-        'Today\'s dua is ready for you in Taddabur.');
+        'Today\'s dua is ready for you in Mizan.');
     await apply(state.todaysEncounter, NotificationIds.todaysEncounter,
-        "Today's Encounter", 'A new discovery is waiting in Taddabur.');
+        "Today's Encounter", 'A new discovery is waiting in Mizan.');
     await apply(state.learningReminder, NotificationIds.learningReminder,
-        'Continue your journey', 'Pick up where you left off in Taddabur.');
+        'Continue your journey', 'Pick up where you left off in Mizan.');
   }
 }
 

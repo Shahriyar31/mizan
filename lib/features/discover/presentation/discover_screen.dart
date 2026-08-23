@@ -1,2 +1,2 @@
 library;
-export 'package:taddabur/features/discover/screens/discover_screen.dart';
+export 'package:mizan/features/discover/screens/discover_screen.dart';

@@ -1,4 +1,4 @@
-/// Taddabur Typography System
+/// Mizan Typography System
 ///
 /// Three typefaces, used with strict purpose:
 ///   Amiri  → ALL Arabic text, no exceptions

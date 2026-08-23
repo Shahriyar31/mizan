@@ -1,4 +1,4 @@
-/// Taddabur — Entry Point
+/// Mizan — Entry Point
 library;
 
 import 'package:flutter/material.dart';
@@ -60,5 +60,5 @@ Future<void> main() async {
   // and an "empty tables" check). Never throws — safe to await here.
   await SocialSeeder.run();
 
-  runApp(const TadabburApp());
+  runApp(const MizanApp());
 }

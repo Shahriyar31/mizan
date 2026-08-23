@@ -26,6 +26,21 @@ class NotificationService {
 
   final _plugin = FlutterLocalNotificationsPlugin();
   static const _tag = 'NotificationService';
+
+  /// Android notification channel. The id is user-visible in system settings,
+  /// where it groups these reminders under the app.
+  static const _channelId = 'mizan_daily';
+  static const _channelName = 'Daily reminders';
+
+  /// The channel id used while the app was called Taddabur. Android keeps a
+  /// channel registered forever once created, so leaving this behind would
+  /// have shown the user two identical "Daily reminders" entries in system
+  /// settings — one of them dead. It is deleted in [init], which runs before
+  /// anything is scheduled, so no pending alarm is ever left pointing at it:
+  /// `NotificationPreferencesController._load` re-arms every category on each
+  /// launch using the same stable ids, which replaces the old alarms outright.
+  static const _legacyChannelId = 'taddabur_daily';
+
   bool _initialized = false;
 
   Future<void> init() async {
@@ -44,7 +59,21 @@ class NotificationService {
       settings: const InitializationSettings(
           android: androidInit, iOS: iosInit),
     );
+    await _deleteLegacyChannel();
     _initialized = true;
+  }
+
+  Future<void> _deleteLegacyChannel() async {
+    try {
+      await _plugin
+          .resolvePlatformSpecificImplementation<
+              AndroidFlutterLocalNotificationsPlugin>()
+          ?.deleteNotificationChannel(channelId: _legacyChannelId);
+    } catch (e) {
+      // Cosmetic cleanup only — never worth failing init over.
+      AppLogger.error('Could not delete legacy notification channel',
+          error: e, tag: _tag);
+    }
   }
 
   Future<bool> requestPermission() async {
@@ -79,8 +108,8 @@ class NotificationService {
       scheduledDate: scheduled,
       notificationDetails: const NotificationDetails(
         android: AndroidNotificationDetails(
-          'taddabur_daily',
-          'Daily reminders',
+          _channelId,
+          _channelName,
           importance: Importance.defaultImportance,
         ),
         iOS: DarwinNotificationDetails(),

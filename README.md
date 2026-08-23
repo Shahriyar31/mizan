@@ -20,7 +20,7 @@ missing the app says so rather than filling the gap.
 
 ## Contents
 
-- [The three names](#the-three-names)
+- [The name](#the-name)
 - [What the app does](#what-the-app-does)
 - [The six layers](#the-six-layers)
 - [Citation Lock](#citation-lock)
@@ -43,20 +43,32 @@ missing the app says so rather than filling the gap.
 
 ---
 
-## The three names
+## The name
 
-Three different names appear in this repository, and it is worth knowing which
-is which before you go looking for something:
+**Mizan** — ميزان, "the scale" — is the only name in this project. Product name,
+Dart package, database file, Android application id, window title, wordmark: all
+one word.
 
-| Name | Where it lives | Why |
+It did not start that way. Two earlier names, `ummahapp` and `taddabur`, had
+spread across the pubspec, every import, the SQLite filenames, the notification
+channel and the build identifiers. They are gone. Three places keep a deliberate
+trace, and each one is load-bearing:
+
+| Where | What it says | Why it must stay |
 | --- | --- | --- |
-| **Mizan** | `android:label` in the manifest, the wordmark, the design system, this README | The product name. What a user sees. |
-| **taddabur** | `pubspec.yaml` `name:`, therefore every `package:taddabur/…` import, `taddabur.db`, the notification channel id | The original working name. Renaming a Dart package rewrites every import in 192 files and changes the SQLite filename underneath existing installs, so it was left alone deliberately. |
-| **ummahapp** | The repository, the Gradle `namespace`, `applicationId` | The very first name, surviving only in build identifiers. |
+| `DatabaseService._legacyDbName` | `taddabur.db` | Renaming the file would have hidden every existing install's saved words, reflections and unlocked layers. The old file is moved to `mizan.db` on first open instead. |
+| `DiscoverDatabase._legacyDbName` | `taddabur_discover_v2.db` | Same, for Discover reading progress. |
+| `NotificationService._legacyChannelId` | `taddabur_daily` | Android keeps a channel registered forever once created. This one is deleted on launch so the user does not see two identical "Daily reminders" entries in system settings. |
 
-None of this is user-visible except where noted in
-[Known limitations](#known-limitations). It is recorded here so nobody assumes
-they have found three projects.
+One more, unrelated to branding:
+`assets/data/discover/seerah/first_revelation.json` uses the word *taddabur* in
+its content, meaning deep reflection. That is Arabic vocabulary in a sourced
+narration, not a leftover, and it stays.
+
+The **repository directory and its GitHub URL are still `ummahapp`** — that is a
+rename only the account owner can perform, in the repo's GitHub settings. GitHub
+redirects the old URL afterwards, so nothing breaks; the local remote then needs
+`git remote set-url`.
 
 ---
 
@@ -393,7 +405,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 
 ## Local database
 
-`sqflite`, file `taddabur.db`, **schema version 6**. Thirteen tables:
+`sqflite`, file `mizan.db`, **schema version 6**. Thirteen tables:
 
 | Table | Holds |
 | --- | --- |
@@ -411,7 +423,7 @@ Dart SDK `>=3.3.0 <4.0.0`.
 | `minbar_shares` | Public feed items |
 | `minbar_reactions` | Public feed reactions |
 
-Discover keeps its own database, `taddabur_discover_v2.db`.
+Discover keeps its own database, `mizan_discover_v2.db`.
 
 Shared content is stored as a JSON **snapshot**, not a reference. A card in a
 feed renders instantly and cannot break later because the source moved.
@@ -546,7 +558,11 @@ flutter test
 Test coverage is thin and honestly so: `test/unit/features/quran/layer_unlock_logic_test.dart`
 and `test/widget_test.dart`. The layer unlock schedule is the one piece of logic
 with real unit coverage, because it is the piece where an off-by-one silently
-changes what a saved row means.
+changes what a saved row means. `widget_test.dart` covers the theme layer —
+that light and dark resolve independently, and that a `MizanButton` renders and
+fires. Nothing pumps the real app root: it boots GoRouter, sqflite, dotenv and
+SharedPreferences, none of which answer in a bare `flutter test`, and faking a
+smoke test around that would prove less than the absence of one admits.
 
 Other tools in `tools/`:
 
@@ -576,10 +592,11 @@ flutter build apk --debug
 flutter install
 ```
 
-> ⚠️ `applicationId` is still `com.example.ummahapp`. Google Play rejects any
-> `com.example.*` package outright, and changing it after people have installed
-> the app means a fresh install rather than an update — so it must change
-> **before** the build that goes to anyone you would call a user.
+> The `applicationId` is `io.github.shahriyar31.mizan`. It was `com.example.*`
+> until now, which Google Play rejects outright; it was changed **before** any
+> build went to anyone, because changing it afterwards means a fresh install
+> rather than an update. Anyone forking this must change it to their own
+> reverse-domain id.
 
 ---
 
@@ -595,8 +612,6 @@ unfinished.
   `Duration(hours: 24)`. It is set low on purpose right now so the layer
   progression can be exercised on a device in one sitting; it must not be changed
   without saying so, because device testing depends on it.
-- **`applicationId` / Gradle `namespace` are `com.example.ummahapp`.** Play will
-  reject it.
 - **No LICENSE file.** Without one, default copyright applies and nobody may
   legally reuse this code. Add one before making the repository public.
 
@@ -660,23 +675,21 @@ has no authoring dates.
 
 ### Leftover names
 
-`taddabur` survives in user-invisible places — the Dart package name and every
-import, `taddabur.db`, `taddabur_discover_v2.db`, the notification channel id —
-and in a few strings that **are** visible. The worst are the scheduled
-notification bodies in `notification_preferences_provider.dart` (lines ~142–149):
-four of them read "…in Taddabur", so the wrong product name is pushed to the lock
-screen. `more_screen.dart` and `more_content_screens.dart` carry it too, and
-`AboutTaddaburScreen` is still the class behind Settings → About.
+Resolved. The Dart package, both SQLite filenames, the notification channel, the
+Android application id, the native window titles and every user-visible string
+now read Mizan. What remains is three legacy constants used only to migrate
+existing installs, and one content use of the Arabic word — both explained under
+[The name](#the-name). The GitHub repository is still called `ummahapp`; that
+rename is a manual step in GitHub's settings.
 
 ### Repository hygiene
 
-Ten one-off Python scripts sit at the repository root (`fix_all_copywith.py`,
-`fix_citation.py`, `fix_discover.py`, `fix_final.py`, `fix_navigation.py`,
-`fix_provider.py`, `fix_seerah_and_home.py`, `fix_surgical.py`,
-`fix_theme_mismatch.py`, `generate_remaining_names.py`) along with
-`setup_structure.sh` and a `docker-compose.yml` from an abandoned local-Supabase
-workflow. They are spent migration scripts, not part of the build, and are being
-deleted. `PROJECT_CONTEXT.md` is a working note, not documentation.
+The eleven spent one-off migration scripts that used to sit at the repository
+root (`fix_*.py`, `generate_remaining_names.py`, `setup_structure.sh`) have been
+deleted — they were applied once, months of the old name lived in them, and none
+of them were part of the build. Still at the root: `docker-compose.yml` from an
+abandoned local-Supabase workflow, and `PROJECT_CONTEXT.md`, which is a working
+note rather than documentation.
 
 ---
 

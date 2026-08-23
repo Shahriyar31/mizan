@@ -182,7 +182,8 @@ Two blockers before a store release, neither changed silently:
 
 - `LayerMeta.unlockInterval` is `Duration(seconds: 1)`. It must become 24 hours.
   It is left as-is because you are relying on it for device testing.
-- `applicationId` is still `com.example.ummahapp`. Play will reject it.
+- `applicationId` is now `io.github.shahriyar31.mizan` (was `com.example.*`,
+  which Play rejects). Changed 2026-08-23.
 
 One action outstanding: `git push origin main` — five commits are unpushed, and
 push from this sandbox is blocked by the proxy.

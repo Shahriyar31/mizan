@@ -46,8 +46,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:taddabur/core/theme/app_colors.dart';
-import 'package:taddabur/core/theme/app_typography.dart';
+import 'package:mizan/core/theme/app_colors.dart';
+import 'package:mizan/core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/mizan_tokens.dart';

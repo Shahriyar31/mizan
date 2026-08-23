@@ -20,8 +20,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import 'package:flutter/material.dart';
-import 'package:taddabur/core/theme/app_colors.dart';
-import 'package:taddabur/core/theme/app_typography.dart';
+import 'package:mizan/core/theme/app_colors.dart';
+import 'package:mizan/core/theme/app_typography.dart';
 
 /// Reading state of one entry, used by the filter chips.
 enum DiscoverItemStatus { fresh, reading, complete }

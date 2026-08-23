@@ -54,7 +54,7 @@ class HowItWorksScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MoreContentScreen(
-      title: 'How Taddabur Works',
+      title: 'How Mizan Works',
       sections: [
         (
           'Quran',
@@ -130,16 +130,16 @@ class PrivacyScreen extends StatelessWidget {
   }
 }
 
-class AboutTaddaburScreen extends StatelessWidget {
-  const AboutTaddaburScreen({super.key});
+class AboutMizanScreen extends StatelessWidget {
+  const AboutMizanScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const MoreContentScreen(
-      title: 'About Taddabur',
+      title: 'About Mizan',
       sections: [
         (
-          'تَدَبُّر — Taddabur',
+          'ميزان — Mizan',
           'Every claim in this app carries its source — a Qur\'anic '
               'reference, a named hadith collection, or a named sirah work. '
               'Nothing unsourced is shown.',

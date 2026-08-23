@@ -216,10 +216,23 @@ class _StreakPill extends ConsumerWidget {
 class _Greeting extends ConsumerWidget {
   const _Greeting();
 
+  /// The name the local, signed-out profile is created with. Greeting somebody
+  /// as "You" is worse than not naming them at all, so it is treated as "no
+  /// name" here rather than printed.
+  static const String _placeholderName = 'You';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = MizanPalette.of(context);
-    final name = ref.watch(currentUserProvider).valueOrNull?.displayName.trim();
+    // effectiveUserProvider, not currentUserProvider: the latter is always the
+    // on-device profile, so a signed-in user was greeted by whatever the local
+    // row said — usually the placeholder — instead of by the name on their
+    // account. This is the same provider Halaqa and Minbar attribute posts to,
+    // so the name in the greeting and the name on a share can no longer differ.
+    final name =
+        ref.watch(effectiveUserProvider).valueOrNull?.displayName.trim();
+    final hasName =
+        name != null && name.isNotEmpty && name != _placeholderName;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -231,9 +244,7 @@ class _Greeting extends ConsumerWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          (name == null || name.isEmpty)
-              ? 'Assalamu Alaikum'
-              : 'Assalamu Alaikum, $name',
+          hasName ? 'Assalamu Alaikum, $name' : 'Assalamu Alaikum',
           style: MizanType.body(color: p.muted).copyWith(fontSize: 16),
         ),
       ],

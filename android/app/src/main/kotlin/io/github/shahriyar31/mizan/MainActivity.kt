@@ -1,4 +1,4 @@
-package com.example.ummahapp
+package io.github.shahriyar31.mizan
 
 import io.flutter.embedding.android.FlutterActivity
 

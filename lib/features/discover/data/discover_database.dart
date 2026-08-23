@@ -4,12 +4,15 @@
 // Uses the sqflite package, same pattern as the app's existing Vocab Bank DB.
 // ─────────────────────────────────────────────────────────────────────────────
 
+import 'dart:io';
+
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/discover_models.dart';
 
 class DiscoverDatabase {
-  static const _dbName = 'taddabur_discover_v2.db';
+  static const _dbName = 'mizan_discover_v2.db';
+  static const _legacyDbName = 'taddabur_discover_v2.db';
   static const _dbVersion = 1;
 
   // Table names
@@ -28,13 +31,32 @@ class DiscoverDatabase {
   }
 
   static Future<Database> _initDb() async {
-    final path = join(await getDatabasesPath(), _dbName);
+    final dir = await getDatabasesPath();
+    final path = join(dir, _dbName);
+    await _migrateLegacyFile(dir);
     return openDatabase(
       path,
       version: _dbVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Carries Discover progress across the Taddabur → Mizan rename. Same
+  /// reasoning as [DatabaseService]: the file name is part of the product name,
+  /// so renaming the product would otherwise reset every entry the user has
+  /// already read. Only moves into an absent target, so it can never overwrite
+  /// live progress with a stale file.
+  static Future<void> _migrateLegacyFile(String dir) async {
+    final target = join(dir, _dbName);
+    final legacy = join(dir, _legacyDbName);
+    try {
+      if (await databaseExists(target)) return;
+      if (!await databaseExists(legacy)) return;
+      await File(legacy).rename(target);
+    } catch (_) {
+      // Non-fatal: a fresh Discover database is better than a failed launch.
+    }
   }
 
   static Future<void> _onCreate(Database db, int version) async {

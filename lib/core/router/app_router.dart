@@ -222,7 +222,7 @@ class AppRouter {
                   ),
                   GoRoute(
                     path: 'about',
-                    builder: (context, state) => const AboutTaddaburScreen(),
+                    builder: (context, state) => const AboutMizanScreen(),
                   ),
                 ],
               ),
