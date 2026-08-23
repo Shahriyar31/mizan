@@ -1,766 +1,732 @@
-# تَدَبُّر · Taddabur
+# مِيزان · Mizan
 
-> *"Will they not reflect upon the Quran?"* — Surah Muhammad 47:24
+A Flutter app for reading the Qur'an slowly.
 
-A Flutter mobile application that helps Muslims build a consistent, deep relationship with their deen — breaking the motivation-loss-return cycle through community accountability, structured learning, and daily habit formation.
+Most Qur'an apps are built for retrieval: open, find the verse, close. Mizan is
+built for the opposite — one ayah at a time, in six layers, opened over days
+rather than minutes, with a small circle of people who can see what you are
+reading and respond without talking over it.
+
+Every scholarly statement in the app carries its source. Nothing is generated,
+nothing is paraphrased into an authority it does not have, and where a source is
+missing the app says so rather than filling the gap.
+
+> **Status: pre-launch.** `version: 0.1.0+1`. This is a working build being
+> handed to a small group of friends, not a store release. The
+> [Known limitations](#known-limitations) section is honest and complete — read
+> it before you install anything.
 
 ---
 
-## Table of Contents
+## Contents
 
-- [Problem Statement](#problem-statement)
-- [Solution](#solution)
-- [Features](#features)
+- [The three names](#the-three-names)
+- [What the app does](#what-the-app-does)
+- [The six layers](#the-six-layers)
+- [Citation Lock](#citation-lock)
+- [Halaqa — private circles](#halaqa--private-circles)
+- [Al-Minbar — the public feed](#al-minbar--the-public-feed)
+- [The knowledge graph](#the-knowledge-graph)
+- [The corpus, counted](#the-corpus-counted)
+- [Data sources](#data-sources)
+- [The Mizan design system](#the-mizan-design-system)
 - [Architecture](#architecture)
-- [Tech Stack](#tech-stack)
-- [Project Structure](#project-structure)
-- [Development Setup](#development-setup)
-- [SDLC & Branching Strategy](#sdlc--branching-strategy)
-- [Environment Configuration](#environment-configuration)
-- [API Documentation](#api-documentation)
-- [Database Schema](#database-schema)
-- [Testing Strategy](#testing-strategy)
-- [Deployment](#deployment)
-- [Contributing](#contributing)
-- [License](#license)
+- [Local database](#local-database)
+- [Supabase](#supabase)
+- [Environment and secrets](#environment-and-secrets)
+- [Running it](#running-it)
+- [Verifying changes](#verifying-changes)
+- [Building an APK](#building-an-apk)
+- [Known limitations](#known-limitations)
+- [Repository layout](#repository-layout)
+- [Author](#author)
 
 ---
 
-## Problem Statement
+## The three names
 
-Muslims globally experience a recurring cycle: spiritual motivation → engagement with deen → dunya pulls them away → they forget → guilt → return → repeat. Existing Islamic apps address content access but not this behavioral cycle. They are libraries, not companions.
+Three different names appear in this repository, and it is worth knowing which
+is which before you go looking for something:
 
-Specific gaps identified through user research:
-- Tafseer exists but reads like an encyclopedia — no narrative pull, no context
-- No community accountability feature in any existing app
-- Quran memorized without understanding meaning (e.g. salah surahs recited 17× daily without comprehension)
-- Public Islamic content platforms allow unverified opinions and school-of-thought conflicts
-- No app designed around the akhirah orientation as a daily behavioral anchor
+| Name | Where it lives | Why |
+| --- | --- | --- |
+| **Mizan** | `android:label` in the manifest, the wordmark, the design system, this README | The product name. What a user sees. |
+| **taddabur** | `pubspec.yaml` `name:`, therefore every `package:taddabur/…` import, `taddabur.db`, the notification channel id | The original working name. Renaming a Dart package rewrites every import in 192 files and changes the SQLite filename underneath existing installs, so it was left alone deliberately. |
+| **ummahapp** | The repository, the Gradle `namespace`, `applicationId` | The very first name, surviving only in build identifiers. |
 
----
-
-## Solution
-
-Taddabur is built around three psychological engagement pulls that drive daily return:
-
-| Pull | Mechanism | Feature |
-|------|-----------|---------|
-| Social | Unresolved social information | Halaqa — someone in your circle shared something |
-| Curiosity | Episodic content that cannot be binged | Ayah of the Week — one layer unlocks per day |
-| Identity Mirror | Seeing your own growth reflected back | Growth Map — personal knowledge constellation |
+None of this is user-visible except where noted in
+[Known limitations](#known-limitations). It is recorded here so nobody assumes
+they have found three projects.
 
 ---
 
-## Features
+## What the app does
 
-### Core Features
+Twelve feature areas live under `lib/features/`. File counts give a fair sense
+of weight:
 
-| Feature | Description | Phase |
-|---------|-------------|-------|
-| Home (4 states) | Wird / Returning / Friday / Muhasabah — app reads your state | 3 |
-| Quran Tab | Full surah list, interactive ayah with 5-layer tafseer system | 1 |
-| Discover Tab | Seerah, 25 Prophets, 100 Sahabah, 99 Names of Allah | 4 |
-| Halaqa | Authenticated content sharing, 5-8 members, no opinions | 5 |
-| Growth Tab | Growth Map, Vocabulary Bank, Seerah Timeline, Scholar AI | 2 |
-| Al-Minbar | Public authenticated content feed, no comments | 5 |
+| Area | Files | What it is |
+| --- | --- | --- |
+| `quran` | 21 | The reader: surah index, ayah view, the six layers, audio, translation picker |
+| `knowledge` | 18 | The graph — entities, relationships, evidence mode, hadith topics |
+| `settings` | 17 | Account, theme, app icon, translation, audio, notifications, language, About |
+| `discover` | 14 | Prophets, companions, the Divine Names, the seerah timeline |
+| `growth` | 12 | Growth map, Al-Meezan, vocabulary bank, muhasabah |
+| `halaqa` | 11 | Private circles — create, join, share, react, nudge |
+| `home` | 8 | Today's thread and where you left off |
+| `minbar` | 7 | The public feed |
+| `onboarding` | 3 | Welcome and first run |
+| `identity` | 2 | Who the current user is, signed in or not |
+| `sharing` | 1 | The share sheet that targets a circle or the feed |
+| `scholar_ai` | 1 | A placeholder. Ships **locked** — see limitations |
 
-### Tafseer Layer System
-Each ayah has 5 layers unlocking one per day — Monday to Friday:
-1. **Words** — root, meaning, why this specific word
-2. **Context** — Asbab al-Nuzul, historical scene
-3. **Scholars** — Ibn Kathir, As-Sa'di, Al-Qurtubi (switchable)
-4. **Isnad** — chain of narrators, each tappable to biography
-5. **Your Layer** — personal private reflection
+Roughly 46,000 lines of Dart across 192 files. Navigation is a single GoRouter
+`ShellRoute` with **five** bottom tabs — Home, Quran, Discover, Halaqa, Minbar —
+and every other destination is a child route of one of them. Growth and Settings
+are deliberately *not* tabs: the design reaches them from Today's Mizan on the
+Home header, which keeps the bar to five items and one entry point per
+destination. There is no second navigation stack anywhere in the app.
 
-### Scholar AI — Citation Lock
-- Every answer must cite: Quran ayah, hadith (book/number/grade), or named tafseer
-- If no verified source exists, AI refuses and suggests consulting a scholar
-- RAG pipeline: Azure AI Search + Azure OpenAI
-- Responds in user's chosen language
-- Knowledge base: Ibn Kathir tafseer, Quran.com API, Sunnah.com API
+---
 
-### Halaqa Rules (enforced by design, not moderation)
-- Authenticated app content only — no user-generated theology
-- One optional personal line per share: *why this moved me today*
-- Three reactions: 🤲 Du'a · 💙 Resonated · ✨ Moved me
-- No text replies ever
-- Nudge alerts a circle member, not the person who drifted
+## The six layers
+
+The centre of the app. An ayah is not a paragraph to be read once; it is opened
+in six passes, and the next pass is not available immediately.
+
+| Shown | Name | Icon | ~Minutes | Storage index |
+| --- | --- | --- | --- | --- |
+| 1st | **Words** | translate | 3 | 0 |
+| 2nd | **Context** | place | 2 | 1 |
+| 3rd | **Scholars** | auto_stories | 4 | 2 |
+| 4th | **Isnad** | link | 2 | 3 |
+| 5th | **Similar** | compare_arrows | 2 | **5** |
+| 6th | **Reflection** | edit_note | 3 | **4** |
+
+Two details in that table are deliberate and easy to get wrong:
+
+**Display order is not storage order.** `LayerMeta.displayOrder` is
+`[0, 1, 2, 3, 5, 4]`. *Similar* (mutashabihat) was added last, so it took the
+next free storage index — 5 — even though it is shown before *Reflection*. Giving
+it index 4 and pushing Reflection to 5 would have silently reinterpreted every
+`layer_unlocks` row already saved on every device: a row reading "layer 4 opened"
+would change meaning from Reflection to Similar. Order-on-screen and
+order-in-storage are kept as separate concerns, and `displayOrder` is the only
+place the difference is allowed to live.
+
+**Reflection stays last on screen** because it is the layer that gates moving on
+to the next ayah. A browsing layer placed after it would invite leaving the ayah
+without reflecting.
+
+Unlocking follows the layer the reader *actually saw last*, not whichever index
+happens to be one lower — `LayerMeta.predecessorOf` walks `displayOrder` for
+exactly this reason. Timestamps go into `layer_unlocks`, one row per
+`(surah, ayah, layer)`.
+
+The `readMinutes` estimates are estimates. Nothing in the app times a reader.
+They exist so the layers sheet can say "about 9 min left" instead of offering six
+destinations with no sense of the cost of any of them, and they are always spoken
+with a hedge.
+
+> ⚠️ `LayerMeta.unlockInterval` is currently `Duration(seconds: 1)`. It must be
+> `Duration(hours: 24)` for release. See [Known limitations](#known-limitations).
+
+---
+
+## Citation Lock
+
+The rule the whole app is built around:
+
+> Every scholarly claim must cite a Qur'an ayah, a hadith with book + number +
+> grade, or a named tafseer — or the app refuses to make the claim.
+
+Consequences that show up throughout the codebase:
+
+- **No machine translation.** Translations are shipped or fetched from a named
+  source, never generated.
+- **No invented Islamic content.** Not by a model, not by a helpful fallback
+  string, not by interpolation between two sourced facts.
+- **Absence is stated, not hidden.** `scholars.json` has `biography: null` for
+  all twelve entries because verified text has not been supplied; the pages are
+  not empty in the meantime, because each one shows the verses and topics derived
+  from every layer that cites that scholar. Where a description exists,
+  `description_source` says exactly what it is so it can never be mistaken for a
+  sourced claim.
+- **Derived is labelled derived.** Theme membership is counted from corpus text,
+  not asserted. Nothing in the data files decides on the reader's behalf which
+  prophet is "about patience" — the prose does, and the edge points at the layer
+  where the discussion actually is.
+
+---
+
+## Halaqa — private circles
+
+A Halaqa is a small private circle, and the constraints are the feature:
+
+- **2–8 members.** `AppConstants.minHalaqaMembers` / `maxHalaqaMembers`. Enforced
+  locally and, online, by a `SECURITY DEFINER` trigger that raises `halaqa_full`.
+- **Joined by invite code.** Six characters drawn from
+  `ABCDEFGHJKLMNPQRSTUVWXYZ23456789` — the full alphabet minus `I` and `O`, and
+  digits `2`–`9`, so nothing in a code can be misread as something else. Eight
+  characters after four collisions, ten as a final fallback. The code is the
+  access secret; row visibility is not the mechanism.
+- **One optional note per share, ≤100 characters.** Hard-capped on write.
+- **Three reactions: Du'a, Resonated, Moved.** Stored as `dua`, `resonated`,
+  `moved`.
+- **No text replies. Ever.** There is no reply field, no thread, no draft state,
+  nowhere for one to be added without changing what a Halaqa is. A circle is for
+  reading alongside people, not for discussing them.
+- **The nudge alerts a circle member, not the person who drifted.** After
+  `daysBeforeNudge` (3) of no activity, other members can be shown a quiet
+  prompt. Nobody is ever told they have been inactive.
+
+Invite codes are canonicalised before comparison — `HalaqaInviteCode.canonical`
+uppercases and strips everything outside `[A-Z0-9]`, so `k7p2-qm `, `K7P2 QM` and
+a code pasted mid-sentence all resolve to the same circle. `0` and `1` are *not*
+remapped to `O` and `I`: a wrong code should fail as "not found" rather than be
+silently rewritten into a different circle's code.
+
+Circles work signed out, but only on that device — an offline circle is a row in
+one phone's SQLite and nothing more, so its invite code can never be joined by
+anybody. The create sheet says this in plain language rather than letting a
+friend discover it.
+
+---
+
+## Al-Minbar — the public feed
+
+A public feed of shared content, paged 20 at a time
+(`AppConstants.minbarPageSize`). Same three reactions. **No comments** — the same
+reasoning as Halaqa, for the same reason.
+
+---
+
+## The knowledge graph
+
+Under `lib/features/knowledge/` and `lib/core/knowledge/`. Entities (prophets,
+companions, scholars, places, themes, ayat, hadith) are connected by edges, and
+almost every edge is **derived** rather than stated:
+
+- **Shared citations** — two entries that cite the same ayah are connected
+  through it.
+- **Chronology** — ordering comes from each entry's own `sequence_number`, never
+  from a hand-written list.
+- **Theme membership** — keyword frequency across each entry's layer text, with a
+  `min_hits` threshold per theme.
+
+Thresholds were measured, not guessed. `tools/audit_corpus.dart` shows the
+method: each `min_hits` sits at the point where the hit distribution across all
+186 corpus entries falls away, so a theme collects the entries that discuss it
+and stops before the ones that mention the word in passing. A common English
+keyword needs a higher bar than a specific term — `leadership`, whose keywords
+include "command" and "appointed", requires 5 hits; `tawheed` requires 2.
+`wisdom` was removed from the `ilm` theme because hikmah is not 'ilm, and keeping
+it pulled in Divine-Name pages that merely say events happen by Allah's wisdom.
+
+`edges.json` — the hand-stated edges — contains **six** entries and is meant to
+stay tiny. What lands there is only what the corpus states in prose and no amount
+of citation-matching would find: family relationships. Each one names where the
+relationship is stated.
+
+**Evidence mode** renders any claim together with its sources. **Journeys** are
+curated reading paths whose every step is an id that exists in the corpus today —
+a journey with a dangling step is not shipped. A journey is not a course: no
+score, no unlocking, no streak.
+
+---
+
+## The corpus, counted
+
+Real counts, from the shipped asset files:
+
+| Collection | Entries |
+| --- | --- |
+| Prophets | 11 |
+| Companions (sahabah) | 43 |
+| Divine Names | 100 |
+| Seerah chapters | 32 |
+| Themes | 6 |
+| Journeys | 5 |
+| Scholars | 12 |
+| Places | 12 |
+| Hand-stated edges | 6 |
+
+Discover shows these numbers, not rounder ones. There is no "new this week"
+section, because the corpus carries no authoring dates and inventing them would
+be a claim about content.
+
+Ibn Kathir tafsir text ships under `assets/data/ibn_kathir/` and
+`assets/data/ibn_kathir_processed/`. Arabic is set in Amiri (regular + bold,
+bundled).
+
+---
+
+## Data sources
+
+**UmmahAPI** (`https://ummahapi.com`) is the primary source for tafsir,
+word-by-word data, mutashabihat, hadith and audio. Configuration lives in one
+place, `lib/core/config/ummah_api_config.dart`:
+
+- The key is sent **only** as the `X-API-Key` header. The API also accepts
+  `?apikey=…` and that form is deliberately unused: a key in a query string lands
+  in server access logs, proxy logs, crash reports and `Referer` headers — and,
+  worst for a client that caches, in the cache key itself, which would mean
+  storing a response in a file whose name contains the secret.
+- The key is read from `.env` **at call time**, never captured into a `const` or
+  a field, so there is exactly one definition of where it comes from and a build
+  with an empty `.env` degrades instead of crashing.
+- **Every endpoint answers without a key.** The key only lifts the rate limit
+  from 5,000 requests / 15 min to unlimited. `isAuthenticated` is therefore a
+  statement about quota, never about access, and nothing in the app is gated on
+  it.
+- `UMMAH_API_BASE_URL` can point the client at a staging host without a code
+  change.
+
+**Audio** has two sources and a deliberate fallback: ayah-by-ayah recitation from
+everyayah.com, surah audio via MP3Quran. MP3Quran is kept in place until the
+UmmahAPI migration is verified on real devices — removing a working audio path
+before its replacement is proven is how an app ships silent.
+
+Responses go through a shared on-disk cache (`api_cache`), keyed by the request
+URI — which is safe to store precisely because the key never appears in it.
+
+Reference documentation: [`docs/UMMAH_API.md`](docs/UMMAH_API.md) and
+[`docs/UMMAH_API_IMPLEMENTATION.md`](docs/UMMAH_API_IMPLEMENTATION.md).
+
+---
+
+## The Mizan design system
+
+Two themes, one token layer, no per-screen colour decisions.
+[`docs/MIZAN_SCREEN_SPEC.md`](docs/MIZAN_SCREEN_SPEC.md) is the specification;
+[`docs/DESIGN_SYSTEM_AUDIT.md`](docs/DESIGN_SYSTEM_AUDIT.md) records where the
+code currently diverges from it.
+
+**`MizanPalette.of(context)`** — `page`, `card`, `sunk`, `hairline`, `ink`,
+`muted`, `accent`, `accentText`, `link`, `sage`, `onFilled`, plus `isLight`.
+
+**`MizanGeometry`** — `gutter` 20, `cardPadding` 20, `cardPaddingTight` 18, `gap`
+14, `cardRadius` 18, `rowRadius` 14, `pillRadius` 999, `tapTarget` 44,
+`tabBarHeight` 64, `scrollBottomPadding` 96, `hairlineWidth` 1.
+
+**`MizanTone`** — `page`, `card`, `sunk`, `inverse`, each able to resolve its own
+foreground (`onColor`), muted, hairline and accent-text colours, so a component
+placed on any surface stays legible without asking which theme is active.
+
+**`MizanType`** — `screenTitle`, `cardHeadline`, `translation`, `body`,
+`bodyStrong`, `sectionLabel`, `arabic`, `button`, `navLabel`, `wordmark`,
+`tagline`.
+
+**Components** (`lib/shared/widgets/mizan/`) — `MizanSurface`, `MizanButton`
+(with `.secondary` / `.quiet` / `.chip`), `MizanIconTile`, `MizanRow`,
+`MizanSectionLabel`, `MizanRule`, `MizanDiamond`, `MizanArch`, `MizanPressable`,
+plus the brand set: `MizanMark`, `MizanGlyph`, `MizanWordmark`, `MizanTagline`,
+`MizanLogo`, `MizanLogoRow`.
+
+Rules worth knowing before editing a screen:
+
+1. **Gold-family colours are never text on cream.** Use `accentText` (bronze on
+   light, gold on dark).
+2. **There is no error token.** A failure state borrows `accentText` rather than
+   introducing a red that belongs to neither theme.
+3. **`sage` is for good news and neutral notices**, not warnings.
+4. **`inputDecorationTheme` is global** — a pill `sunk` fill, no border, a `link`
+   focus ring. A plain `TextField` needs only `hintText`; restyling one is a
+   sign something is wrong.
+5. **Filled tiles must be checked in both themes.** Contrast that works on cream
+   frequently fails on navy.
+6. **One entry point per action.** If a control already exists for something,
+   there is not a second one.
+7. **A control keeps its label.** Never rename a button per item — that is how
+   the reader ended up saying "Tafsir" in Al-Fatihah and "Reflect" everywhere
+   else.
+
+Brand assets are real files, not generated at runtime:
+`assets/brand/mizan_glyph_{cream,navy}.png` and
+`mizan_icon_{cream,navy}.png`, with 2.0x and 3.0x variants. The launcher icon is
+user-switchable — see [`docs/APP_ICON_SWITCHING.md`](docs/APP_ICON_SWITCHING.md).
 
 ---
 
 ## Architecture
 
-### System Architecture
+Riverpod throughout, three layers per feature, in one direction only:
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│                    Flutter App (Client)                  │
-│                                                          │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐  │
-│  │  Home    │ │  Quran   │ │ Discover │ │  Halaqa  │  │
-│  │ (4states)│ │  + Tafs. │ │ Seerah   │ │ Minbar   │  │
-│  │          │ │          │ │ Sahabah  │ │          │  │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘  │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              Riverpod State Management            │   │
-│  └──────────────────────────────────────────────────┘   │
-│                                                          │
-│  ┌──────────────────────────────────────────────────┐   │
-│  │              Service Layer                        │   │
-│  │  QuranService │ HadithService │ AIService         │   │
-│  │  SupabaseService │ LocalStorageService            │   │
-│  └──────────────────────────────────────────────────┘   │
-└──────────────┬──────────────────────────────────────────┘
-               │
-       ┌───────┴────────┐
-       │                │
-┌──────▼──────┐  ┌──────▼──────────────────────────────┐
-│  Supabase   │  │         External APIs                 │
-│             │  │                                       │
-│ PostgreSQL  │  │  Quran.com API  (free, no auth)      │
-│ Auth        │  │  Sunnah.com API (free, no auth)      │
-│ Realtime    │  │  Azure OpenAI   (student credits)    │
-│ Storage     │  │  Azure AI Search(student credits)    │
-│             │  │  Firebase FCM   (free tier)          │
-└─────────────┘  └───────────────────────────────────────┘
+presentation/   widgets and screens — watch providers, never touch a database
+domain/         providers, notifiers, business rules
+data/           repositories — the only code that knows about tables or endpoints
+models/         plain data shapes with toMap / fromMap
 ```
 
-### RAG Pipeline Architecture (Scholar AI)
+A widget that reads SQLite directly is a bug. Repositories are interfaces, so
+swapping a backend is a one-line change in a provider — which is exactly how
+Halaqa works today:
 
-```
-User Question (any language)
-         │
-         ▼
-  Language Detection
-         │
-         ▼
-  Query Embedding
-  (Azure OpenAI ada-002)
-         │
-         ▼
-  Azure AI Search
-  ┌──────────────────────────────┐
-  │  Index 1: Ibn Kathir Tafseer │
-  │  Index 2: Hadith Collections │
-  │  Index 3: Seerah Content     │
-  │  Index 4: Sahaba Biographies │
-  └──────────────────────────────┘
-         │
-         ▼
-  Retrieved Chunks + Citations
-         │
-         ▼
-  Azure OpenAI GPT-4o
-  (with Citation Lock prompt)
-         │
-         ▼
-  Response + Citations (in user's language)
-         │
-         ▼
-  Citation Verification Layer
-  (confirms source exists in index)
-         │
-         ▼
-  Display to User
+```dart
+final halaqaRepositoryProvider = Provider<HalaqaRepository>((ref) {
+  final online = ref.watch(isOnlineIdentityProvider);
+  return online ? SupabaseHalaqaRepository() : LocalHalaqaRepository();
+});
 ```
 
-### Database Architecture (Supabase PostgreSQL)
+Signed in, circles live in Postgres. Signed out, the same interface is served
+from on-device SQLite, unchanged from before real auth existed. No screen knows
+the difference.
 
-```
-users
-├── id (uuid, PK)
-├── email
-├── display_name
-├── language_preference (en/bn/hi)
-├── created_at
-└── last_active_at
+**Shared surface**: `lib/core/` holds theme, router, config, network, knowledge
+primitives, constants and utilities; `lib/shared/` holds cross-feature models
+(`SharedContent`, `ReactionType`, `UserProfile`, `Reciter`) and widgets;
+`lib/services/` holds the database and API services.
 
-user_progress
-├── id (uuid, PK)
-├── user_id (FK → users)
-├── ayah_id (surah_number + ayah_number)
-├── layer_completed (1-5)
-├── completed_at
-└── reflection_text (encrypted)
+Key packages: `go_router ^13`, `flutter_riverpod ^2.5`, `supabase_flutter ^2.17`,
+`sqflite ^2.3`, `just_audio ^0.10.6` with `audio_session ^0.2.4` declared
+explicitly (iOS routes to the ambient stream and Android never requests audio
+focus unless the session is configured), `dio ^5.4`, `http ^1.2`,
+`flutter_dotenv ^5.1`, `flutter_local_notifications ^22.3`, `timezone`,
+`flutter_timezone`, `google_fonts ^6.2`, `intl ^0.20.3`, `crypto ^3.0.6`,
+`package_info_plus ^10.2`, `path_provider ^2.1.6`, `shared_preferences ^2.3`.
 
-vocabulary_bank
-├── id (uuid, PK)
-├── user_id (FK → users)
-├── arabic_word
-├── root
-├── meaning_en
-├── times_seen (int)
-├── next_review_at (timestamp)
-└── saved_at
-
-muhasabah_entries
-├── id (uuid, PK)
-├── user_id (FK → users)
-├── date
-├── q1_answer (encrypted)
-├── q2_answer (encrypted)
-├── q3_answer (encrypted)
-└── created_at
-
-halaqas
-├── id (uuid, PK)
-├── name
-├── created_by (FK → users)
-├── invite_code (unique)
-├── max_members (8)
-└── created_at
-
-halaqa_members
-├── id (uuid, PK)
-├── halaqa_id (FK → halaqas)
-├── user_id (FK → users)
-├── joined_at
-└── last_opened_at
-
-halaqa_shares
-├── id (uuid, PK)
-├── halaqa_id (FK → halaqas)
-├── shared_by (FK → users)
-├── content_id (references app content)
-├── content_type (quran/hadith/sahabi/name/prophet)
-├── personal_note (max 100 chars, optional)
-└── shared_at
-
-minbar_shares
-├── id (uuid, PK)
-├── shared_by (FK → users)
-├── content_id
-├── content_type
-├── dua_count (int)
-├── resonated_count (int)
-└── shared_at
-
-friday_reflections
-├── id (uuid, PK)
-├── user_id (FK → users)
-├── week_date
-├── reflection (encrypted)
-└── created_at
-```
-
-### Feature-Based Folder Architecture
-
-```
-lib/
-├── main.dart                        # Entry point only — 10 lines max
-├── app.dart                         # MaterialApp, theme, router init
-│
-├── core/                            # Shared foundation — no business logic
-│   ├── theme/
-│   │   ├── app_colors.dart          # Every color constant
-│   │   ├── app_typography.dart      # Every text style
-│   │   └── app_theme.dart           # ThemeData assembly
-│   ├── constants/
-│   │   ├── api_constants.dart       # Base URLs, endpoints
-│   │   ├── app_constants.dart       # Layer count, max members, etc.
-│   │   └── asset_constants.dart     # Asset paths
-│   ├── router/
-│   │   └── app_router.dart          # All GoRouter routes
-│   ├── errors/
-│   │   ├── app_exception.dart       # Custom exception types
-│   │   └── error_handler.dart       # Global error handling
-│   └── utils/
-│       ├── date_utils.dart          # Hijri date helpers
-│       ├── arabic_utils.dart        # RTL and Arabic text helpers
-│       └── logger.dart              # Structured logging
-│
-├── shared/                          # Reusable across features
-│   ├── widgets/
-│   │   ├── arabic_text.dart         # Amiri font Arabic display
-│   │   ├── citation_block.dart      # Reusable citation display
-│   │   ├── type_badge.dart          # Content type badges
-│   │   ├── loading_shimmer.dart     # Skeleton loaders
-│   │   └── reaction_row.dart        # Du'a/Resonated/Moved buttons
-│   └── models/
-│       ├── ayah.dart                # Ayah data model
-│       ├── hadith.dart              # Hadith data model
-│       ├── sahabi.dart              # Sahabi data model
-│       └── content_card.dart        # Minbar/Halaqa card model
-│
-├── services/                        # External integrations
-│   ├── supabase/
-│   │   ├── supabase_client.dart     # Singleton client
-│   │   └── supabase_auth.dart       # Auth methods
-│   ├── quran/
-│   │   └── quran_api_service.dart   # Quran.com API
-│   ├── hadith/
-│   │   └── hadith_api_service.dart  # Sunnah.com API
-│   ├── ai/
-│   │   ├── scholar_ai_service.dart  # Azure RAG calls
-│   │   └── citation_verifier.dart   # Citation lock logic
-│   ├── local/
-│   │   ├── database_service.dart    # SQLite setup
-│   │   └── vocabulary_service.dart  # Local vocab operations
-│   └── notifications/
-│       └── fcm_service.dart         # Firebase messaging
-│
-└── features/                        # One folder per feature
-    ├── home/
-    │   ├── data/
-    │   │   └── wird_repository.dart
-    │   ├── domain/
-    │   │   └── home_state.dart      # Which of 4 states to show
-    │   └── presentation/
-    │       ├── home_screen.dart
-    │       ├── states/
-    │       │   ├── wird_state_view.dart
-    │       │   ├── returning_state_view.dart
-    │       │   ├── friday_state_view.dart
-    │       │   └── muhasabah_state_view.dart
-    │       └── widgets/
-    │           ├── meezan_strip.dart
-    │           ├── aow_card.dart    # Ayah of Week card
-    │           └── tomorrow_teaser.dart
-    │
-    ├── quran/
-    │   ├── data/
-    │   │   ├── quran_repository.dart
-    │   │   └── quran_local_cache.dart
-    │   ├── domain/
-    │   │   └── layer_unlock_logic.dart  # Which layer is available today
-    │   └── presentation/
-    │       ├── surah_list_screen.dart
-    │       ├── ayah_detail_screen.dart
-    │       ├── contemplation_screen.dart
-    │       └── widgets/
-    │           ├── word_chip.dart
-    │           ├── word_popup.dart
-    │           ├── layer_tabs.dart
-    │           └── layer_panels/
-    │               ├── words_panel.dart
-    │               ├── context_panel.dart
-    │               ├── scholars_panel.dart
-    │               ├── isnad_panel.dart
-    │               └── reflection_panel.dart
-    │
-    ├── discover/
-    │   ├── data/
-    │   │   └── discover_repository.dart
-    │   └── presentation/
-    │       ├── discover_screen.dart
-    │       ├── seerah/
-    │       │   ├── seerah_screen.dart
-    │       │   └── seerah_timeline.dart
-    │       ├── prophets/
-    │       │   ├── prophets_list_screen.dart
-    │       │   └── prophet_detail_screen.dart
-    │       ├── sahabah/
-    │       │   ├── sahabah_list_screen.dart
-    │       │   └── sahabi_detail_screen.dart
-    │       └── names/
-    │           ├── names_grid_screen.dart
-    │           └── name_detail_screen.dart
-    │
-    ├── halaqa/
-    │   ├── data/
-    │   │   └── halaqa_repository.dart
-    │   └── presentation/
-    │       ├── halaqa_screen.dart
-    │       ├── create_halaqa_screen.dart
-    │       ├── join_halaqa_screen.dart
-    │       └── widgets/
-    │           ├── member_ring.dart
-    │           ├── nudge_card.dart
-    │           └── share_feed_item.dart
-    │
-    ├── growth/
-    │   ├── data/
-    │   │   └── growth_repository.dart
-    │   └── presentation/
-    │       ├── growth_screen.dart
-    │       └── widgets/
-    │           ├── growth_map.dart
-    │           ├── vocabulary_bank.dart
-    │           └── seerah_timeline_widget.dart
-    │
-    ├── scholar_ai/
-    │   ├── data/
-    │   │   └── ai_chat_repository.dart
-    │   └── presentation/
-    │       ├── scholar_ai_screen.dart
-    │       └── widgets/
-    │           ├── chat_bubble.dart
-    │           └── citation_display.dart
-    │
-    └── minbar/
-        ├── data/
-        │   └── minbar_repository.dart
-        └── presentation/
-            ├── minbar_screen.dart
-            └── widgets/
-                ├── minbar_card.dart
-                ├── card_types/
-                │   ├── quran_card.dart
-                │   ├── sahabi_card.dart
-                │   ├── hadith_card.dart
-                │   ├── name_card.dart
-                │   └── prophet_card.dart
-                ├── reaction_footer.dart
-                └── context_drawer.dart
-```
+Dart SDK `>=3.3.0 <4.0.0`.
 
 ---
 
-## Tech Stack
+## Local database
 
-| Layer | Technology | Reason | Cost |
-|-------|-----------|--------|------|
-| Mobile App | Flutter (Dart) | Single codebase Android + iOS | Free |
-| State Management | Riverpod | Compile-safe, testable, no boilerplate | Free |
-| Navigation | GoRouter | Declarative, deep-link ready | Free |
-| Backend | Supabase | PostgreSQL + Auth + Realtime | Free tier |
-| AI / RAG | Azure OpenAI + AI Search | Student credits, same as Nordex | Student credits |
-| Quran Content | Quran.com API | Free, word-level, multilingual verified | Free |
-| Hadith Content | Sunnah.com API | Free, all collections, authenticity grades | Free |
-| Notifications | Firebase FCM | Free tier, unlimited messages | Free |
-| Local Storage | SQLite (sqflite) | Offline vocab bank, chat cache | Free |
-| Tafseer Content | Ibn Kathir JSON (GitHub) | Open source, structured, complete | Free |
-| Containerization | Docker | Local Supabase + AI dev environment | Free |
-| Version Control | GitHub | Private repo, CI/CD later | Free |
-| Infrastructure | Terraform | IaC for Azure resources (Phase 3+) | Free |
+`sqflite`, file `taddabur.db`, **schema version 6**. Thirteen tables:
+
+| Table | Holds |
+| --- | --- |
+| `vocab_words` | Vocabulary bank entries with SRS state |
+| `layer_unlocks` | One row per `(surah, ayah, layer)` first-open |
+| `reflections` | What the reader wrote in the Reflection layer |
+| `hadith_cache` | Fetched narrations |
+| `hadith_reflections` | Reflections on narrations (added in v6) |
+| `api_cache` | Shared response cache, keyed by request URI |
+| `user_profile` | The local (signed-out) identity |
+| `halaqas` | Circles |
+| `halaqa_members` | Membership, with `last_active_at` for nudges |
+| `halaqa_shares` | Shared items, content stored as a JSON snapshot |
+| `halaqa_reactions` | One row per member per reaction per share |
+| `minbar_shares` | Public feed items |
+| `minbar_reactions` | Public feed reactions |
+
+Discover keeps its own database, `taddabur_discover_v2.db`.
+
+Shared content is stored as a JSON **snapshot**, not a reference. A card in a
+feed renders instantly and cannot break later because the source moved.
+
+Spaced repetition intervals are `[1, 3, 7, 14, 30, 90]` days, three reviews a
+day (`dailyVocabReviewCount`).
 
 ---
 
-## Development Setup
+## Supabase
 
-### Prerequisites
+Migrations in `supabase/migrations/`, applied in order:
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Ubuntu | 22.04+ | Development OS |
-| Flutter | 3.19+ | App framework |
-| Dart | 3.3+ | Language (comes with Flutter) |
-| Android Studio | Latest | Android SDK + Emulator |
-| VS Code | Latest | Code editor |
-| Git | 2.40+ | Version control |
-| Docker | 24.0+ | Local services |
-| Java JDK | 17 | Android compilation |
+| File | What it adds |
+| --- | --- |
+| `001_initial_schema.sql` | Base tables |
+| `002_auth_rls.sql` | Auth, `public.users`, the sign-up mirror trigger, RLS policies |
+| `003_halaqa_minbar_online.sql` | Online circles and feed — `last_active_at`, `shared_by_name`, `content_json`, the capacity trigger, `seerah` added to both content-type CHECKs |
+| `BUNDLE_run_in_sql_editor.sql` | All of the above concatenated, for pasting into Supabase Studio |
 
-### Installation (Ubuntu)
+**Any new migration must be appended to the bundle as well**, or a fresh project
+set up through Studio will be missing it.
 
-```bash
-# 1. Update system
-sudo apt update && sudo apt upgrade -y
+Notes that will save an afternoon:
 
-# 2. Install Git
-sudo apt install git -y
-git config --global user.name "Your Name"
-git config --global user.email "your@email.com"
+- **`halaqa_members` has no `display_name` column.** Names are read through the
+  `user_id → users.id` foreign key with a PostgREST embed:
+  `.select('…, users(display_name)')`. This is unambiguous — it is the only
+  foreign key from that table to `users` — and it means a member's name is always
+  current instead of a copy that drifts. Writing a `display_name` here fails the
+  whole insert.
+- **A `public.users` row is a hard prerequisite** for joining a circle. It is
+  written by a trigger on sign-up and mirrored again on **every login**, because
+  an account created before the trigger existed would otherwise fail every circle
+  it tried to join with nothing on screen to explain why. A missing row surfaces
+  as SQLSTATE `23503`.
+- **PostgREST has no cross-statement transaction.** `createHalaqa` writes the
+  circle, then the creator's membership; if the second insert fails the first is
+  compensated with an explicit delete. Without that, a failed create left an
+  orphan circle invisible to its own creator — the list is built from
+  memberships — while holding a spent invite code.
+- **SQLSTATE mapping**: `23505` unique violation → already a member; `P0001`
+  raised as `halaqa_full` by the capacity trigger → circle full; `23503` →
+  missing profile row.
+- **RLS does not hide circles by row.** `halaqas_select_authenticated` uses
+  `USING (true)` on purpose: the invite code is the access secret, not row
+  visibility. `halaqa_members_insert_self` uses
+  `WITH CHECK (auth.uid() = user_id)`, which is what allows joining a circle you
+  are not yet in.
+- Empty circles are cleaned up by a server trigger that mirrors what the local
+  repository does.
 
-# 3. Install VS Code
-sudo snap install code --classic
+---
 
-# 4. Install Flutter
-sudo snap install flutter --classic
-flutter sdk-path
+## Environment and secrets
 
-# 5. Install Java (required for Android)
-sudo apt install openjdk-17-jdk -y
+Create `.env` in the repository root. **Only two keys are read anywhere in
+`lib/`:**
 
-# 6. Install Android Studio
-sudo snap install android-studio --classic
-# Then open Android Studio, complete setup wizard
-# Install Android SDK API 34
-# Create Pixel 7 emulator
-
-# 7. Accept Android licenses
-flutter doctor --android-licenses
-
-# 8. Install Docker
-sudo apt install docker.io -y
-sudo usermod -aG docker $USER
-newgrp docker
-
-# 9. Verify everything
-flutter doctor -v
+```dotenv
+SUPABASE_URL=https://<project>.supabase.co
+SUPABASE_ANON_KEY=<anon key>
 ```
 
-### Project Setup
+`SUPABASE_URL` defaults to `http://127.0.0.1:54321` when absent, which is a local
+Supabase, not a working app.
+
+Optional:
+
+```dotenv
+UMMAH_API_KEY=<key>            # lifts the rate limit only; every endpoint works without it
+UMMAH_API_BASE_URL=<host>      # staging override
+```
+
+`.env.example` still advertises `GROQ_API_KEY`, `AZURE_OPENAI_*`,
+`AZURE_SEARCH_*` and `SUNNAH_API_KEY`. **Nothing in `lib/` reads any of them.**
+They are left over from an earlier design and are being removed.
+
+> ⚠️ **`.env` is declared as a Flutter asset in `pubspec.yaml`, which means it is
+> bundled into the APK.** Anyone who unzips a release build can read it. That is
+> acceptable for the Supabase anon key, which is public by design and constrained
+> by RLS, and for the UmmahAPI key, which only affects rate limits. **Never put a
+> service-role key, a signing key, or any real secret in this file.** Secrets
+> belong behind an Edge Function.
+
+Self-service account deletion is deliberately not implemented client-side: it
+needs a service-role key, which never belongs in client code. `deleteAccount()`
+signs out and forgets the local flag.
+
+---
+
+## Running it
 
 ```bash
-# Clone repository
-git clone https://github.com/YOUR-USERNAME/taddabur.git
-cd taddabur
+git clone https://github.com/Shahriyar31/ummahapp.git
+cd ummahapp
 
-# Install Flutter dependencies
+# 1. Environment
+cp .env.example .env      # then fill in SUPABASE_URL and SUPABASE_ANON_KEY
+
+# 2. Dependencies
 flutter pub get
 
-# Copy environment file
-cp .env.example .env
-# Fill in your keys (see Environment Configuration)
+# 3. Database
+#    Either point .env at a Supabase project and paste
+#    supabase/migrations/BUNDLE_run_in_sql_editor.sql into its SQL editor,
+#    or skip it — the app runs fully signed out on local SQLite.
 
-# Start local Supabase
-docker-compose up -d
-
-# Run app
+# 4. Run
 flutter run
 ```
 
----
-
-## SDLC & Branching Strategy
-
-### Branch Structure
-
-```
-main                    # Production only — protected
-├── develop             # Integration branch — all features merge here
-│   ├── feature/home-wird-screen
-│   ├── feature/quran-surah-list
-│   ├── feature/scholar-ai-rag
-│   └── feature/halaqa-sharing
-├── release/v1.0.0      # Release preparation
-└── hotfix/fix-arabic-font   # Emergency production fixes
-```
-
-### Branch Naming Convention
-
-```
-feature/    → new functionality        feature/quran-layer-system
-fix/        → bug fixes                fix/word-tap-popup-overflow
-refactor/   → code restructuring       refactor/supabase-service-layer
-docs/       → documentation only       docs/api-integration-guide
-test/       → adding tests             test/scholar-ai-citation-lock
-chore/      → tooling, dependencies    chore/update-flutter-3.19
-```
-
-### Commit Message Convention (Conventional Commits)
-
-```
-<type>(<scope>): <description>
-
-feat(quran): add word-tap popup with root and meaning
-fix(halaqa): prevent text replies in share feed
-refactor(scholar-ai): extract citation verifier to separate service
-docs(readme): update database schema with friday_reflections table
-test(auth): add unit tests for Supabase auth service
-chore(deps): upgrade supabase_flutter to 2.3.0
-```
-
-**Types:** feat, fix, refactor, docs, test, chore, style, perf
-
-### Pull Request Process (even solo — builds the habit)
-
-1. Create feature branch from `develop`
-2. Write code + tests
-3. Self-review using PR checklist
-4. Merge to `develop`
-5. Weekly: merge `develop` → `main` if stable
-
-### PR Checklist (self-review)
-
-```
-[ ] Feature works as designed in prototype
-[ ] No hardcoded strings (use constants)
-[ ] No API keys in code (use .env)
-[ ] Arabic text uses ArabicText widget (not raw Text)
-[ ] Error states handled (loading, empty, error)
-[ ] No print() statements (use logger)
-[ ] Widget has been tested on emulator
-[ ] Commit messages follow convention
-```
+Signed out is a first-class mode, not a degraded one. Everything works except
+anything that must cross devices: circles are local to the phone, and the feed is
+local to the phone.
 
 ---
 
-## Environment Configuration
+## Verifying changes
 
-### .env.example
+```bash
+# Type-check specific paths (accepts files or directories) — fast
+bash tools/analyze.sh lib/features/halaqa lib/features/settings
 
-```env
-# Supabase
-SUPABASE_URL=your_supabase_project_url
-SUPABASE_ANON_KEY=your_supabase_anon_key
+# Full analysis
+flutter analyze
 
-# Azure OpenAI
-AZURE_OPENAI_ENDPOINT=your_azure_endpoint
-AZURE_OPENAI_API_KEY=your_azure_key
-AZURE_OPENAI_DEPLOYMENT=gpt-4o
-
-# Azure AI Search
-AZURE_SEARCH_ENDPOINT=your_search_endpoint
-AZURE_SEARCH_API_KEY=your_search_key
-AZURE_SEARCH_INDEX=taddabur-knowledge-base
-
-# Firebase
-FIREBASE_PROJECT_ID=your_firebase_project_id
-
-# Feature flags (1=on, 0=off)
-FEATURE_MINBAR=0
-FEATURE_HALAQA=0
-FEATURE_SCHOLAR_AI=0
+# Tests
+flutter test
 ```
 
-Feature flags are critical for enterprise development. You ship code that's turned off. When it's ready, you flip the flag. No big-bang releases.
+Test coverage is thin and honestly so: `test/unit/features/quran/layer_unlock_logic_test.dart`
+and `test/widget_test.dart`. The layer unlock schedule is the one piece of logic
+with real unit coverage, because it is the piece where an off-by-one silently
+changes what a saved row means.
 
-### Never commit .env
+Other tools in `tools/`:
 
-```gitignore
-# .gitignore — always include these
-.env
-*.env
-.env.*
-!.env.example
-```
+| Tool | Purpose |
+| --- | --- |
+| `analyze.sh` | Scoped type-check |
+| `audit_corpus.dart` | Measures keyword hit distribution across all 186 corpus entries — the method behind every theme threshold |
+| `validate_discover.py` | Checks Discover corpus files for structural problems |
+| `reindex_discover.py` | Rebuilds Discover indexes |
+| `model_conformance.py` | Checks data files against the Dart models |
+| `ummah_probe.sh` | Probes UmmahAPI endpoints and reports what actually comes back |
+| `CONTENT_BRIEF_*.md` | The authoring briefs for prophets, sahabah and seerah content |
 
 ---
 
-## API Documentation
+## Building an APK
 
-### Quran.com API
-
-```
-Base URL: https://api.quran.com/api/v4
-
-Endpoints used:
-GET /chapters                          # All 114 surahs
-GET /chapters/{id}                     # Single surah info
-GET /verses/by_chapter/{chapter_id}   # All ayat in surah
-GET /verses/by_key/{verse_key}        # Single ayah (e.g. 1:1)
-
-Query params:
-  language=en              # Translation language
-  word_fields=text_uthmani,translation,transliteration
-  translations=131         # Translation ID (131=Sahih International)
-
-No API key required for public endpoints.
-```
-
-### Sunnah.com API
-
-```
-Base URL: https://api.sunnah.com/v1
-
-Endpoints used:
-GET /collections                       # All hadith collections
-GET /collections/{name}/books          # Books in collection
-GET /collections/{name}/hadiths       # Hadith list
-GET /hadiths/random                   # Random hadith
-
-Headers required:
-  X-API-Key: your_api_key             # Free key from sunnah.com
-```
-
----
-
-## Testing Strategy
-
-### Test Pyramid
-
-```
-        ┌─────────────────┐
-        │   E2E Tests     │  ← Few, slow, expensive
-        │  (Integration)  │    Patrol or integration_test
-        ├─────────────────┤
-        │  Widget Tests   │  ← Some, medium speed
-        │                 │    Flutter widget testing
-        ├─────────────────┤
-        │   Unit Tests    │  ← Many, fast, cheap
-        │                 │    Pure Dart logic tests
-        └─────────────────┘
-```
-
-### What to Test First (Phase 1-2)
-
-```
-Unit tests:
-├── layer_unlock_logic.dart     # Is the right layer available today?
-├── citation_verifier.dart      # Does Citation Lock work correctly?
-├── spaced_repetition_logic.dart # Are vocab reviews scheduled right?
-└── home_state_selector.dart    # Is the right home state detected?
-
-Widget tests:
-├── arabic_text_widget_test     # Does Arabic display RTL correctly?
-├── citation_block_test         # Does citation render with source?
-└── word_chip_tap_test          # Does tapping a word show popup?
-```
-
-### Test File Convention
-
-```
-test/
-├── unit/
-│   ├── features/
-│   │   ├── quran/
-│   │   │   └── layer_unlock_logic_test.dart
-│   │   └── scholar_ai/
-│   │       └── citation_verifier_test.dart
-│   └── services/
-│       └── quran_api_service_test.dart
-├── widget/
-│   └── shared/
-│       ├── arabic_text_test.dart
-│       └── citation_block_test.dart
-└── integration/
-    └── quran_browsing_flow_test.dart
-```
-
----
-
-## Deployment
-
-### Phase 1-2: Direct APK (no store)
 ```bash
 flutter build apk --release
-# Share APK directly to test users via file transfer
+# → build/app/outputs/flutter-apk/app-release.apk
 ```
 
-### Phase 5: F-Droid (free, open-source)
-- Submit via https://gitlab.com/fdroid/fdroiddata
-- App must be fully open-source
-- Build reproducible — F-Droid builds from source
+For a device on the same machine:
 
-### Phase 5: Google Play Store ($25 one-time)
 ```bash
-flutter build appbundle --release
-# Upload to Google Play Console
+flutter build apk --debug
+flutter install
 ```
 
-### Phase 6: Apple App Store ($99/year)
-```bash
-# Requires Mac + Xcode
-flutter build ios --release
-# Upload via Xcode or Transporter
+> ⚠️ `applicationId` is still `com.example.ummahapp`. Google Play rejects any
+> `com.example.*` package outright, and changing it after people have installed
+> the app means a fresh install rather than an update — so it must change
+> **before** the build that goes to anyone you would call a user.
+
+---
+
+## Known limitations
+
+Written plainly, because a friend installing this build deserves to know what is
+unfinished.
+
+### Must change before any release
+
+- **`LayerMeta.unlockInterval` is `Duration(seconds: 1)`**
+  (`lib/features/quran/models/layer_unlock.dart:128`). Release value is
+  `Duration(hours: 24)`. It is set low on purpose right now so the layer
+  progression can be exercised on a device in one sitting; it must not be changed
+  without saying so, because device testing depends on it.
+- **`applicationId` / Gradle `namespace` are `com.example.ummahapp`.** Play will
+  reject it.
+- **No LICENSE file.** Without one, default copyright applies and nobody may
+  legally reuse this code. Add one before making the repository public.
+
+### Features that are not what they look like
+
+- **Scholar AI ships locked.** One file, a placeholder. The earlier design
+  (Azure OpenAI + Azure AI Search RAG) is not implemented and is not wired to
+  anything. Nothing in the app generates religious content, which is the point.
+- **Hadith topic search returns zero results for every topic.** Faith, Prayer,
+  Patience — all of them show "Nothing returned." Direct hadith citation works
+  (a specific collection and number resolves), so retrieval is partially
+  functioning and the fault is in the topic-search layer: either the
+  `/hadith/search` query parameter or the topic vocabulary not matching the API
+  corpus. Diagnosing it requires network access to `ummahapi.com`; run
+  `bash tools/ummah_probe.sh` to produce the per-topic result counts. **No topic
+  should ship while it always returns zero.**
+- **Only 5 of 408 hadith references in the corpus are currently fetchable.** The
+  other 403 render as a citation with no narration text behind it.
+- **`AppConstants.totalLayers` still says 5**, from before Similar existed. It is
+  not what the reader uses — `LayerMeta.count` is — but it is stale and
+  misleading to anyone reading the constants file.
+- **Audio migration is incomplete by design.** MP3Quran and everyayah remain the
+  working paths; the UmmahAPI audio route is present but not yet verified on real
+  devices, which is why the fallback has not been removed.
+
+### Half-migrated design system
+
+The Mizan token layer is the intended surface, but the migration is not finished:
+**40 files still import the legacy `lib/core/theme/app_colors.dart`**, against 33
+on `mizan_tokens.dart`. `AppColors` is a single mutable static palette flipped at
+runtime, which is why screens still on it can show the wrong theme's colours.
+The notable ones:
+
+- Discover's four tab bodies and every Discover detail screen
+- `lib/features/quran/presentation/layer_screen.dart` — including two hardcoded
+  `'$layersRead / 5 layers'` strings
+- The whole Settings sub-screen tree (`audio`, `language`, `more`,
+  `notifications`, `personalisation`, `system`, `settings_row.dart`)
+- Growth's screens and the constellation view
+- `lib/features/sharing/share_target_sheet.dart`
+- Several shared widgets: `citation_block`, `reaction_bar`,
+  `shared_content_card`, `word_tap_sheet`, `arabic_text`, `narrative_text`,
+  `pill_layer_navigation`, `content_visuals`, `initial_avatar`
+
+`lib/features/discover/widgets/entry_card.dart` (502 lines) is dead code —
+nothing imports it. So are five service files, each superseded by another and
+imported by nothing: `services/local/database_service.dart` (the live one is
+`services/database/`), `services/ai/scholar_ai_service.dart` (duplicated by
+`services/scholar_ai/`), `services/notifications/fcm_service.dart`, and both
+`services/supabase/supabase_client.dart` and `supabase_service.dart` (the app
+uses `Supabase.instance.client` directly). `Scholar_aiScreen` violates Dart's
+UpperCamelCase convention. `quran_repository.dart` has no SQLite persistence
+layer yet.
+
+`docs/DESIGN_SYSTEM_AUDIT.md` carries the full list, including deliberate
+deviations from the mockups and the reason for each. Where the mockup and the
+data disagreed, the data won: Discover shows real counts (11 prophets, 43
+companions, 100 names, 32 seerah chapters) rather than the round numbers in the
+design, and the "recently added" strip is labelled honestly because the corpus
+has no authoring dates.
+
+### Leftover names
+
+`taddabur` survives in user-invisible places — the Dart package name and every
+import, `taddabur.db`, `taddabur_discover_v2.db`, the notification channel id —
+and in a few strings that **are** visible. The worst are the scheduled
+notification bodies in `notification_preferences_provider.dart` (lines ~142–149):
+four of them read "…in Taddabur", so the wrong product name is pushed to the lock
+screen. `more_screen.dart` and `more_content_screens.dart` carry it too, and
+`AboutTaddaburScreen` is still the class behind Settings → About.
+
+### Repository hygiene
+
+Ten one-off Python scripts sit at the repository root (`fix_all_copywith.py`,
+`fix_citation.py`, `fix_discover.py`, `fix_final.py`, `fix_navigation.py`,
+`fix_provider.py`, `fix_seerah_and_home.py`, `fix_surgical.py`,
+`fix_theme_mismatch.py`, `generate_remaining_names.py`) along with
+`setup_structure.sh` and a `docker-compose.yml` from an abandoned local-Supabase
+workflow. They are spent migration scripts, not part of the build, and are being
+deleted. `PROJECT_CONTEXT.md` is a working note, not documentation.
+
+---
+
+## Repository layout
+
+```
+ummahapp/
+├── lib/
+│   ├── main.dart, app.dart
+│   ├── core/
+│   │   ├── theme/          mizan_tokens, mizan_theme, mizan_typography (+ legacy app_colors)
+│   │   ├── router/         app_router.dart — one ShellRoute, six tabs
+│   │   ├── config/         ummah_api_config.dart, hadith_api_config.dart
+│   │   ├── network/        ummah_api_client.dart
+│   │   ├── knowledge/      entity refs, reference parser, graph primitives
+│   │   ├── constants/      app_constants.dart
+│   │   └── utils/          logger, id_generator
+│   ├── features/           12 areas — see the table above
+│   ├── shared/
+│   │   ├── models/         SharedContent, ReactionType, UserProfile, Reciter
+│   │   └── widgets/        mizan/ components + shared cards, text, sheets
+│   └── services/
+│       ├── database/       database_service.dart — SQLite, v6
+│       ├── audio/          session setup, MP3Quran, playback arbiter, recitation cache
+│       ├── cache/          api_cache.dart
+│       ├── hadith/         hadith_api_service.dart
+│       ├── quran/          quran_api_service.dart
+│       ├── notifications/  notification_service.dart
+│       ├── scholar_ai/     the locked placeholder
+│       └── seed/           social_seeder.dart
+├── assets/
+│   ├── brand/              Mizan glyph + icon, cream and navy, 2x/3x
+│   ├── data/
+│   │   ├── discover/       prophets, sahabah, names, seerah
+│   │   ├── knowledge/      themes, journeys, scholars, places, edges
+│   │   ├── ibn_kathir/     tafsir text
+│   │   └── quran_metadata.json
+│   └── fonts/              Amiri Regular + Bold
+├── supabase/migrations/    001, 002, 003 + BUNDLE_run_in_sql_editor.sql
+├── docs/                   design spec, design audit, knowledge platform, UmmahAPI
+├── tools/                  analyze.sh, corpus audit, validators, API probe, content briefs
+├── test/                   layer unlock logic, widget smoke test
+└── android/ ios/ web/ linux/ macos/ windows/
 ```
 
 ---
 
-## Islamic Content Standards
+## Author
 
-These are non-negotiable and apply to every line of content in the app:
+Built by [Shahriyar](https://github.com/Shahriyar31) — reachable from the app's
+own Settings screen, which links to the same profile.
 
-1. **No machine translation** — only verified scholarly translations
-2. **Every hadith must carry** — book name, hadith number, narrator, authenticity grade
-3. **Every tafseer quote must carry** — scholar name, work name, volume/page where possible
-4. **Scholarly disagreement is preserved** — not flattened into one opinion
-5. **Bengali content** — Muhammad Muhiuddin Khan translation via Quran.com API
-6. **Hindi content** — Fateh Muhammad Jalandhri translation via Quran.com API
-7. **Weak hadith (Da'if)** — displayed with grade clearly marked, never presented as guidance
-8. **Halaqa content** — authenticated passages only, no user theology ever
-
----
-
-## License
-
-MIT License — open source from day one.
-
-See [LICENSE](LICENSE) for full text.
-
----
-
-## Acknowledgements
-
-- Quran.com — free Quran API with word-level data
-- Sunnah.com — free authenticated hadith API
-- Ibn Kathir tafseer JSON — open source community
-- Supabase — open source Firebase alternative
-- Flutter team — enabling cross-platform development
-
----
-
-*Built with the intention of helping the ummah — li-wajhillah.*
+No licence is declared yet; see [Known limitations](#known-limitations).
