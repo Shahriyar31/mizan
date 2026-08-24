@@ -199,9 +199,12 @@ class _CircleBody extends ConsumerWidget {
     await ref.read(halaqaFeedProvider(halaqa.id).notifier).deleteShare(shareId);
   }
 
+  /// Copies the whole invite, not just the code — see [Halaqa.inviteMessage] for
+  /// why. The toast names what landed on the clipboard, because "copied" after
+  /// tapping something labelled with a code would imply it was the code.
   void _copyInvite(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: halaqa.inviteCode));
-    _toast(context, 'Invite code copied — share it with a friend.');
+    Clipboard.setData(ClipboardData(text: halaqa.inviteMessage));
+    _toast(context, 'Invite copied — paste it into any chat.');
   }
 
   void _nudge(BuildContext context, HalaqaMember member) {

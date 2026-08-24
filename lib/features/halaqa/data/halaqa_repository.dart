@@ -35,11 +35,11 @@ class HalaqaException implements Exception {
 ///
 /// ── Why this exists ───────────────────────────────────────────────────
 /// Codes travel by hand: a friend copies one out of the circle screen and sends
-/// it over WhatsApp, and it arrives wrapped in a sentence, or with a trailing
-/// newline, or the sender broke it up as `K7P2-QM` to make it readable. Both
-/// repositories used to normalise with `trim().toUpperCase()` only, so every one
-/// of those pastes missed a circle that exists and the user was told "no circle
-/// found with that code" — the least useful thing to say when the code is right.
+/// it over WhatsApp, and it arrives with a trailing newline, or the sender broke
+/// it up as `K7P2-QM` to make it readable. Both repositories used to normalise
+/// with `trim().toUpperCase()` only, so every one of those pastes missed a
+/// circle that exists and the user was told "no circle found with that code" —
+/// the least useful thing to say when the code is right.
 ///
 /// [IdGenerator.inviteCode] draws from `A–Z` minus I/O plus `2–9`, so nothing
 /// outside `[A-Z0-9]` can ever be part of a real code and stripping the rest is
@@ -51,10 +51,44 @@ class HalaqaInviteCode {
 
   static final RegExp _notCode = RegExp(r'[^A-Z0-9]');
 
+  /// Pulls the code out of `code: XXXXXX`. Anchored on the label that
+  /// [Halaqa.inviteMessage] writes, and stops at the end of the line — the
+  /// character class excludes newlines on purpose.
+  static final RegExp _labelled =
+      RegExp(r'code\s*:\s*([A-Za-z0-9\- ]+)', caseSensitive: false);
+
   /// The comparable form of [raw] — uppercased, with spaces, dashes, quotes and
   /// anything else that is not a code character removed.
+  ///
+  /// Note what this does NOT do: a code embedded in prose comes out glued to the
+  /// prose, because removing the spaces is what joins them. `'the code is K7P2QM'`
+  /// canonicalises to `'THECODEISK7P2QM'`, not `'K7P2QM'`. Use [fromPasted] for
+  /// text that may be a whole sentence.
   static String canonical(String raw) =>
       raw.toUpperCase().replaceAll(_notCode, '');
+
+  /// The code inside [raw] when [raw] might be an entire invite message.
+  ///
+  /// Needed because the copy buttons put [Halaqa.inviteMessage] on the clipboard
+  /// rather than the six bare characters, so "paste what my friend sent me" is
+  /// now the expected way to use the join field — and [canonical] alone would
+  /// turn that message into `JOINMYCIRCLEFAJR…`, truncate it to the field's
+  /// limit, and report a perfectly valid code as not found.
+  ///
+  /// Anchoring on the `code:` label rather than hunting for any six-character
+  /// token is deliberate. The message contains other candidates that are
+  /// indistinguishable from a real code by shape alone — `HALAQA` is six
+  /// characters and every one of them is in the code alphabet — so a shape-based
+  /// guess would sometimes silently pick the wrong word. The label is written by
+  /// the same getter that writes the code, so if one changes the other moves
+  /// with it.
+  ///
+  /// Falls back to [canonical] when there is no label, which is every hand-typed
+  /// code and every paste of a code on its own.
+  static String fromPasted(String raw) {
+    final match = _labelled.firstMatch(raw);
+    return canonical(match?.group(1) ?? raw);
+  }
 }
 
 abstract class HalaqaRepository {

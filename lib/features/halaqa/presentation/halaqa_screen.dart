@@ -286,7 +286,7 @@ class _CircleCard extends ConsumerWidget {
         semanticLabel: halaqa.name,
       ),
       onTap: () => context.push('/halaqa/circle/${halaqa.id}'),
-      footer: _InviteCodeLine(code: halaqa.inviteCode),
+      footer: _InviteCodeLine(halaqa: halaqa),
       trailing: Icon(Icons.chevron_right_rounded, size: 22, color: p.muted),
     );
   }
@@ -294,10 +294,16 @@ class _CircleCard extends ConsumerWidget {
 
 /// The invite code, tappable to copy. This is the honest occupant of the slot
 /// the mockup gave to "Next session today, 8:30 PM".
+///
+/// Takes the whole [Halaqa] rather than a bare code string because the row shows
+/// one thing and copies another: the code is what fits on the line, the full
+/// [Halaqa.inviteMessage] is what a friend can actually act on. Passing only the
+/// code would have forced this widget to compose that message itself, giving the
+/// app a second copy of the wording to drift from the circle screen's.
 class _InviteCodeLine extends StatelessWidget {
-  const _InviteCodeLine({required this.code});
+  const _InviteCodeLine({required this.halaqa});
 
-  final String code;
+  final Halaqa halaqa;
 
   @override
   Widget build(BuildContext context) {
@@ -305,13 +311,13 @@ class _InviteCodeLine extends StatelessWidget {
 
     return MizanPressable(
       onTap: () async {
-        await Clipboard.setData(ClipboardData(text: code));
+        await Clipboard.setData(ClipboardData(text: halaqa.inviteMessage));
         if (!context.mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: p.ink,
             content: Text(
-              'Invite code copied',
+              'Invite copied — paste it into any chat',
               style: MizanType.body(color: p.page),
             ),
           ),
@@ -321,14 +327,14 @@ class _InviteCodeLine extends StatelessWidget {
       shadowsEnabled: false,
       borderRadius: BorderRadius.circular(MizanGeometry.rowRadius),
       padding: EdgeInsets.zero,
-      semanticLabel: 'Invite code $code, tap to copy',
+      semanticLabel: 'Invite code ${halaqa.inviteCode}, tap to copy the invite',
       child: Row(
         children: [
           Icon(Icons.key_outlined, size: 17, color: p.sage),
           const SizedBox(width: 9),
           Expanded(
             child: Text(
-              'Invite code · $code',
+              'Invite code · ${halaqa.inviteCode}',
               style: MizanType.body(color: p.muted).copyWith(fontSize: 13.5),
             ),
           ),

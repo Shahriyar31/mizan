@@ -36,6 +36,31 @@ class Halaqa {
   final int maxMembers; // 8 per the README (2–8 range)
   final DateTime createdAt;
 
+  /// The invite written out ready to paste into a message.
+  ///
+  /// Both copy buttons put THIS on the clipboard, not [inviteCode]. Copying the
+  /// bare six characters meant a friend received `4KQ7M2` in WhatsApp with
+  /// nothing else — no clue what it was, which app it belonged to, or where to
+  /// type it. The code alone is only self-explanatory to the person who sent it.
+  ///
+  /// Every word of the instruction names a control that really exists: the
+  /// "Halaqa" tab in the bottom bar (`app_shell.dart`), and the "Join" button
+  /// sitting beside "New circle" on that screen. If either is ever relabelled,
+  /// this string is wrong and has to move with it.
+  ///
+  /// The name is wrapped in curly quotes deliberately — a circle called
+  /// `Sisters' "Fajr" group` would otherwise collide with straight quotes.
+  ///
+  /// There is no download link because there is no public one to give yet. When
+  /// the landing page ships, its URL belongs here as a closing line; that is the
+  /// one thing still missing from this message.
+  String get inviteMessage =>
+      'Join my circle “$name” on Mizan.\n'
+      '\n'
+      'Invite code: $inviteCode\n'
+      '\n'
+      'Open Mizan, go to the Halaqa tab, tap Join, and enter that code.';
+
   Map<String, dynamic> toMap() => {
         'id': id,
         'name': name,

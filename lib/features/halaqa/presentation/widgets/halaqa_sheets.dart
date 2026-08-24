@@ -15,10 +15,12 @@
 ///
 /// Three behaviours also changed, each for a reason:
 ///
-/// • **The invite field accepts a pasted code.** Codes arrive inside a sentence,
-///   with a trailing newline, or broken up as `K7P2-QM` by whoever sent them.
-///   [HalaqaInviteCode.canonical] is applied as the user types, so all of those
-///   land on the same six characters instead of missing a circle that exists.
+/// • **The invite field accepts a pasted code, or a whole pasted invite.** Codes
+///   arrive with a trailing newline, broken up as `K7P2-QM` by whoever sent them,
+///   or — most often now — wrapped in the entire message the copy button
+///   produces. [HalaqaInviteCode.fromPasted] is applied as the user types, so all
+///   of those land on the same six characters instead of missing a circle that
+///   exists.
 ///
 /// • **Its length cap was wrong.** It was 8, but the invite generator falls back
 ///   to a 10-character code on repeated collisions, so the one code that most
@@ -401,8 +403,8 @@ class _JoinHalaqaFormState extends ConsumerState<_JoinHalaqaForm> {
         Text('Join a circle', style: _sheetTitle(p)),
         const SizedBox(height: 6),
         Text(
-          'Enter the invite code someone shared with you. Spaces, dashes and '
-          'lower case are all fine.',
+          'Paste what was sent to you — the whole message is fine, and so are '
+          'spaces, dashes and lower case.',
           style: MizanType.body(color: p.muted),
         ),
         const SizedBox(height: 18),
@@ -525,17 +527,26 @@ class _OfflineNote extends StatelessWidget {
 /// exactly what will be looked up. The whole value is re-canonicalised on every
 /// edit rather than only the inserted text, because a paste can land in the
 /// middle of what is already there.
+///
+/// It also accepts a whole pasted invite message and keeps only the code, via
+/// [HalaqaInviteCode.fromPasted]. That is the likely paste, not the unlikely
+/// one: the copy button in a circle puts the entire message on the clipboard, so
+/// the friend receiving it in WhatsApp has a paragraph to hand, and selecting
+/// just six characters out of it is the fiddlier option. Without this the field
+/// would fill with `JOINMYCIRC` — the message glued together and cut off at
+/// [_codeMaxLength] — and a valid code would be reported as not found.
 class _InviteCodeFormatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    final text = HalaqaInviteCode.canonical(newValue.text);
+    final text = HalaqaInviteCode.fromPasted(newValue.text);
     if (text == newValue.text) return newValue;
     // Characters may have been removed, so the caret is clamped to the new
     // length instead of being left past the end.
-    final offset = newValue.selection.baseOffset - (newValue.text.length - text.length);
+    final removed = newValue.text.length - text.length;
+    final offset = newValue.selection.baseOffset - removed;
     return TextEditingValue(
       text: text,
       selection: TextSelection.collapsed(
