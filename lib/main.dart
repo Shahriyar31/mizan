@@ -9,6 +9,7 @@ import 'core/config/supabase_config.dart';
 import 'core/utils/logger.dart';
 import 'features/home/domain/streak_provider.dart';
 import 'features/onboarding/domain/onboarding_flags.dart';
+import 'features/onboarding/domain/session_gate.dart';
 import 'services/database/database_service.dart';
 import 'services/audio/audio_session_setup.dart';
 import 'services/audio/playback_arbiter.dart';
@@ -85,6 +86,16 @@ Future<void> main() async {
     // `eyJ…` anon key is still accepted here.
     publishableKey: supabase.key,
   );
+
+  // Wait for a stored session to come back, when there is one to come back.
+  //
+  // `Supabase.initialize` does not do this itself — it wraps `recoverSession` in
+  // a CancelableOperation and returns immediately — so without this line
+  // AppRouter's initialLocation reads `currentSession` while it is still null
+  // and sends a signed-in person to the sign-in screen. Returns instantly when
+  // no session is stored, so a first-time user pays nothing for it. See
+  // SessionGate.
+  await SessionGate.settle();
 
   // Seed demo Halaqa + Al-Minbar data on first run (guarded by a feature flag
   // and an "empty tables" check). Never throws — safe to await here.

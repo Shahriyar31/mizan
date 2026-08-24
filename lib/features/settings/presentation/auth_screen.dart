@@ -27,12 +27,21 @@
 /// validation apparatus with the two modes that were already here. A separate
 /// route would have duplicated all of it.
 ///
-/// ── Signing in is optional, and stays optional ─────────────────────────
-/// There is no router guard on the tabs. Every one of them works signed out,
-/// reading and layer progress live in SQLite on the device either way, and this
-/// screen is reachable from Settings › account. The subtitle says what an account
-/// is *for* — carrying Halaqa circles and Al-Minbar posts to a second device —
-/// rather than implying it is required.
+/// ── Signing in is required, and this screen is the gate ────────────────
+/// It used to be optional, and this header used to say so. It is not any more:
+/// `AppRouter` guards every route except `/welcome` and `/auth`, so a person
+/// without a session reaches exactly this screen and nothing else. The reason is
+/// that everything the app keeps for somebody — reflections, circles, their
+/// record — is keyed to a user id, and the alternative was a second, local,
+/// eventually-merged copy of every one of those features.
+///
+/// Two consequences live in this file. `/auth?from=welcome` marks the two ways
+/// in from the onboarding flow, which changes where a success lands: back to
+/// Settings is right for somebody who came from Settings to fix their account,
+/// and wrong for somebody who has just finished onboarding and asked, on Screen
+/// 5, for a particular room. And the back tile cannot go to Settings while
+/// signed out, because the guard would bounce it straight back here; it returns
+/// to the welcome flow instead, which is the only other signed-out surface.
 library;
 
 import 'package:flutter/material.dart';
@@ -43,6 +52,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
+import '../../onboarding/domain/onboarding_answers.dart';
+import '../../onboarding/domain/session_gate.dart';
 import '../data/auth_repository.dart';
 import '../domain/settings_providers.dart';
 
@@ -56,9 +67,21 @@ import '../domain/settings_providers.dart';
 enum _Mode { logIn, signUp, requestCode, enterCode }
 
 class AuthScreen extends ConsumerStatefulWidget {
-  const AuthScreen({super.key, this.startOnLogin = false});
+  const AuthScreen({
+    super.key,
+    this.startOnLogin = false,
+    this.fromWelcome = false,
+  });
 
   final bool startOnLogin;
+
+  /// True when the onboarding flow handed the person here.
+  ///
+  /// Decides two things, both of which would be wrong the other way round: a
+  /// success lands on the room they asked for on Screen 5 rather than on
+  /// Settings, and the back tile returns to the flow rather than to Settings,
+  /// which the router would bounce.
+  final bool fromWelcome;
 
   @override
   ConsumerState<AuthScreen> createState() => _AuthScreenState();
@@ -162,6 +185,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   // ── Actions ───────────────────────────────────────────────────────
 
+  /// Where a successful sign-in goes, and the one place the onboarding answer is
+  /// honoured.
+  ///
+  /// From Settings, back to Settings: that person came here to fix their account
+  /// and expects to be returned to where they were. From the welcome flow, the
+  /// room they picked on Screen 5 — taken and marked consumed in a single step,
+  /// so it decides the first launch and no launch after it. Home when they
+  /// skipped the question, which is a valid answer and must not be guessed at.
+  ///
+  /// This is the account boundary the brief warns about: an answer collected in
+  /// onboarding and dropped here is the most common bug in a flow like this, and
+  /// it is silent — the app simply opens on the wrong screen and nobody can say
+  /// why.
+  Future<void> _leaveOnSuccess() async {
+    if (!widget.fromWelcome) {
+      if (!mounted) return;
+      context.go('/settings');
+      return;
+    }
+
+    // Read the notifier before the await. This State can be disposed while the
+    // stored answer is being read, and `ref` is not usable after that.
+    final answers = ref.read(onboardingAnswersProvider.notifier);
+    final landing = await answers.takeLanding();
+    if (!mounted) return;
+    context.go(landing ?? '/home');
+  }
+
   /// Wraps every network action in the same busy/mounted/message discipline, so
   /// no individual handler can forget to clear `_busy` on some path.
   Future<AuthResult?> _run(Future<AuthResult> Function() action) async {
@@ -215,7 +266,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       // analyser cannot see through that indirection, and a redundant check is
       // cheaper than a lint suppression that would also hide a real one later.
       if (!mounted) return;
-      context.go('/settings');
+      await _leaveOnSuccess();
       return;
     }
 
@@ -274,7 +325,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       // The same landing as a successful log-in, because that is what this now
       // is: the person is signed in on the new password.
       if (!mounted) return;
-      context.go('/settings');
+      await _leaveOnSuccess();
       return;
     }
     setState(() => _result = saved);
@@ -303,7 +354,11 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       });
       return;
     }
-    context.go('/settings');
+    // Settings only while there is a session. Signed out, the router guard would
+    // send `/settings` straight back to this screen and reset the mode with it,
+    // which reads as the button being broken. The welcome flow is the only other
+    // surface that exists without an account, so that is where back goes.
+    context.go(SessionGate.signedIn ? '/settings' : '/welcome');
   }
 
   // ── Copy ──────────────────────────────────────────────────────────
@@ -327,9 +382,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         return 'Sign in to reach your Halaqa circles and your Al-Minbar posts '
             'from any device.';
       case _Mode.signUp:
-        return 'Optional. An account carries your Halaqa circles and Al-Minbar '
-            'posts between devices — everything you read stays on this one '
-            'either way.';
+        return 'Your reflections, your circles and your record are tied to '
+            'your account — so they follow you to your next phone.';
       case _Mode.requestCode:
         return 'Enter the address you signed up with and we will email you a '
             'six-digit code.';
@@ -584,17 +638,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     ),
 
                   const SizedBox(height: 18),
-                  // Said here as well as on the welcome screen, because this is
-                  // the one place somebody might assume they are being made to
-                  // sign up.
-                  if (!isRecovery)
-                    Text(
-                      'You can keep using Mizan without an account. Reading, '
-                      'layers and progress are stored on this device.',
-                      textAlign: TextAlign.center,
-                      style:
-                          MizanType.body(color: p.muted).copyWith(fontSize: 13),
-                    ),
+                  // This used to read "You can keep using Mizan without an
+                  // account", which stopped being true the moment the router
+                  // started guarding every route. Leaving it would have been the
+                  // worst kind of stale copy: a promise, made at the exact
+                  // moment somebody is deciding whether to trust the app, that
+                  // the next tap breaks.
+                  //
+                  // What replaces it is the consent line, because this is where
+                  // consent is actually given — the onboarding flow's own
+                  // sign-in screen carries the same sentence, and somebody who
+                  // arrives here from Settings has never seen that one.
+                  if (!isRecovery) _LegalLine(palette: p),
                 ],
               ),
             ),
@@ -606,9 +661,60 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  FIELD LABEL + MESSAGE
+//  LEGAL LINE
 // ══════════════════════════════════════════════════════════════════════
 
+/// "By continuing you agree to our Terms and Privacy Policy", with both
+/// tappable.
+///
+/// A `RichText` with `TapGestureRecognizer` would be the tidier widget, but a
+/// recogniser has to be disposed and this is a stateless leaf. A `Wrap` of small
+/// `GestureDetector`s costs a few more lines and cannot leak. It also wraps
+/// correctly at every width the app supports, which a single centred line of
+/// rich text does not.
+///
+/// Both destinations are in `AppRouter._openRoutes` — a link to terms you cannot
+/// open until after you have accepted them is not a link.
+class _LegalLine extends StatelessWidget {
+  const _LegalLine({required this.palette});
+
+  final MizanPalette palette;
+
+  @override
+  Widget build(BuildContext context) {
+    final plain = MizanType.body(color: palette.muted).copyWith(fontSize: 12.5);
+    final link = plain.copyWith(
+      color: palette.accentText,
+      fontWeight: FontWeight.w600,
+    );
+
+    Widget tap(String label, String route) => GestureDetector(
+          onTap: () => context.push(route),
+          // The text is 12.5pt, well under the 44pt minimum on its own, so the
+          // padding is what makes it reachable rather than decoration.
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 2),
+            child: Text(label, style: link),
+          ),
+        );
+
+    return Wrap(
+      alignment: WrapAlignment.center,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Text('By continuing you agree to our ', style: plain),
+        tap('Terms', '/settings/more/terms'),
+        Text(' and ', style: plain),
+        tap('Privacy Policy', '/settings/more/privacy'),
+        Text('.', style: plain),
+      ],
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  FIELD LABEL + MESSAGE
+// ══════════════════════════════════════════════════════════════════════
 class _Label extends StatelessWidget {
   const _Label(this.text);
 

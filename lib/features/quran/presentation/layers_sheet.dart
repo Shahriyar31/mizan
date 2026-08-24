@@ -490,6 +490,15 @@ class _ReadInOrderRow extends StatelessWidget {
 /// be refused on every ayah is an advert. The flag lives in [OnboardingFlags]
 /// with the welcome flag, because that is already restored before the first
 /// frame — so the card either renders or does not, and never appears late.
+///
+/// ── Why this no longer says "HOW MIZAN READS" ──────────────────────────
+/// Because the welcome flow's second screen does, under that exact eyebrow, and
+/// it makes the same claim — one ayah, six ways in — a few minutes earlier. Two
+/// screens introducing the same idea with the same label reads as the app having
+/// forgotten it already said this. So the introducing is left where it happens
+/// first, and this card keeps the half the flow cannot do: naming the six on the
+/// ayah actually in front of the person, and opening the first one. The list
+/// stays — it is a legend for this screen now, not a pitch.
 class LayersIntroCard extends StatelessWidget {
   const LayersIntroCard({
     super.key,
@@ -510,10 +519,10 @@ class LayersIntroCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          MizanSectionLabel('HOW MIZAN READS', color: p.accentText),
+          MizanSectionLabel('WHERE TO START', color: p.accentText),
           const SizedBox(height: 10),
           Text(
-            'Every ayah has six layers',
+            'The six layers of this ayah',
             style: MizanType.cardHeadline(color: p.ink),
           ),
           const SizedBox(height: 8),

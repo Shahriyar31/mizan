@@ -72,14 +72,16 @@ class AuthRepository {
   }
 
   // Remembers, locally, whether this device has ever completed a sign-up or
-  // login — purely cosmetic (drives "Log in" vs "Create account" copy on the
-  // Settings screen). The real account lives in Supabase, not here.
-  static const _kEverAuthed = 'auth_ever_authed';
+  // login. It began as cosmetic — "Log in" versus "Create account" copy on the
+  // Settings screen — but the router reads it too, through SessionGate, to
+  // decide which of those two a signed-out cold start opens on. Public so there
+  // is one copy of the string rather than two that can drift.
+  static const kEverAuthed = 'auth_ever_authed';
 
   Future<SharedPreferences> get _prefs => SharedPreferences.getInstance();
 
   Future<bool> hasAccount() async =>
-      (await _prefs).getBool(_kEverAuthed) ?? false;
+      (await _prefs).getBool(kEverAuthed) ?? false;
 
   String _displayName(User user) =>
       (user.userMetadata?['display_name'] as String?)?.trim().isNotEmpty ==
@@ -122,7 +124,7 @@ class AuthRepository {
       if (res.user == null) {
         return const AuthResult.failure('Something went wrong. Try again.');
       }
-      await (await _prefs).setBool(_kEverAuthed, true);
+      await (await _prefs).setBool(kEverAuthed, true);
       if (res.session == null) {
         // Email confirmation is required by the Supabase project. The account
         // exists; this is the next step, not a failure.
@@ -166,7 +168,7 @@ class AuthRepository {
       if (res.user == null) {
         return const AuthResult.failure('Wrong email or password.');
       }
-      await (await _prefs).setBool(_kEverAuthed, true);
+      await (await _prefs).setBool(kEverAuthed, true);
       final user = res.user!;
       // Runs before anything reads local data. If a different account owned this
       // phone's reflections, they are cleared here — see AccountDataBoundary for
@@ -383,7 +385,7 @@ class AuthRepository {
     }
     try {
       await _client.auth.updateUser(UserAttributes(password: password));
-      await (await _prefs).setBool(_kEverAuthed, true);
+      await (await _prefs).setBool(kEverAuthed, true);
       await AccountDataBoundary.onSignedIn(user.id);
       final syncProblem = await _syncProfile(
         user.id,
@@ -481,7 +483,7 @@ class AuthRepository {
   Future<void> deleteAccount() async {
     await _client.auth.signOut();
     await AccountDataBoundary.forgetEverything();
-    await (await _prefs).remove(_kEverAuthed);
+    await (await _prefs).remove(kEverAuthed);
   }
 
   /// Mirrors the account into `public.users`, and reports when it genuinely
