@@ -7,16 +7,23 @@
     <color name="mizan_page_light">#FAF6EE</color>
     <!-- Dark theme Page -->
     <color name="mizan_page_dark">#0A2233</color>
-    <!-- Adaptive-icon background. This is the Classic tile's own field colour,
-         sampled from assets/logo/square/mizan_classic.png rather than taken
+    <!-- Adaptive-icon background. This is the Midnight tile's own field colour,
+         sampled from assets/logo/square/mizan_midnight.png rather than taken
          from the palette — the launcher background must match the bitmap
-         exactly, and the artwork's cream is #FDFAEC, a shade off the page's
-         #FAF6EE. Regenerate both with tools/make_launcher_icons.py, which
-         prints the colour it sampled.
+         exactly, and the artwork's navy is #122C40, a shade off the dark page's
+         #0A2233 above. Regenerate both with tools/make_launcher_icons.py, which
+         bakes Midnight by default and prints the colour it sampled.
+
+         It was the Classic tile's cream, #FDFAEC, until Midnight became the
+         shipped launcher icon. Both layers moved together: leaving this cream
+         behind a navy foreground would show as a pale ring wherever the system
+         mask is narrower than the bitmap, and as a cream flash during the
+         launcher's parallax.
 
          There is no second entry here any more. A cream/navy pair existed for
          an activity-alias that was never added to the manifest, so the alternate
          icon was unreachable; `launcherSwapSupported` in mizan_brand.dart is
-         false and the App Icon screen says so plainly. -->
-    <color name="ic_launcher_background">#FDFAEC</color>
+         still false, and the App Icon screen says the picker changes the mark
+         inside the app only. -->
+    <color name="ic_launcher_background">#122C40</color>
 </resources>

@@ -3,8 +3,10 @@
 /// Five tiles ship, all the same artwork — the mihrab arch, `ميزان` in
 /// calligraphy, an open book beneath it — over five different fields:
 ///
-///   • **Classic**  navy calligraphy on warm cream. The launcher icon.
-///   • **Midnight** gold calligraphy on deep navy.
+///   • **Classic**  navy calligraphy on warm cream.
+///   • **Midnight** gold calligraphy on deep navy. The launcher icon, and the
+///                  default a fresh install wears, so the mark inside the app
+///                  and the one on the home screen agree.
 ///   • **Light**    the same as Classic on plain white.
 ///   • **Emerald**  cream calligraphy on deep green.
 ///   • **Plum**     cream calligraphy on deep aubergine.
@@ -15,9 +17,13 @@
 ///
 /// ── Each variant is two files, and the difference matters ─────────────
 /// [MizanLogoVariant.asset] is the rounded tile: 900×1046 with the corners
-/// already cut to transparency at the iOS squircle ratio. That is the in-app
-/// one — the transparent corners are the point, and re-clipping it would put a
-/// second, differently-shaped corner over the first.
+/// already cut to transparency at the iOS squircle ratio. That is the in-app one.
+/// The cut is not perfectly clean, though — a thin arc of the white backing the
+/// mark was composited onto survives between the transparent corner and the
+/// artwork's own edge, so [MizanMark] clips at [mizanMarkRadiusRatio] to drop it.
+/// Clipping at that exact radius traces the silhouette the art already has, so it
+/// removes the white without laying a second, differently-shaped corner over the
+/// first.
 ///
 /// [MizanLogoVariant.squareAsset] is the opaque square, padded out to 1046×1046.
 /// That is the *launcher* one: both platforms want a full-bleed square and apply
@@ -45,11 +51,11 @@
 ///             alert every time the icon changes; that is not suppressible.
 ///
 /// The native wiring is **not** in place, so [launcherSwapSupported] is false
-/// and the Settings screen says so plainly rather than offering a control that
-/// quietly does nothing. Only Classic is baked into the launcher slots; the
-/// alternate-icon resources that used to sit beside it were removed when the new
-/// artwork landed, because five unreachable copies of an unwired feature is
-/// worse than none.
+/// and the Settings screen says the picker changes the in-app mark only, rather
+/// than offering a control that quietly does nothing. Midnight is baked into the
+/// launcher slots; the alternate-icon resources that used to sit beside it were
+/// removed when the new artwork landed, because five unreachable copies of an
+/// unwired feature is worse than none.
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -140,9 +146,10 @@ enum MizanLogoVariant {
   /// cream page and need contrast against it; the three dark fields do not.
   final bool isPaleField;
 
-  /// The variant that reads best on a given palette when the user has expressed
-  /// no preference: the tile brings its own field colour, so it should contrast
-  /// with the page it sits on. Midnight on cream, Classic on navy.
+  /// The variant behind "Match my theme": the tile brings its own field colour,
+  /// so it should contrast with the page it sits on. Midnight on cream, Classic
+  /// on navy. This is *not* the fresh-install default — that is
+  /// [LogoVariantController.defaultVariant], which is Midnight either way.
   static MizanLogoVariant forPalette(MizanPalette p) =>
       p.isLight ? MizanLogoVariant.midnight : MizanLogoVariant.classic;
 
@@ -163,21 +170,54 @@ enum MizanLogoVariant {
 
 /// The user's chosen mark, or `null` for "follow the theme".
 ///
-/// `null` is a real, meaningful state — not just "unset". A user who has never
-/// touched this setting gets the mark that suits their theme, and it flips with
-/// the theme. Only once they pick a specific variant does it stop following.
+/// Three states share one string, and telling two of them apart is the whole
+/// reason this is more than a `getString`:
+///
+///   key absent      a fresh install. Wears [defaultVariant] — Midnight, the
+///                   mark baked into the launcher icon — so the tile inside the
+///                   app and the one on the home screen agree before the user
+///                   has touched anything.
+///   `follow_theme`  the user asked for "Match my theme". `null` in memory, and
+///                   a real, saved choice: the mark then flips with the theme,
+///                   Midnight in the light one and Classic in the dark.
+///   a variant id    that variant, pinned, whatever the theme does.
+///
+/// "Match my theme" used to be stored by *deleting* the key, which made it
+/// indistinguishable from a fresh install. That was harmless while both meant
+/// the same thing. It stopped being harmless the moment the default became one
+/// specific variant — the choice would not have survived a restart — so it is
+/// now written down explicitly.
 class LogoVariantController extends StateNotifier<MizanLogoVariant?> {
   LogoVariantController() : super(_bootValue);
 
   static const _key = 'settings_logo_variant';
 
+  /// Stored for "Match my theme". Deliberately not a variant id, and it must
+  /// never become one, or [MizanLogoVariant.decode] would start claiming it.
+  static const _followTheme = 'follow_theme';
+
+  /// What an untouched install wears: Midnight, the mark
+  /// `tools/make_launcher_icons.py` bakes into the launcher slots. Changing one
+  /// without the other puts a different tile in the app than on the home screen.
+  static const MizanLogoVariant defaultVariant = MizanLogoVariant.midnight;
+
   /// Read once during app start so the first frame already has the right mark —
-  /// otherwise the welcome screen flashes the wrong tile.
-  static MizanLogoVariant? _bootValue;
+  /// otherwise the welcome screen flashes the wrong tile. Seeded with the
+  /// default so even a read before [restore] shows the launcher's mark.
+  static MizanLogoVariant? _bootValue = defaultVariant;
 
   static Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
-    _bootValue = MizanLogoVariant.decode(prefs.getString(_key));
+    final raw = prefs.getString(_key);
+    if (raw == null) {
+      _bootValue = defaultVariant;
+    } else if (raw == _followTheme) {
+      _bootValue = null;
+    } else {
+      // An id this build cannot read is a bug or a downgrade, not a wish, so it
+      // falls to the default rather than to "follow the theme".
+      _bootValue = MizanLogoVariant.decode(raw) ?? defaultVariant;
+    }
   }
 
   /// Pass `null` to go back to following the theme.
@@ -185,11 +225,9 @@ class LogoVariantController extends StateNotifier<MizanLogoVariant?> {
     state = variant;
     _bootValue = variant;
     final prefs = await SharedPreferences.getInstance();
-    if (variant == null) {
-      await prefs.remove(_key);
-    } else {
-      await prefs.setString(_key, variant.id);
-    }
+    // Always writes something. Removing the key would read back as a fresh
+    // install, which is now Midnight rather than "follow the theme".
+    await prefs.setString(_key, variant?.id ?? _followTheme);
   }
 }
 

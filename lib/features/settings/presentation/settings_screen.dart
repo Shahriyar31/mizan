@@ -128,8 +128,9 @@ class SettingsScreen extends ConsumerWidget {
                 _SettingsRow(
                   icon: Icons.apps_rounded,
                   title: 'App icon',
-                  // A real reading. Null means the user has never chosen, in
-                  // which case the mark follows the active theme.
+                  // A real reading. Null means the user picked "Match my
+                  // theme", in which case the mark follows the active theme; an
+                  // untouched install reads as Midnight, the launcher's mark.
                   subtitle: logoVariant == null
                       ? 'Follows your theme'
                       : '${logoVariant.label} · ${logoVariant.description}',

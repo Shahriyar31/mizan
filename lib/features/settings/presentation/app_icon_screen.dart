@@ -1,8 +1,12 @@
 /// App Icon — pick which of the five Mizan marks the app wears.
 ///
-/// Six states, not five. "Match my theme" is the default and a real choice, not
-/// an absence of one: it keeps the mark contrasting with the page, so it flips
-/// with the theme. Picking a variant explicitly stops it following.
+/// Six states, not five. "Match my theme" is a real choice rather than an
+/// absence of one: it keeps the mark contrasting with the page, so it flips with
+/// the theme. Picking a variant explicitly stops it following.
+///
+/// The default is **Midnight**, not "Match my theme" — Midnight is the mark
+/// baked into the launcher icon, so an untouched install wears the same tile
+/// inside the app as it shows on the home screen.
 ///
 /// ── Why rows and not a grid of cards ──────────────────────────────────
 /// This was two big tap-cards side by side when two variants shipped. Five do
@@ -132,7 +136,7 @@ class AppIconScreen extends ConsumerWidget {
                 Icon(
                   launcherSwapSupported
                       ? Icons.check_circle_outline_rounded
-                      : Icons.schedule_rounded,
+                      : Icons.home_rounded,
                   size: 20,
                   color: p.muted,
                 ),
@@ -142,10 +146,8 @@ class AppIconScreen extends ConsumerWidget {
                     launcherSwapSupported
                         ? 'Your choice also changes the icon on your home '
                             'screen.'
-                        : 'This changes the mark inside the app. The icon on '
-                            'your home screen stays Classic — changing that '
-                            'needs platform-specific setup that is not '
-                            'finished yet.',
+                        : 'Your home-screen icon is Midnight. This picker '
+                            'changes the mark used inside the app only.',
                     style: MizanType.body(color: p.muted),
                   ),
                 ),

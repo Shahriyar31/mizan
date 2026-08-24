@@ -32,12 +32,22 @@ import '../../../core/theme/mizan_typography.dart';
 /// it is also why the parameter is no longer called `size` — the old name
 /// invited exactly the square box the artwork cannot survive.
 ///
-/// ── And not clipped ───────────────────────────────────────────────────
-/// The corners arrive already cut to transparency at the iOS squircle ratio. A
-/// `ClipRRect` over that lays a second corner of a slightly different shape over
-/// the first, and the two edges read as a visible double-rounded seam. The only
-/// thing still using the ratio is the optional drop shadow, which needs a
-/// silhouette to trace.
+/// ── And clipped, at its own radius ────────────────────────────────────
+/// The rounded PNGs arrive with their corners cut to transparency — but the cut
+/// is not clean. Outside the artwork's rounded silhouette, and inside the fully
+/// transparent corner, sits a thin arc of leftover opaque WHITE: the backing the
+/// mark was composited onto, showing between the two. On the Midnight tile that
+/// reads as a white border on the top corners. So the image is clipped with a
+/// `ClipRRect` at exactly [mizanMarkRadiusRatio] — the artwork's *own* corner
+/// radius — which lands the clip edge in that white arc and drops it to
+/// transparency.
+///
+/// The earlier worry here was that clipping "lays a second corner of a slightly
+/// different shape over the first" and shows a double-rounded seam. It does not,
+/// because the radius matches the art: a circular-arc clip at 0.2237·w removes
+/// every white pixel and leaves the transparent→ink transition untouched
+/// (verified pixel-by-pixel against the master). A *mismatched* radius would
+/// seam; this one traces the silhouette the art already has.
 class MizanMark extends ConsumerWidget {
   const MizanMark({
     super.key,
@@ -91,14 +101,23 @@ class MizanMark extends ConsumerWidget {
       semanticLabel: 'Mizan',
     );
 
-    if (!shadow) return image;
+    // Clip the leftover white backing arc off the corners. The radius is a
+    // fraction of width because the tile is laid out by width; the height falls
+    // out of the aspect and the corners are geometrically the same rounded shape
+    // at either measure. See the class note for why this radius and not another.
+    final clipped = ClipRRect(
+      borderRadius: BorderRadius.circular(width * mizanMarkRadiusRatio),
+      child: image,
+    );
+
+    if (!shadow) return clipped;
 
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(width * mizanMarkRadiusRatio),
         boxShadow: p.restShadow,
       ),
-      child: image,
+      child: clipped,
     );
   }
 }
