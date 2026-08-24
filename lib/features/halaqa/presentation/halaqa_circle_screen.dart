@@ -13,6 +13,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/errors/readable_error.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../identity/domain/identity_providers.dart';
@@ -154,7 +155,12 @@ class _CircleBody extends ConsumerWidget {
           // ── Members ────────────────────────────────────────
           membersAsync.when(
             loading: () => const SizedBox(height: 74),
-            error: (_, __) => const SizedBox.shrink(),
+            error: (e, _) => _MembersError(
+              message: readableError(e, tag: 'HalaqaCircleScreen'),
+              // The same provider the loading and data paths watch, so the
+              // retry reloads exactly what failed.
+              onRetry: () => ref.invalidate(halaqaMembersProvider(halaqa.id)),
+            ),
             data: (members) => Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -370,6 +376,58 @@ class _EmptyFeed extends StatelessWidget {
             'tap Share to post the first reflection here.',
             textAlign: TextAlign.center,
             style: AppTypography.bodyMedium(color: AppColors.muted),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The member strip's failure state, at the height of its loading box.
+///
+/// This used to be `SizedBox.shrink()`. On any failure the whole strip — label,
+/// count and ring — disappeared, and the 74pt box the loading state had been
+/// holding collapsed with it, so the screen jumped and the circle read as empty.
+/// That is the one conclusion which can never be true here: you have to be a
+/// member to be on this screen at all.
+///
+/// `minHeight` rather than a fixed height on purpose. 74 is what the loaded
+/// strip measures, so at a normal text size this renders at exactly 74 and
+/// nothing moves; a longer sentence or a large system font grows the box instead
+/// of clipping the half of the message that says what to do about it.
+class _MembersError extends StatelessWidget {
+  const _MembersError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 74),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // No count — the label stays so the section is still
+                // identifiable, but claiming a number would be inventing one.
+                Text('MEMBERS',
+                    style: AppTypography.labelSmall(color: AppColors.muted)),
+                const SizedBox(height: 4),
+                Text(message,
+                    style:
+                        AppTypography.bodyMedium(color: AppColors.textSecondary)),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: Text('Try again',
+                style: AppTypography.buttonSecondary(color: AppColors.gold)),
           ),
         ],
       ),

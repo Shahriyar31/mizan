@@ -11,6 +11,10 @@ library;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/config/supabase_config.dart';
+import '../../../core/utils/logger.dart';
+import 'account_data_boundary.dart';
+
 class Account {
   const Account({required this.id, required this.name, required this.email});
 
@@ -54,6 +58,19 @@ class AuthResult {
 class AuthRepository {
   SupabaseClient get _client => Supabase.instance.client;
 
+  /// Refuses early when this build cannot reach a server at all.
+  ///
+  /// Without this, a misconfigured `.env` surfaces as "Could not reach the
+  /// server. Check your connection." — which sends the person off to fight their
+  /// wifi over a problem in the build they were given. The distinction matters
+  /// most for exactly the audience this app is being handed to: friends who will
+  /// assume the fault is theirs.
+  AuthResult? get _configProblem {
+    final config = SupabaseConfig.current;
+    if (config.isUsable) return null;
+    return AuthResult.failure(config.problem!);
+  }
+
   // Remembers, locally, whether this device has ever completed a sign-up or
   // login — purely cosmetic (drives "Log in" vs "Create account" copy on the
   // Settings screen). The real account lives in Supabase, not here.
@@ -93,6 +110,8 @@ class AuthRepository {
       password: password,
     );
     if (localError != null) return AuthResult.failure(localError);
+    final misconfigured = _configProblem;
+    if (misconfigured != null) return misconfigured;
 
     try {
       final res = await _client.auth.signUp(
@@ -111,7 +130,15 @@ class AuthRepository {
           'Account created. Check your email to confirm it, then log in.',
         );
       }
-      await _syncProfile(res.user!.id, name.trim(), email.trim().toLowerCase());
+      final syncProblem = await _syncProfile(
+        res.user!.id,
+        name.trim(),
+        email.trim().toLowerCase(),
+      );
+      // A brand-new account on a phone that has been used offline *adopts* that
+      // work rather than clearing it — see AccountDataBoundary.
+      await AccountDataBoundary.onSignedIn(res.user!.id);
+      if (syncProblem != null) return AuthResult.notice(syncProblem);
       return const AuthResult.ok();
     } on AuthException catch (e) {
       return AuthResult.failure(_readable(e));
@@ -128,6 +155,8 @@ class AuthRepository {
   }) async {
     final localError = validateLogIn(email: email, password: password);
     if (localError != null) return AuthResult.failure(localError);
+    final misconfigured = _configProblem;
+    if (misconfigured != null) return misconfigured;
 
     try {
       final res = await _client.auth.signInWithPassword(
@@ -138,18 +167,23 @@ class AuthRepository {
         return const AuthResult.failure('Wrong email or password.');
       }
       await (await _prefs).setBool(_kEverAuthed, true);
+      final user = res.user!;
+      // Runs before anything reads local data. If a different account owned this
+      // phone's reflections, they are cleared here — see AccountDataBoundary for
+      // why this is a switch boundary and not a sign-out boundary.
+      await AccountDataBoundary.onSignedIn(user.id);
       // Also mirrored on sign-up, and a DB trigger writes it too — but a
       // `public.users` row is a hard prerequisite for joining a Halaqa
       // (`halaqa_members.user_id` is a foreign key to it), and a login is the
       // last chance to notice it is missing. An account created before the
       // trigger existed, or one whose row was removed, would otherwise fail
       // every circle it tried to join with nothing on screen to explain why.
-      final user = res.user!;
-      await _syncProfile(
+      final syncProblem = await _syncProfile(
         user.id,
         _displayName(user),
         user.email ?? email.trim().toLowerCase(),
       );
+      if (syncProblem != null) return AuthResult.notice(syncProblem);
       return const AuthResult.ok();
     } on AuthException catch (e) {
       return AuthResult.failure(_readable(e));
@@ -187,6 +221,10 @@ class AuthRepository {
     if (password.isEmpty) return 'Enter your password.';
     return null;
   }
+
+  /// Just the email rule, for the screens that ask for an address on its own —
+  /// the password-reset request and the resend-confirmation action.
+  static String? validateEmail(String email) => _emailError(email);
 
   /// Deliberately loose. This is not RFC 5322 — it only catches the mistakes a
   /// person actually makes on a phone keyboard (no `@`, no dot after it, a
@@ -243,6 +281,176 @@ class AuthRepository {
 
   Future<void> logOut() async => _client.auth.signOut();
 
+  // ── Account recovery ──────────────────────────────────────────────
+  //
+  // Without this, a forgotten password is a permanent lockout: the reflections,
+  // the circles and the record are all tied to an account there is no way back
+  // into. For an app being handed to friends, that is not a missing feature, it
+  // is a trap.
+  //
+  // This uses the six-digit code, not a reset link, and that is a deliberate
+  // choice rather than the lazy one. A link has to land back inside the app,
+  // which means an Android intent filter (the manifest has none — only
+  // MAIN/LAUNCHER and the notification boot receiver), an iOS associated-domain
+  // or URL-scheme entry, and a redirect allow-list in the Supabase dashboard
+  // that has to be kept in step with both. Every one of those is a thing that
+  // can be wrong in release and cannot be tested from here. A code the person
+  // types needs none of it and behaves identically on both platforms.
+  //
+  // Supabase sends the code in the same recovery email as the link; the default
+  // template includes `{{ .Token }}`. If the project's template has been edited
+  // down to just the link, the code will not be in the email — that is the one
+  // configuration this path depends on.
+
+  /// Step 1 — asks Supabase to email a recovery code.
+  ///
+  /// Deliberately says the same thing whether or not the address has an account.
+  /// "No account with that email" would turn this screen into a way for anybody
+  /// holding the phone to test which of their friends' addresses are registered.
+  /// Supabase itself does not distinguish the two cases either, so claiming to
+  /// would be a lie as well as a leak.
+  Future<AuthResult> requestPasswordReset(String email) async {
+    final emailError = _emailError(email);
+    if (emailError != null) return AuthResult.failure(emailError);
+    final misconfigured = _configProblem;
+    if (misconfigured != null) return misconfigured;
+    try {
+      await _client.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      return const AuthResult.notice(
+        'If that address has an account, a six-digit code is on its way. '
+        'Enter it below.',
+      );
+    } on AuthException catch (e) {
+      return AuthResult.failure(_readable(e));
+    } catch (e) {
+      AppLogger.error('reset request failed', error: e, tag: 'AuthRepository');
+      return const AuthResult.failure(
+        'Could not reach the server. Check your connection.',
+      );
+    }
+  }
+
+  /// Step 2 — exchanges the code for a session.
+  ///
+  /// On success gotrue saves the session and emits
+  /// `AuthChangeEvent.passwordRecovery`, so from here the person is signed in
+  /// and `updateUser` will be accepted. This is why [setNewPassword] does not
+  /// need the old password: possession of a code sent to the address on the
+  /// account is the proof.
+  Future<AuthResult> verifyRecoveryCode({
+    required String email,
+    required String code,
+  }) async {
+    final digits = code.trim();
+    if (digits.length < 6) return const AuthResult.failure('Enter all six digits.');
+    try {
+      final res = await _client.auth.verifyOTP(
+        email: email.trim().toLowerCase(),
+        token: digits,
+        type: OtpType.recovery,
+      );
+      if (res.session == null) {
+        return const AuthResult.failure(
+          'That code did not work. Ask for a new one.',
+        );
+      }
+      return const AuthResult.ok();
+    } on AuthException catch (e) {
+      return AuthResult.failure(_readableCode(e));
+    } catch (e) {
+      AppLogger.error('code verify failed', error: e, tag: 'AuthRepository');
+      return const AuthResult.failure(
+        'Could not reach the server. Check your connection.',
+      );
+    }
+  }
+
+  /// Step 3 — sets the new password on the session the code just opened.
+  ///
+  /// The account boundary runs here too. A recovery is a completely valid way to
+  /// arrive on somebody else's phone — it is the obvious route for "let me just
+  /// check my circle on your handset" — and it must not leave the previous
+  /// owner's reflections on screen under the new name.
+  Future<AuthResult> setNewPassword(String password) async {
+    if (password.length < 6) {
+      return const AuthResult.failure('Use at least 6 characters.');
+    }
+    final user = _client.auth.currentUser;
+    if (user == null) {
+      return const AuthResult.failure(
+        'That code has expired. Start again from your email address.',
+      );
+    }
+    try {
+      await _client.auth.updateUser(UserAttributes(password: password));
+      await (await _prefs).setBool(_kEverAuthed, true);
+      await AccountDataBoundary.onSignedIn(user.id);
+      final syncProblem = await _syncProfile(
+        user.id,
+        _displayName(user),
+        user.email ?? '',
+      );
+      if (syncProblem != null) return AuthResult.notice(syncProblem);
+      return const AuthResult.ok();
+    } on AuthException catch (e) {
+      return AuthResult.failure(_readable(e));
+    } catch (e) {
+      AppLogger.error('password update failed', error: e, tag: 'AuthRepository');
+      return const AuthResult.failure(
+        'Could not save the new password. Try again.',
+      );
+    }
+  }
+
+  /// Sends the confirmation email again.
+  ///
+  /// The other half of the lockout. Sign-up returns a notice telling the person
+  /// to check their inbox, and if that email is lost, filtered or simply never
+  /// arrives, the account exists but cannot be used: signing up again answers
+  /// "that email already has an account", and logging in answers "please confirm
+  /// your email first". A closed loop with no way out of it.
+  Future<AuthResult> resendConfirmation(String email) async {
+    final emailError = _emailError(email);
+    if (emailError != null) return AuthResult.failure(emailError);
+    final misconfigured = _configProblem;
+    if (misconfigured != null) return misconfigured;
+    try {
+      await _client.auth.resend(
+        email: email.trim().toLowerCase(),
+        type: OtpType.signup,
+      );
+      return const AuthResult.notice(
+        'Confirmation email sent again. Check your inbox, and your spam folder.',
+      );
+    } on AuthException catch (e) {
+      // Supabase answers this when the address is already confirmed, which is
+      // good news badly worded.
+      if (e.message.toLowerCase().contains('already confirmed')) {
+        return const AuthResult.notice(
+          'That email is already confirmed — you can log in.',
+        );
+      }
+      return AuthResult.failure(_readable(e));
+    } catch (e) {
+      AppLogger.error('resend failed', error: e, tag: 'AuthRepository');
+      return const AuthResult.failure(
+        'Could not reach the server. Check your connection.',
+      );
+    }
+  }
+
+  /// Like [_readable], but for the code screen, where "Token has expired or is
+  /// invalid" needs to name the two different things the person might do about
+  /// it rather than passing developer wording through.
+  static String _readableCode(AuthException e) {
+    final m = e.message.toLowerCase();
+    if (m.contains('expired') || m.contains('invalid')) {
+      return 'That code is wrong or has expired. Codes last one hour — '
+          'ask for a new one.';
+    }
+    return _readable(e);
+  }
+
   Future<String?> rename(String name) async {
     final trimmed = name.trim();
     if (trimmed.length < 2) return 'Please enter your name.';
@@ -263,29 +471,70 @@ class AuthRepository {
     }
   }
 
-  /// Signs out and forgets this device's "ever signed in" flag. The
-  /// Supabase auth account itself is not deleted — self-service account
-  /// deletion needs a service-role/Edge Function, which never belongs in
-  /// client code.
+  /// Signs out, clears this device's personal data, and forgets the "ever
+  /// signed in" flag. The Supabase auth account itself is not deleted —
+  /// self-service account deletion needs a service-role/Edge Function, which
+  /// never belongs in client code.
+  ///
+  /// Unlike a plain sign-out this *does* wipe local data, because here the
+  /// person has explicitly asked to be forgotten rather than merely to leave.
   Future<void> deleteAccount() async {
     await _client.auth.signOut();
+    await AccountDataBoundary.forgetEverything();
     await (await _prefs).remove(_kEverAuthed);
   }
 
-  /// Best-effort mirror into `public.users` — the DB trigger already does this
-  /// on sign-up, so failures here are non-fatal. Called after sign-up *and*
-  /// after every login, because `halaqa_members` and the Minbar both hold
-  /// foreign keys to this row and read the display name from it.
-  Future<void> _syncProfile(String id, String name, String email) async {
-    if (email.isEmpty) return; // `users.email` is NOT NULL UNIQUE.
+  /// Mirrors the account into `public.users`, and reports when it genuinely
+  /// failed.
+  ///
+  /// Returns null when the row is in place, or a sentence to show the person
+  /// when it is not.
+  ///
+  /// This used to `catch (_) {}` with the comment "trigger-created row already
+  /// covers this — ignore". That reasoning was half right and the half that was
+  /// wrong was expensive. An *upsert* onto an existing row does not throw, so a
+  /// throw here never meant "the row was already there"; it meant RLS refused
+  /// the write, or the request never arrived. And this row is not decoration:
+  /// `halaqa_members.user_id` and the Minbar both hold foreign keys to it. With
+  /// the failure swallowed, login looked perfectly successful and then every
+  /// attempt to join a circle failed on a foreign-key violation, with nothing
+  /// anywhere connecting the two events. That is the worst shape a bug can have.
+  ///
+  /// So: log it always, then find out whether the row exists. If it does, the
+  /// write was redundant and silence is correct. If it does not, say so — the
+  /// person is about to hit a wall in Halaqa and deserves the warning here,
+  /// where it is still explicable.
+  Future<String?> _syncProfile(String id, String name, String email) async {
+    if (email.isEmpty) return null; // `users.email` is NOT NULL UNIQUE.
     try {
       await _client.from('users').upsert({
         'id': id,
         'email': email,
         'display_name': name,
       });
-    } catch (_) {
-      // Trigger-created row already covers this — ignore.
+      return null;
+    } catch (e) {
+      AppLogger.error('users row upsert failed', error: e, tag: 'AuthRepository');
+      try {
+        final existing = await _client
+            .from('users')
+            .select('id')
+            .eq('id', id)
+            .maybeSingle();
+        if (existing != null) return null; // The trigger did cover it.
+      } catch (e2) {
+        AppLogger.error(
+          'could not confirm the users row either',
+          error: e2,
+          tag: 'AuthRepository',
+        );
+        // Cannot tell. Do not cry wolf on a flaky connection — the row is
+        // probably there from the trigger, and the person will find out for
+        // certain the moment they open Halaqa.
+        return null;
+      }
+      return 'You are signed in, but your profile did not finish saving. '
+          'Circles and Minbar may not work until you log in again.';
     }
   }
 }

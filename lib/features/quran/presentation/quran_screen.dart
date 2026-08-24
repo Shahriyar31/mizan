@@ -32,6 +32,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/errors/readable_error.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/models/surah.dart';
@@ -140,7 +141,11 @@ class _QuranScreenState extends ConsumerState<QuranScreen> {
                     const SizedBox(height: 10),
                   ],
                 ],
-              AsyncError(:final error) => [_LoadFailed(message: '$error')],
+              AsyncError(:final error) => [
+                  _LoadFailed(
+                    message: readableError(error, tag: 'QuranScreen'),
+                  ),
+                ],
               _ => const [_IndexLoading()],
             },
           ],
@@ -556,8 +561,11 @@ class _LoadFailed extends StatelessWidget {
               style: MizanType.bodyStrong(color: p.ink),
             ),
             const SizedBox(height: 6),
-            // Shown rather than swallowed: a silent empty list on a screen that
-            // should always have 114 rows is worse than an ugly message.
+            // Said rather than swallowed: a silent empty list on a screen that
+            // should always have 114 rows is worse than a second line. The line
+            // used to be the raw exception, on the argument that an ugly message
+            // beats no message — `readableError` keeps the second half of that
+            // argument and drops the ugly, logging the real cause instead.
             Text(message, style: MizanType.body(color: p.muted)),
           ],
         ),

@@ -51,6 +51,7 @@ import 'package:mizan/core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/branding/mizan_icons.dart';
+import '../../../core/errors/readable_error.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
@@ -1167,7 +1168,7 @@ class _ProphetsTab extends ConsumerWidget {
     final listAsync = ref.watch(prophetListProvider);
     return listAsync.when(
       loading: () => const _LoadingView(),
-      error: (e, _) => _ErrorView(e.toString()),
+      error: (e, _) => _ErrorView(readableError(e, tag: 'DiscoverScreen')),
       data: (items) => DiscoverBrowser<ProphetListItem>(
         items: items,
         searchHint: 'Search 25 prophets',
@@ -1352,7 +1353,7 @@ class _SahabahTab extends ConsumerWidget {
     final listAsync = ref.watch(sahabiListProvider);
     return listAsync.when(
       loading: () => const _LoadingView(),
-      error: (e, _) => _ErrorView(e.toString()),
+      error: (e, _) => _ErrorView(readableError(e, tag: 'DiscoverScreen')),
       data: (items) => DiscoverBrowser<SahabiListItem>(
         items: items,
         searchHint: 'Search by name, kunyah or tribe',
@@ -1495,7 +1496,7 @@ class _NamesTab extends ConsumerWidget {
     final listAsync = ref.watch(nameListProvider);
     return listAsync.when(
       loading: () => const _LoadingView(),
-      error: (e, _) => _ErrorView(e.toString()),
+      error: (e, _) => _ErrorView(readableError(e, tag: 'DiscoverScreen')),
       data: (items) => DiscoverBrowser<NameListItem>(
         items: items,
         searchHint: 'Search a Name or its meaning',
@@ -1655,7 +1656,7 @@ class _SeerahTab extends ConsumerWidget {
     final listAsync = ref.watch(seerahListProvider);
     return listAsync.when(
       loading: () => const _LoadingView(),
-      error: (e, _) => _ErrorView(e.toString()),
+      error: (e, _) => _ErrorView(readableError(e, tag: 'DiscoverScreen')),
       data: (items) {
         if (items.isEmpty) {
           return Center(

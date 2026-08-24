@@ -35,6 +35,10 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
   SupabaseClient get _c => Supabase.instance.client;
   static const String _tag = 'SupabaseHalaqaRepository';
 
+  /// How many times [createHalaqa] will mint a fresh invite code and try the
+  /// insert again after the server rejects one as already taken.
+  static const int _createAttempts = 4;
+
   @override
   Future<List<Halaqa>> getHalaqasForUser(String userId) async {
     final rows = await _c
@@ -76,17 +80,57 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
           HalaqaErrorKind.invalidName, 'A circle needs a name.');
     }
 
-    final inviteCode = await _uniqueInviteCode();
-    final row = await _c
-        .from('halaqas')
-        .insert({
-          'name': trimmed,
-          'created_by': creator.id,
-          'invite_code': inviteCode,
-          'max_members': AppConstants.maxHalaqaMembers,
-        })
-        .select()
-        .single();
+    // ── The insert, not the lookup, decides the code ──────────────────
+    // [_uniqueInviteCode] reads before it writes, so it can only lower the
+    // odds of a clash, never rule one out: two people creating a circle in the
+    // same second are both told the same code is free and both try to use it.
+    // The UNIQUE constraint on `halaqas.invite_code` is the only real arbiter,
+    // and its 23505 used to escape this method raw — the create sheet has no
+    // way to read a Postgrest error, so it showed "Could not create the circle.
+    // Check your connection", blaming the network for a collision. Now the loser
+    // simply mints another code and tries again, with the length escalating
+    // because a run of clashes means the 6-character space is crowded rather
+    // than that we were unlucky twice.
+    Map<String, dynamic>? row;
+    for (var attempt = 0; attempt < _createAttempts; attempt++) {
+      final inviteCode =
+          await _uniqueInviteCode(length: attempt < 2 ? 6 : 8);
+      try {
+        row = await _c
+            .from('halaqas')
+            .insert({
+              'name': trimmed,
+              'created_by': creator.id,
+              'invite_code': inviteCode,
+              'max_members': AppConstants.maxHalaqaMembers,
+            })
+            .select()
+            .single();
+        break;
+      } on PostgrestException catch (e) {
+        if (!_isInviteCodeCollision(e)) rethrow;
+        AppLogger.warning(
+            'Invite code $inviteCode was already taken — retrying '
+            '(${attempt + 1}/$_createAttempts)',
+            tag: _tag);
+      }
+    }
+
+    if (row == null) {
+      // Every code we offered was rejected as taken. At this scale that is not
+      // bad luck, it is a signal — so say so instead of pretending the network
+      // failed. `full` is the nearest existing kind (a space that has run out of
+      // room); a dedicated `inviteCodeUnavailable` member would read better, but
+      // the exhaustive switch in halaqa_sheets.dart has to grow with it.
+      AppLogger.error(
+          'All $_createAttempts invite codes were taken — aborting create',
+          tag: _tag);
+      throw const HalaqaException(
+        HalaqaErrorKind.full,
+        'Could not reserve an invite code for this circle. Please try again.',
+      );
+    }
+
     final halaqa = Halaqa.fromMap(row);
 
     // Two inserts, and Postgrest gives no transaction across them. If the
@@ -195,16 +239,32 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
     return (rows as List).length;
   }
 
+  /// One page of a circle's feed, newest first.
+  ///
+  /// [limit]/[offset] are extra optional parameters on top of the interface's
+  /// signature, so every existing caller compiles unchanged and simply gets the
+  /// first page. They are not optional to the *server*: an unbounded select
+  /// returned every share a circle had ever posted, and then every one of those
+  /// ids went into a single `in.(…)` filter for the reactions — a request URI
+  /// that grows without limit and that the server eventually refuses outright.
+  /// Shape mirrors SupabaseMinbarRepository.getFeed: a ranged page, then one
+  /// batched reaction fetch for exactly that page's shares. The default page
+  /// size is `AppConstants.minbarPageSize` — the one feed page size the app
+  /// defines; a circle feed is the smaller of the two, so a page that is
+  /// comfortable for Al-Minbar is comfortable here.
   @override
   Future<List<HalaqaShareView>> getFeed({
     required String halaqaId,
     required String currentUserId,
+    int limit = AppConstants.minbarPageSize,
+    int offset = 0,
   }) async {
     final shareRows = await _c
         .from('halaqa_shares')
         .select()
         .eq('halaqa_id', halaqaId)
-        .order('shared_at', ascending: false);
+        .order('shared_at', ascending: false)
+        .range(offset, offset + limit - 1);
     final shares =
         (shareRows as List).map((r) => _shareFromRow(r as Map<String, dynamic>)).toList();
     if (shares.isEmpty) return const [];
@@ -385,9 +445,26 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
         : trimmed.substring(0, AppConstants.personalNoteMaxLength);
   }
 
-  Future<String> _uniqueInviteCode() async {
+  /// True when [e] is the UNIQUE violation on `halaqas.invite_code` and not
+  /// some other duplicate-key error. Postgres names the offending constraint in
+  /// the message ("...violates unique constraint \"halaqas_invite_code_key\"")
+  /// and repeats the column in `details`, so both are searched; anything else
+  /// carrying 23505 is a different bug and must not be retried into a loop.
+  bool _isInviteCodeCollision(PostgrestException e) {
+    if (e.code != '23505') return false;
+    final haystack =
+        '${e.message} ${e.details ?? ''} ${e.hint ?? ''}'.toLowerCase();
+    return haystack.contains('invite_code');
+  }
+
+  /// A code that is *probably* free, at [length] characters (escalating callers
+  /// pass a longer one). This is a check-then-insert and therefore advisory
+  /// only — see the note in [createHalaqa]; the UNIQUE constraint is what
+  /// actually guarantees uniqueness.
+  Future<String> _uniqueInviteCode({int length = 6}) async {
     for (var attempt = 0; attempt < 6; attempt++) {
-      final code = IdGenerator.inviteCode(length: attempt < 4 ? 6 : 8);
+      final code =
+          IdGenerator.inviteCode(length: attempt < 4 ? length : length + 2);
       final hit = await _c
           .from('halaqas')
           .select('id')
@@ -395,6 +472,8 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
           .maybeSingle();
       if (hit == null) return code;
     }
-    return IdGenerator.inviteCode(length: 10);
+    // Every probe hit something. Hand back a longer, unprobed code rather than
+    // burning more round trips — [createHalaqa] is prepared to be told no.
+    return IdGenerator.inviteCode(length: length + 4);
   }
 }

@@ -13,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supa;
 
 import '../../identity/domain/identity_providers.dart';
+import '../data/account_data_boundary.dart';
 import '../data/auth_repository.dart';
 
 // ── Theme mode ────────────────────────────────────────────────────
@@ -103,6 +104,14 @@ class AuthController extends StateNotifier<AuthState> {
 
   /// Keeps the shared local identity (used by Halaqa & Al-Minbar for
   /// attribution) in step with the account name — one name across the app.
+  ///
+  /// This used to be an outright bug: `user_profile` is a single shared row, so
+  /// signing in relabelled whatever was already there, and the previous person's
+  /// offline circles and Minbar posts — still keyed to that row — were displayed
+  /// under the new name. It is safe now only because [AccountDataBoundary] has
+  /// already cleared that row when the account actually changed, so the profile
+  /// this renames is either freshly created or genuinely theirs. The two are a
+  /// pair; do not call one without the other.
   Future<void> _syncIdentityName(String name) {
     if (name.trim().isEmpty) return Future.value();
     return _ref.read(currentUserProvider.notifier).updateName(name);
@@ -111,6 +120,11 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> refresh() async {
     final account = await _repo.session();
     final has = await _repo.hasAccount();
+    if (account != null) {
+      // Claims local data for an account that was already signed in when this
+      // version was installed. Never clears — see claimExistingSession.
+      await AccountDataBoundary.claimExistingSession(account.id);
+    }
     state = AuthState(account: account, hasAccount: has, loading: false);
   }
 
@@ -126,7 +140,10 @@ class AuthController extends StateNotifier<AuthState> {
     // `hasAccount` has changed even though `signedIn` has not.
     if (!result.isFailure) {
       await refresh();
-      if (result.isOk) await _syncIdentityName(name);
+      if (result.isOk) {
+        _ref.invalidate(currentUserProvider);
+        await _syncIdentityName(name);
+      }
     }
     return result;
   }
@@ -136,13 +153,48 @@ class AuthController extends StateNotifier<AuthState> {
     required String password,
   }) async {
     final result = await _repo.logIn(email: email, password: password);
-    if (result.isOk) {
+    if (!result.isFailure) {
+      // The local profile may have been deleted underneath us by the account
+      // boundary, and this notifier is not autoDispose, so it would otherwise go
+      // on serving the previous person's cached identity for the rest of the
+      // session. Invalidate first, then rename what comes back.
+      _ref.invalidate(currentUserProvider);
       await refresh();
       final name = state.account?.name;
       if (name != null) await _syncIdentityName(name);
     }
     return result;
   }
+
+  // ── Recovery ──────────────────────────────────────────────────────
+  //
+  // Three steps, each returning the same three-state AuthResult the form already
+  // knows how to render, so the screen needs no new error plumbing.
+
+  Future<AuthResult> requestPasswordReset(String email) =>
+      _repo.requestPasswordReset(email);
+
+  Future<AuthResult> verifyRecoveryCode({
+    required String email,
+    required String code,
+  }) =>
+      _repo.verifyRecoveryCode(email: email, code: code);
+
+  /// Completes a recovery. On success the person is signed in on the new
+  /// password, so the state has to be re-read exactly as a login would.
+  Future<AuthResult> setNewPassword(String password) async {
+    final result = await _repo.setNewPassword(password);
+    if (!result.isFailure) {
+      _ref.invalidate(currentUserProvider);
+      await refresh();
+      final name = state.account?.name;
+      if (name != null) await _syncIdentityName(name);
+    }
+    return result;
+  }
+
+  Future<AuthResult> resendConfirmation(String email) =>
+      _repo.resendConfirmation(email);
 
   Future<String?> rename(String name) async {
     final error = await _repo.rename(name);
@@ -160,6 +212,9 @@ class AuthController extends StateNotifier<AuthState> {
 
   Future<void> deleteAccount() async {
     await _repo.deleteAccount();
+    // deleteAccount wipes local data outright, so the cached identity is stale
+    // in the strongest sense — the row it describes no longer exists.
+    _ref.invalidate(currentUserProvider);
     await refresh();
   }
 }

@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/branding/mizan_brand.dart';
+import 'core/config/supabase_config.dart';
+import 'core/utils/logger.dart';
 import 'features/home/domain/streak_provider.dart';
 import 'features/onboarding/domain/onboarding_flags.dart';
 import 'services/database/database_service.dart';
@@ -16,8 +18,19 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file
-  await dotenv.load(fileName: '.env');
+  // Load environment variables from .env file.
+  //
+  // Guarded because an unguarded `load` throws when the asset is missing, and it
+  // is the very first thing in `main` — so the failure mode was a permanently
+  // black screen with no message, for a problem (a .env that did not make it
+  // into the bundle) that has nothing to do with the person holding the phone.
+  // Everything downstream already treats an absent variable as absent, and
+  // SupabaseConfig turns that into a sentence on the sign-in screen.
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    AppLogger.error('.env did not load', error: e, tag: 'main');
+  }
 
   // Tell the OS this app plays recitation, before any player exists. Without
   // this iOS routes it to the ambient stream (thin, silenced by the ringer
@@ -56,10 +69,21 @@ Future<void> main() async {
   // Initialize SQLite (personal local data)
   await DatabaseService.instance.database;
 
-  // Initialize Supabase (social data + layer cache)
+  // Initialize Supabase (social data + layer cache).
+  //
+  // The URL and key are validated first, and when they are unusable this points
+  // at a deliberately unresolvable host rather than at localhost — see
+  // SupabaseConfig for why the old localhost fallback silently broke stored
+  // sessions. Initializing either way is intentional: `Supabase.instance.client`
+  // is read from a dozen files that would otherwise throw an AssertionError, and
+  // an honest sentence on the sign-in screen is better than a crash.
+  final supabase = SupabaseConfig.current;
   await Supabase.initialize(
-    url: dotenv.env['SUPABASE_URL'] ?? 'http://127.0.0.1:54321',
-    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+    url: supabase.url,
+    // `anonKey` is deprecated in favour of `publishableKey`; internally it is
+    // `publishableKey ?? anonKey!`, so this is a pure rename and a legacy
+    // `eyJ…` anon key is still accepted here.
+    publishableKey: supabase.key,
   );
 
   // Seed demo Halaqa + Al-Minbar data on first run (guarded by a feature flag

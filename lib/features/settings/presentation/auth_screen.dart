@@ -1,4 +1,5 @@
-/// Create an account, or sign in to one — real Supabase Auth, over the network.
+/// Create an account, sign in to one, or get back into one — real Supabase Auth,
+/// over the network.
 ///
 /// ── What this screen used to claim, and why that had to go ─────────────
 /// Both this file's own header and the line under its title used to say the
@@ -8,15 +9,34 @@
 /// `public.users`. A privacy claim that is false is worse than no claim, so the
 /// copy now says plainly what leaves the device and what does not.
 ///
+/// ── Four modes, one screen ─────────────────────────────────────────────
+/// This was a `bool _isLogin`. It is now a four-state [_Mode], because two ways
+/// of being permanently locked out had no way out of them:
+///
+///  * **A forgotten password.** There was no reset anywhere in the app, and the
+///    reflections, circles and record are all tied to the account. So a forgotten
+///    password did not mean an inconvenience, it meant the work was gone.
+///  * **A confirmation email that never arrived.** Sign-up tells the person to
+///    check their inbox. If that email is filtered, deleted or simply lost, the
+///    account exists but cannot be used: signing up again answers "that email
+///    already has an account", and logging in answers "please confirm your email
+///    first". A closed loop, with the account visible through the glass.
+///
+/// Both are handled here rather than on new routes, because the recovery modes
+/// share the email field, the busy flag, the single message slot and the whole
+/// validation apparatus with the two modes that were already here. A separate
+/// route would have duplicated all of it.
+///
 /// ── Signing in is optional, and stays optional ─────────────────────────
-/// There is no router guard anywhere in the app. Every tab works signed out,
+/// There is no router guard on the tabs. Every one of them works signed out,
 /// reading and layer progress live in SQLite on the device either way, and this
-/// screen is reachable only from Settings › account. The subtitle says what an
-/// account is *for* — carrying Halaqa circles and Al-Minbar posts to a second
-/// device — rather than implying it is required.
+/// screen is reachable from Settings › account. The subtitle says what an account
+/// is *for* — carrying Halaqa circles and Al-Minbar posts to a second device —
+/// rather than implying it is required.
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -25,6 +45,15 @@ import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
 import '../data/auth_repository.dart';
 import '../domain/settings_providers.dart';
+
+/// The four things this screen can be.
+///
+/// [requestCode] and [enterCode] are the two halves of a password reset. They are
+/// two modes rather than one because the person has to leave the app to fetch the
+/// code, and a single screen holding an email field, a code field and a new
+/// password field would show all three at once — two of them unusable, with no
+/// indication of which one to fill first.
+enum _Mode { logIn, signUp, requestCode, enterCode }
 
 class AuthScreen extends ConsumerStatefulWidget {
   const AuthScreen({super.key, this.startOnLogin = false});
@@ -36,12 +65,17 @@ class AuthScreen extends ConsumerStatefulWidget {
 }
 
 class _AuthScreenState extends ConsumerState<AuthScreen> {
-  late bool _isLogin = widget.startOnLogin;
+  late _Mode _mode = widget.startOnLogin ? _Mode.logIn : _Mode.signUp;
+
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _code = TextEditingController();
+  final _newPassword = TextEditingController();
+
   final _emailFocus = FocusNode();
   final _passwordFocus = FocusNode();
+  final _newPasswordFocus = FocusNode();
 
   bool _busy = false;
   bool _obscure = true;
@@ -50,26 +84,30 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
   /// A single field for both so the two can never be shown at once.
   AuthResult? _result;
 
+  List<TextEditingController> get _controllers =>
+      [_name, _email, _password, _code, _newPassword];
+
   @override
   void initState() {
     super.initState();
     // The button enables itself the moment the form is valid, so it has to
-    // rebuild as the user types. Cheaper than a Form + GlobalKey for three
+    // rebuild as the user types. Cheaper than a Form + GlobalKey for five
     // fields, and it means the *same* validator decides both the enabled state
     // and the message, instead of two rules drifting apart.
-    for (final c in [_name, _email, _password]) {
+    for (final c in _controllers) {
       c.addListener(_onFieldChanged);
     }
   }
 
   @override
   void dispose() {
-    for (final c in [_name, _email, _password]) {
+    for (final c in _controllers) {
       c.removeListener(_onFieldChanged);
       c.dispose();
     }
     _emailFocus.dispose();
     _passwordFocus.dispose();
+    _newPasswordFocus.dispose();
     super.dispose();
   }
 
@@ -83,18 +121,59 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
   }
 
-  String? get _localError => _isLogin
-      ? AuthRepository.validateLogIn(
+  // ── Validation ────────────────────────────────────────────────────
+
+  String? get _localError {
+    switch (_mode) {
+      case _Mode.logIn:
+        return AuthRepository.validateLogIn(
           email: _email.text,
           password: _password.text,
-        )
-      : AuthRepository.validateSignUp(
+        );
+      case _Mode.signUp:
+        return AuthRepository.validateSignUp(
           name: _name.text,
           email: _email.text,
           password: _password.text,
         );
+      case _Mode.requestCode:
+        return AuthRepository.validateEmail(_email.text);
+      case _Mode.enterCode:
+        if (_code.text.trim().length < 6) return 'Enter the six-digit code.';
+        if (_newPassword.text.length < 6) return 'Use at least 6 characters.';
+        return null;
+    }
+  }
 
   bool get _canSubmit => !_busy && _localError == null;
+
+  /// Whether to offer sending the confirmation email again.
+  ///
+  /// Only when it is the actual next step, which is exactly the two moments the
+  /// word "confirm" appears in a result: the notice after a sign-up that needs
+  /// confirming, and the failure when logging in to an unconfirmed account. A
+  /// permanent "resend confirmation" control on the log-in screen would be noise
+  /// for everybody else, and slightly alarming — it implies something is wrong.
+  bool get _offerResend {
+    if (_mode != _Mode.logIn) return false;
+    final message = _result?.message?.toLowerCase();
+    return message != null && message.contains('confirm');
+  }
+
+  // ── Actions ───────────────────────────────────────────────────────
+
+  /// Wraps every network action in the same busy/mounted/message discipline, so
+  /// no individual handler can forget to clear `_busy` on some path.
+  Future<AuthResult?> _run(Future<AuthResult> Function() action) async {
+    setState(() {
+      _busy = true;
+      _result = null;
+    });
+    final result = await action();
+    if (!mounted) return null;
+    setState(() => _busy = false);
+    return result;
+  }
 
   Future<void> _submit() async {
     // Two guards, not one. `_busy` stops a second tap while the request is in
@@ -106,44 +185,189 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       return;
     }
 
-    setState(() {
-      _busy = true;
-      _result = null;
-    });
+    switch (_mode) {
+      case _Mode.logIn:
+      case _Mode.signUp:
+        await _submitCredentials();
+      case _Mode.requestCode:
+        await _sendCode(advance: true);
+      case _Mode.enterCode:
+        await _completeReset();
+    }
+  }
 
+  Future<void> _submitCredentials() async {
     final controller = ref.read(authControllerProvider.notifier);
-    final result = _isLogin
-        ? await controller.logIn(
-            email: _email.text,
-            password: _password.text,
-          )
-        : await controller.signUp(
-            name: _name.text,
-            email: _email.text,
-            password: _password.text,
-          );
-
-    if (!mounted) return;
+    final isLogin = _mode == _Mode.logIn;
+    final result = await _run(
+      () => isLogin
+          ? controller.logIn(email: _email.text, password: _password.text)
+          : controller.signUp(
+              name: _name.text,
+              email: _email.text,
+              password: _password.text,
+            ),
+    );
+    if (result == null) return;
 
     if (result.isOk) {
-      setState(() => _busy = false);
+      // `_run` already returned null if this State was disposed, but the
+      // analyser cannot see through that indirection, and a redundant check is
+      // cheaper than a lint suppression that would also hide a real one later.
+      if (!mounted) return;
       context.go('/settings');
       return;
     }
 
     setState(() {
-      _busy = false;
       _result = result;
       // A notice means the account exists and needs confirming, so the next
       // useful action is logging in — not filling this form in again. The
-      // password is kept: the same one will work once the link is clicked.
-      if (result.outcome == AuthOutcome.notice) _isLogin = true;
+      // password is kept: the same one will work once the email is confirmed.
+      if (result.outcome == AuthOutcome.notice) _mode = _Mode.logIn;
     });
+  }
+
+  /// Asks for a code. Used both by the "Send me a code" button and by "Send a
+  /// new code" on the next screen, which is why advancing the mode is a flag
+  /// rather than being baked in.
+  Future<void> _sendCode({required bool advance}) async {
+    final emailError = AuthRepository.validateEmail(_email.text);
+    if (emailError != null) {
+      setState(() => _result = AuthResult.failure(emailError));
+      return;
+    }
+    final controller = ref.read(authControllerProvider.notifier);
+    final result = await _run(() => controller.requestPasswordReset(_email.text));
+    if (result == null) return;
+    setState(() {
+      // Carried across deliberately. "A code is on its way" has to be readable
+      // on the screen where the code gets typed, not on the one being left.
+      _result = result;
+      if (advance && !result.isFailure) _mode = _Mode.enterCode;
+    });
+  }
+
+  /// Verifies the code, then sets the password — two calls, one button.
+  ///
+  /// Split across two screens this would have been worse in two ways: the code
+  /// has an expiry, and it would be running while somebody thinks up a password;
+  /// and it would cost an extra screen for no decision. Nothing is cleared on
+  /// failure — a wrong sixth digit should not cost somebody the password they
+  /// just typed.
+  Future<void> _completeReset() async {
+    final controller = ref.read(authControllerProvider.notifier);
+
+    final verified = await _run(
+      () => controller.verifyRecoveryCode(email: _email.text, code: _code.text),
+    );
+    if (verified == null) return;
+    if (!verified.isOk) {
+      setState(() => _result = verified);
+      return;
+    }
+
+    final saved = await _run(() => controller.setNewPassword(_newPassword.text));
+    if (saved == null) return;
+
+    if (saved.isOk) {
+      // The same landing as a successful log-in, because that is what this now
+      // is: the person is signed in on the new password.
+      if (!mounted) return;
+      context.go('/settings');
+      return;
+    }
+    setState(() => _result = saved);
+  }
+
+  Future<void> _resendConfirmation() async {
+    final result = await _run(
+      () => ref
+          .read(authControllerProvider.notifier)
+          .resendConfirmation(_email.text),
+    );
+    if (result == null) return;
+    setState(() => _result = result);
+  }
+
+  /// The back tile. Inside a recovery mode it steps back to log-in rather than
+  /// leaving — abandoning the whole screen because somebody wanted to correct a
+  /// mistyped email address would be a trap of its own.
+  void _back() {
+    if (_mode == _Mode.requestCode || _mode == _Mode.enterCode) {
+      setState(() {
+        _mode = _Mode.logIn;
+        _result = null;
+        _code.clear();
+        _newPassword.clear();
+      });
+      return;
+    }
+    context.go('/settings');
+  }
+
+  // ── Copy ──────────────────────────────────────────────────────────
+
+  String get _title {
+    switch (_mode) {
+      case _Mode.logIn:
+        return 'Welcome back';
+      case _Mode.signUp:
+        return 'Create your account';
+      case _Mode.requestCode:
+        return 'Reset your password';
+      case _Mode.enterCode:
+        return 'Check your email';
+    }
+  }
+
+  String get _subtitle {
+    switch (_mode) {
+      case _Mode.logIn:
+        return 'Sign in to reach your Halaqa circles and your Al-Minbar posts '
+            'from any device.';
+      case _Mode.signUp:
+        return 'Optional. An account carries your Halaqa circles and Al-Minbar '
+            'posts between devices — everything you read stays on this one '
+            'either way.';
+      case _Mode.requestCode:
+        return 'Enter the address you signed up with and we will email you a '
+            'six-digit code.';
+      case _Mode.enterCode:
+        return 'Type the six-digit code from the email, then choose a new '
+            'password. The code lasts one hour.';
+    }
+  }
+
+  String get _primaryLabel {
+    if (_busy) {
+      switch (_mode) {
+        case _Mode.logIn:
+          return 'Signing in…';
+        case _Mode.signUp:
+          return 'Creating…';
+        case _Mode.requestCode:
+          return 'Sending…';
+        case _Mode.enterCode:
+          return 'Saving…';
+      }
+    }
+    switch (_mode) {
+      case _Mode.logIn:
+        return 'Log in';
+      case _Mode.signUp:
+        return 'Create account';
+      case _Mode.requestCode:
+        return 'Send me a code';
+      case _Mode.enterCode:
+        return 'Set new password';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
+    final isRecovery = _mode == _Mode.requestCode || _mode == _Mode.enterCode;
 
     return Scaffold(
       backgroundColor: p.page,
@@ -157,7 +381,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   MizanIconTile(
                     icon: Icons.arrow_back_rounded,
                     semanticLabel: 'Back',
-                    onTap: () => context.go('/settings'),
+                    onTap: _busy ? null : _back,
                   ),
                 ],
               ),
@@ -171,23 +395,12 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   40,
                 ),
                 children: [
-                  Text(
-                    _isLogin ? 'Welcome back' : 'Create your account',
-                    style: MizanType.screenTitle(color: p.ink),
-                  ),
+                  Text(_title, style: MizanType.screenTitle(color: p.ink)),
                   const SizedBox(height: 8),
-                  Text(
-                    _isLogin
-                        ? 'Sign in to reach your Halaqa circles and your '
-                            'Al-Minbar posts from any device.'
-                        : 'Optional. An account carries your Halaqa circles and '
-                            'Al-Minbar posts between devices — everything you '
-                            'read stays on this one either way.',
-                    style: MizanType.body(color: p.muted),
-                  ),
+                  Text(_subtitle, style: MizanType.body(color: p.muted)),
                   const SizedBox(height: 26),
 
-                  if (!_isLogin) ...[
+                  if (_mode == _Mode.signUp) ...[
                     const _Label('Name'),
                     TextField(
                       controller: _name,
@@ -204,64 +417,136 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     const SizedBox(height: 18),
                   ],
 
-                  const _Label('Email'),
-                  TextField(
-                    controller: _email,
-                    focusNode: _emailFocus,
-                    enabled: !_busy,
-                    keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next,
-                    autocorrect: false,
-                    autofillHints: const [AutofillHints.email],
-                    style: MizanType.body(color: p.ink),
-                    decoration: const InputDecoration(
-                      hintText: 'you@example.com',
+                  // Shown in every mode except the code screen, where the
+                  // address has already been used and changing it would
+                  // invalidate the code that was just sent.
+                  if (_mode != _Mode.enterCode) ...[
+                    const _Label('Email'),
+                    TextField(
+                      controller: _email,
+                      focusNode: _emailFocus,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: _mode == _Mode.requestCode
+                          ? TextInputAction.done
+                          : TextInputAction.next,
+                      autocorrect: false,
+                      autofillHints: const [AutofillHints.email],
+                      style: MizanType.body(color: p.ink),
+                      decoration: const InputDecoration(
+                        hintText: 'you@example.com',
+                      ),
+                      onSubmitted: (_) => _mode == _Mode.requestCode
+                          ? _submit()
+                          : _passwordFocus.requestFocus(),
                     ),
-                    onSubmitted: (_) => _passwordFocus.requestFocus(),
-                  ),
-                  const SizedBox(height: 18),
+                  ],
 
-                  const _Label('Password'),
-                  TextField(
-                    controller: _password,
-                    focusNode: _passwordFocus,
-                    enabled: !_busy,
-                    obscureText: _obscure,
-                    textInputAction: TextInputAction.done,
-                    autofillHints: [
-                      _isLogin
-                          ? AutofillHints.password
-                          : AutofillHints.newPassword,
-                    ],
-                    style: MizanType.body(color: p.ink),
-                    decoration: InputDecoration(
-                      hintText:
-                          _isLogin ? 'Your password' : 'At least 6 characters',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscure
-                              ? Icons.visibility_rounded
-                              : Icons.visibility_off_rounded,
-                          size: 20,
-                          color: p.muted,
+                  if (_mode == _Mode.logIn || _mode == _Mode.signUp) ...[
+                    const SizedBox(height: 18),
+                    const _Label('Password'),
+                    TextField(
+                      controller: _password,
+                      focusNode: _passwordFocus,
+                      enabled: !_busy,
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: [
+                        _mode == _Mode.logIn
+                            ? AutofillHints.password
+                            : AutofillHints.newPassword,
+                      ],
+                      style: MizanType.body(color: p.ink),
+                      decoration: InputDecoration(
+                        hintText: _mode == _Mode.logIn
+                            ? 'Your password'
+                            : 'At least 6 characters',
+                        suffixIcon: _ObscureToggle(
+                          obscure: _obscure,
+                          onPressed: () => setState(() => _obscure = !_obscure),
                         ),
-                        tooltip: _obscure ? 'Show password' : 'Hide password',
-                        onPressed: () => setState(() => _obscure = !_obscure),
+                      ),
+                      onSubmitted: (_) => _submit(),
+                    ),
+                  ],
+
+                  if (_mode == _Mode.enterCode) ...[
+                    const _Label('Six-digit code'),
+                    TextField(
+                      controller: _code,
+                      enabled: !_busy,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      autocorrect: false,
+                      maxLength: 6,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      autofillHints: const [AutofillHints.oneTimeCode],
+                      style: MizanType.body(color: p.ink),
+                      decoration: const InputDecoration(
+                        hintText: '000000',
+                        counterText: '',
+                      ),
+                      onSubmitted: (_) => _newPasswordFocus.requestFocus(),
+                    ),
+                    const SizedBox(height: 18),
+                    const _Label('New password'),
+                    TextField(
+                      controller: _newPassword,
+                      focusNode: _newPasswordFocus,
+                      enabled: !_busy,
+                      obscureText: _obscure,
+                      textInputAction: TextInputAction.done,
+                      autofillHints: const [AutofillHints.newPassword],
+                      style: MizanType.body(color: p.ink),
+                      decoration: InputDecoration(
+                        hintText: 'At least 6 characters',
+                        suffixIcon: _ObscureToggle(
+                          obscure: _obscure,
+                          onPressed: () => setState(() => _obscure = !_obscure),
+                        ),
+                      ),
+                      onSubmitted: (_) => _submit(),
+                    ),
+                  ],
+
+                  // Directly under the password, where somebody realises they
+                  // cannot remember it — not buried at the bottom of the screen
+                  // under the create-account toggle.
+                  if (_mode == _Mode.logIn)
+                    Align(
+                      alignment: Alignment.centerRight,
+                      child: MizanButton.quiet(
+                        label: 'Forgot password?',
+                        onPressed: _busy
+                            ? null
+                            : () => setState(() {
+                                  // The email carries over. Making somebody
+                                  // retype an address they typed ten seconds
+                                  // ago is the sort of thing that makes a
+                                  // recovery flow feel like a punishment.
+                                  _mode = _Mode.requestCode;
+                                  _result = null;
+                                }),
                       ),
                     ),
-                    onSubmitted: (_) => _submit(),
-                  ),
 
                   if (_result?.message != null) ...[
                     const SizedBox(height: 16),
                     _Message(result: _result!),
                   ],
 
+                  if (_offerResend) ...[
+                    const SizedBox(height: 10),
+                    MizanButton.quiet(
+                      label: 'Resend confirmation email',
+                      expand: true,
+                      onPressed: _busy ? null : _resendConfirmation,
+                    ),
+                  ],
+
                   const SizedBox(height: 26),
                   MizanButton(
-                    label: _busy
-                        ? (_isLogin ? 'Signing in…' : 'Creating…')
-                        : (_isLogin ? 'Log in' : 'Create account'),
+                    label: _primaryLabel,
                     expand: true,
                     // Null while invalid or in flight, which is what greys the
                     // button out — there is no second disabled flag to keep in
@@ -269,28 +554,47 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     onPressed: _canSubmit ? _submit : null,
                   ),
                   const SizedBox(height: 10),
-                  MizanButton.quiet(
-                    label: _isLogin
-                        ? 'No account yet? Create one'
-                        : 'Already have an account? Log in',
-                    expand: true,
-                    onPressed: _busy
-                        ? null
-                        : () => setState(() {
-                              _isLogin = !_isLogin;
-                              _result = null;
-                            }),
-                  ),
+
+                  if (_mode == _Mode.enterCode)
+                    MizanButton.quiet(
+                      label: 'Send a new code',
+                      expand: true,
+                      onPressed: _busy ? null : () => _sendCode(advance: false),
+                    )
+                  else if (isRecovery)
+                    MizanButton.quiet(
+                      label: 'Back to log in',
+                      expand: true,
+                      onPressed: _busy ? null : _back,
+                    )
+                  else
+                    MizanButton.quiet(
+                      label: _mode == _Mode.logIn
+                          ? 'No account yet? Create one'
+                          : 'Already have an account? Log in',
+                      expand: true,
+                      onPressed: _busy
+                          ? null
+                          : () => setState(() {
+                                _mode = _mode == _Mode.logIn
+                                    ? _Mode.signUp
+                                    : _Mode.logIn;
+                                _result = null;
+                              }),
+                    ),
+
                   const SizedBox(height: 18),
                   // Said here as well as on the welcome screen, because this is
                   // the one place somebody might assume they are being made to
                   // sign up.
-                  Text(
-                    'You can keep using Mizan without an account. Reading, '
-                    'layers and progress are stored on this device.',
-                    textAlign: TextAlign.center,
-                    style: MizanType.body(color: p.muted).copyWith(fontSize: 13),
-                  ),
+                  if (!isRecovery)
+                    Text(
+                      'You can keep using Mizan without an account. Reading, '
+                      'layers and progress are stored on this device.',
+                      textAlign: TextAlign.center,
+                      style:
+                          MizanType.body(color: p.muted).copyWith(fontSize: 13),
+                    ),
                 ],
               ),
             ),
@@ -315,6 +619,29 @@ class _Label extends StatelessWidget {
         padding: const EdgeInsets.only(left: 8, bottom: 7),
         child: MizanSectionLabel(text),
       );
+}
+
+/// The eye in the corner of a password field. Extracted only because there are
+/// now three password fields across the four modes and they must not drift.
+class _ObscureToggle extends StatelessWidget {
+  const _ObscureToggle({required this.obscure, required this.onPressed});
+
+  final bool obscure;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = MizanPalette.of(context);
+    return IconButton(
+      icon: Icon(
+        obscure ? Icons.visibility_rounded : Icons.visibility_off_rounded,
+        size: 20,
+        color: p.muted,
+      ),
+      tooltip: obscure ? 'Show password' : 'Hide password',
+      onPressed: onPressed,
+    );
+  }
 }
 
 /// The one line under the form. A failure is bordered in the error colour; a

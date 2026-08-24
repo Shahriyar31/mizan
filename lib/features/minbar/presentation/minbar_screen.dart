@@ -47,6 +47,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/errors/readable_error.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
@@ -194,9 +195,11 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
                         myId: myId, inNoCircles: inNoCircles),
                     if (_loadingMore) const _LoadingMore(),
                   ],
+                // The sentence, not the exception. `readableError` logs the real
+                // cause on its way past — see core/errors/readable_error.dart.
                 AsyncError(:final error) => [
                     _FeedError(
-                      message: '$error',
+                      message: readableError(error, tag: 'MinbarScreen'),
                       onRetry: () => ref.invalidate(minbarFeedProvider),
                     ),
                   ],

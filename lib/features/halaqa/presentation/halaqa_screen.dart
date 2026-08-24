@@ -39,6 +39,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/errors/readable_error.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
@@ -134,9 +135,12 @@ class HalaqaScreen extends ConsumerWidget {
                         const SizedBox(height: 12),
                       ],
                     ],
+                  // The sentence, not the exception. `readableError` logs the
+                  // real cause on its way past — see
+                  // core/errors/readable_error.dart.
                   AsyncError(:final error) => [
                       _CirclesError(
-                        message: '$error',
+                        message: readableError(error, tag: 'HalaqaScreen'),
                         onRetry: () => ref.invalidate(myHalaqasProvider),
                       ),
                     ],

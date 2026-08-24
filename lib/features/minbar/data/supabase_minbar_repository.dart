@@ -66,8 +66,12 @@ class SupabaseMinbarRepository implements MinbarRepository {
 
   @override
   Future<int> feedCount() async {
-    final rows = await _c.from('minbar_shares').select('id');
-    return (rows as List).length;
+    // A HEAD request carrying `Prefer: count=exact` — Postgres does the
+    // counting and sends no rows at all. `PostgrestQueryBuilder.count` resolves
+    // straight to an `int` (postgrest 2.9.1). The previous `.select('id')` +
+    // `.length` pulled every id in the table across the network purely to
+    // measure it, so the cost of asking "is the feed empty?" grew with the feed.
+    return _c.from('minbar_shares').count(CountOption.exact);
   }
 
   @override
