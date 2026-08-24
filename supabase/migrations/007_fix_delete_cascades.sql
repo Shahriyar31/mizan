@@ -3,16 +3,18 @@
 --
 -- Run this ONCE in the Supabase SQL Editor, after 006.
 --
--- It repairs two things, both of the same kind: rules the migrations declare
--- that the live database may never have received.
+-- It repairs three things. The first two are of the same kind: rules the
+-- migrations declare that the live database may never have received.
 --
 --   A. The four ON DELETE CASCADE edges the new delete features walk.
 --   B. The two Halaqa triggers — the 8-member cap, and deleting a circle when
 --      its last member leaves.
+--   C. One unrelated hole: `public.users` currently hands every signed-in
+--      account every other account's email address. Part 5.
 --
--- The filename says cascades because that is what it was written for; B was
--- found while checking A and belongs in the same paste rather than in a second
--- file to forget. Part 4 covers it.
+-- The filename says cascades because that is what it was written for; B and C
+-- were found while checking A and belong in the same paste rather than in more
+-- files to forget. Part 4 covers B, Part 5 covers C.
 --
 -- ── A · WHY THE CASCADES ───────────────────────────────────────────────
 -- The app just gained two destructive actions it never had:
@@ -428,21 +430,82 @@ BEGIN
 END $$;
 
 
--- ── Part 5 · Ask PostgREST to re-read the schema ────────────────────────
+-- ── Part 5 · Stop handing out everybody's email address ─────────────────
+-- Nothing to do with deletes; folded in here because this file had not been run
+-- yet and one paste is better than two.
+--
+-- `public.users` holds an `email` column. Its row policy is
+-- `FOR SELECT TO authenticated USING (true)` — every signed-in person can read
+-- every row — and 006 granted SELECT on the whole table. Together those mean
+-- any account can ask PostgREST for `/rest/v1/users?select=email` and receive
+-- every email address in the database. The publishable key ships in the APK,
+-- so it takes an account and one HTTP request, no exploit.
+--
+-- The app has never needed it. Across all of `lib/` there are exactly two reads
+-- of this table: `.select('id')` on the caller's own row, and the
+-- `users(display_name)` embed that puts names in a circle's member list.
+-- `email`, `language_preference`, `created_at` and `last_active_at` are written
+-- and never read back.
+--
+-- WHY COLUMN PRIVILEGES AND NOT A NARROWER POLICY
+-- The obvious fix — only let you see people who share a circle with you — means
+-- a policy on `users` that consults `halaqa_members`, which is what caused the
+-- infinite recursion 005 exists to undo. Column privileges are a different gate
+-- entirely: no expression, no table lookup, nothing to recurse through. The row
+-- policy is left exactly as 005 wrote it.
+--
+-- The two gates also fail differently, which is worth knowing when testing: a
+-- policy silently filters to zero rows, a missing privilege raises 42501. After
+-- this, asking for `email` is an ERROR rather than an empty answer.
+--
+-- The cost, stated plainly: any future `select('*')` on `users` starts failing
+-- with 42501, because `*` expands to columns the role cannot read. That is the
+-- intended behaviour and it fails loudly, but it is a real constraint on later
+-- code — name the columns.
+--
+-- INSERT and UPDATE stay table-wide. Sign-up writes the email and RLS already
+-- pins both to `auth.uid() = id`, so leaving them alone keeps the write path
+-- exactly as it is.
+--
+-- ⚠ ORDERING: this must run AFTER 006. 006 loops `GRANT SELECT ON <table> TO
+-- anon` over every public table, so re-running 006 later re-opens this. If you
+-- ever re-run 006, re-run this file after it.
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_class c
+                   WHERE c.relname = 'users'
+                     AND c.relnamespace = 'public'::regnamespace) THEN
+    RAISE NOTICE 'public.users is missing - email lockdown skipped';
+    RETURN;
+  END IF;
+
+  -- Whole-table SELECT goes first, then the two columns are handed back. Both
+  -- roles are revoked because `anon` never needed this table at all: the public
+  -- Al-Minbar feed carries `shared_by_name` on the share row itself and joins
+  -- nothing.
+  REVOKE SELECT ON public.users FROM anon, authenticated;
+  GRANT  SELECT (id, display_name) ON public.users TO authenticated;
+
+  RAISE NOTICE 'public.users: only id and display_name are readable now';
+END $$;
+
+
+-- ── Part 6 · Ask PostgREST to re-read the schema ────────────────────────
 -- It caches the relationship layout, and referential actions are part of what
 -- it caches. It reloads on its own eventually; nudging it removes one variable
 -- from the next test on the phone.
 NOTIFY pgrst, 'reload schema';
 
 
--- ── Part 6 · Report ─────────────────────────────────────────────────────
--- Screenshot this. Two verdicts, one per half of the file:
+-- ── Part 7 · Report ─────────────────────────────────────────────────────
+-- Screenshot this. Three verdicts, one per job:
 --
 --   01-04  the four cascades, each showing what it was and what it is
 --   05     VERDICT — will "Delete circle" and "Delete post" work
 --   06-07  the two triggers
 --   08     VERDICT — is the cap enforced, do empty circles vanish
---   09-11  the permission half, and orphans
+--   09     VERDICT — can another account read your email address
+--   10-12  the permission half, and orphans
 --
 -- The numbers are zero-padded because this sorts as text, and '10' would
 -- otherwise land between '1' and '2'.
@@ -541,13 +604,37 @@ SELECT '08 - VERDICT: is the 8-member cap enforced, do empty circles vanish',
        END
 
 UNION ALL
-SELECT '09 - tables with no DELETE policy',
+-- Asks the catalog the same question PostgREST asks: may this role read this
+-- column. `has_column_privilege` accounts for grants held directly and through
+-- role membership, which is why it is the right test rather than reading
+-- information_schema.column_privileges.
+SELECT '09 - VERDICT: can another account read your email address',
+       CASE
+         WHEN NOT EXISTS (SELECT 1 FROM pg_class c
+                            WHERE c.relname = 'users'
+                              AND c.relnamespace = 'public'::regnamespace)
+           THEN 'table missing - run 005 first'
+         WHEN has_column_privilege('authenticated', 'public.users',
+                                   'email', 'SELECT')
+           THEN 'YES, STILL EXPOSED - re-run this file AFTER 006'
+         WHEN has_column_privilege('anon', 'public.users', 'email', 'SELECT')
+           THEN 'YES, STILL EXPOSED to signed-out callers - re-run after 006'
+         WHEN NOT has_column_privilege('authenticated', 'public.users',
+                                       'display_name', 'SELECT')
+           THEN 'NO - but display_name is now unreadable too, which breaks the '
+                || 'member list; re-run this file'
+         ELSE 'NO - only id and display_name are readable, which is all '
+              || 'the app ever asked for'
+       END
+
+UNION ALL
+SELECT '10 - tables with no DELETE policy',
        COALESCE((SELECT string_agg(tbl, ', ' ORDER BY tbl)
                  FROM _mizan_del_policies WHERE policies = 0),
                 'none - every one has a DELETE policy (005)')
 
 UNION ALL
-SELECT '10 - tables authenticated cannot DELETE from',
+SELECT '11 - tables authenticated cannot DELETE from',
        COALESCE((SELECT string_agg(tbl, ', ' ORDER BY tbl)
                  FROM _mizan_del_policies WHERE NOT granted),
                 'none - DELETE is granted on all three (006)')
@@ -556,7 +643,7 @@ UNION ALL
 -- Orphans would have made the ADD in Part 1 raise, so reaching this line at all
 -- means there are none. Stated explicitly because "the repair did not fail" is
 -- easy to miss as a result in its own right.
-SELECT '11 - orphaned child rows blocking a cascade',
+SELECT '12 - orphaned child rows blocking a cascade',
        'none - every constraint above re-validated its existing rows cleanly'
 
 ORDER BY 1;
