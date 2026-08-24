@@ -103,8 +103,8 @@ class NotificationsScreen extends ConsumerWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Text(
-            'Reminders are scheduled on this device only — no account or '
-            'internet connection required.',
+            'Reminders are scheduled on this device only, so they arrive with '
+            'no internet connection and nothing about them leaves your phone.',
             style: AppTypography.bodySmall(color: AppColors.muted),
           ),
         ),

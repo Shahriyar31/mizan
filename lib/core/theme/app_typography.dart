@@ -1,12 +1,29 @@
-/// Mizan Typography System
+/// Mizan Typography System — the legacy scale
 ///
 /// Three typefaces, used with strict purpose:
-///   Amiri  → ALL Arabic text, no exceptions
-///   Lora   → English display/headings (manuscript warmth)
-///   Inter  → UI chrome only (buttons, labels, metadata)
+///   Amiri            → ALL Arabic text, no exceptions
+///   Playfair Display → English display/headings (manuscript warmth)
+///   DM Sans          → UI chrome only (buttons, labels, metadata)
 ///
 /// Why strict rules: mixing fonts randomly makes apps look amateur.
 /// Consistent typography is the single biggest signal of design quality.
+///
+/// ── Why these are Playfair and DM Sans now, not Lora and Inter ────────
+/// Two reasons, and both are about the same defect. The families were fetched at
+/// runtime by `google_fonts`, so any screen still on this scale rendered in the
+/// platform sans on a first launch with no connection — and this scale is not
+/// dead code: `notifications_screen.dart`, `system_screen.dart` and several
+/// others still call it. Bundling Lora and Inter as well would have meant four
+/// families in the APK to draw two typefaces.
+///
+/// The second reason is that Lora next to Playfair Display, and Inter next to DM
+/// Sans, are the kind of near-miss that reads as sloppiness rather than as a
+/// choice — two serifs and two grotesques doing the same job one screen apart.
+/// [MizanType] is the real scale and these now borrow its families, so a screen
+/// that has not been migrated yet at least shares the app's voice.
+///
+/// New code should use [MizanType]. This exists so the un-migrated screens keep
+/// working, not as a second system to pick from.
 ///
 /// Every default color below is theme-aware (resolves against whichever
 /// brightness AppColors is currently set to). Override with the named
@@ -17,7 +34,7 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'mizan_typography.dart';
 import 'app_colors.dart';
 
 class AppTypography {
@@ -77,7 +94,8 @@ class AppTypography {
   // Never used for: body copy, labels, metadata
 
   static TextStyle displayLarge({Color? color}) =>
-      GoogleFonts.lora(
+      TextStyle(
+        fontFamily: MizanType.serifFamily,
         fontSize: 26,
         fontWeight: FontWeight.w700,
         color: color ?? AppColors.textPrimary,
@@ -86,7 +104,8 @@ class AppTypography {
       );
 
   static TextStyle displayMedium({Color? color}) =>
-      GoogleFonts.lora(
+      TextStyle(
+        fontFamily: MizanType.serifFamily,
         fontSize: 22,
         fontWeight: FontWeight.w600,
         color: color ?? AppColors.textPrimary,
@@ -94,7 +113,8 @@ class AppTypography {
       );
 
   static TextStyle displaySmall({Color? color}) =>
-      GoogleFonts.lora(
+      TextStyle(
+        fontFamily: MizanType.serifFamily,
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: color ?? AppColors.textPrimary,
@@ -103,7 +123,8 @@ class AppTypography {
 
   // Italic Lora for translations and quotes
   static TextStyle quoteItalic({Color? color}) =>
-      GoogleFonts.lora(
+      TextStyle(
+        fontFamily: MizanType.serifFamily,
         fontSize: 14,
         fontStyle: FontStyle.italic,
         color: color ?? AppColors.textSecondary,
@@ -115,21 +136,24 @@ class AppTypography {
   // Inter is invisible when done right — it gets out of the way
 
   static TextStyle labelLarge({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: color ?? AppColors.textPrimary,
       );
 
   static TextStyle labelMedium({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: color ?? AppColors.muted,
       );
 
   static TextStyle labelSmall({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 10,
         fontWeight: FontWeight.w700,
         color: color ?? AppColors.muted,
@@ -138,7 +162,8 @@ class AppTypography {
       );
 
   static TextStyle bodyLarge({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: color ?? AppColors.textSecondary,
@@ -146,7 +171,8 @@ class AppTypography {
       );
 
   static TextStyle bodyMedium({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 13,
         fontWeight: FontWeight.w400,
         color: color ?? AppColors.textSecondary,
@@ -154,21 +180,24 @@ class AppTypography {
       );
 
   static TextStyle bodySmall({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 12,
         color: color ?? AppColors.muted,
         height: 1.55,
       );
 
   static TextStyle caption({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 10,
         fontWeight: FontWeight.w600,
         color: color ?? AppColors.muted,
         letterSpacing: 0.5,
       );
 
-  static TextStyle buttonPrimary() => GoogleFonts.inter(
+  static TextStyle buttonPrimary() => TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 14,
         fontWeight: FontWeight.w700,
         // ink, not night — this sits on the jade/gold button fill, not the
@@ -177,7 +206,8 @@ class AppTypography {
       );
 
   static TextStyle buttonSecondary({Color? color}) =>
-      GoogleFonts.inter(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: color ?? AppColors.jade,

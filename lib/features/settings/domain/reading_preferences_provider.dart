@@ -1,7 +1,19 @@
 /// Reading preferences — shared, persisted state for the Quran reader
 /// (features/quran/presentation/ayah_detail_screen.dart), set from
-/// Settings → Personalisation. Font choices use `google_fonts` (already a
-/// project dependency) rather than bundling new font assets.
+/// Settings → Personalisation.
+///
+/// ── Amiri is bundled; the other two are fetched ───────────────────────
+/// Amiri ships as a TTF in `assets/fonts/` and is the default, so the reader
+/// works with no connection out of the box. Scheherazade New and Lateef are
+/// still fetched by `google_fonts` on first use, because they were not part of
+/// the font drop and a new asset cannot be added without running `pub get`.
+///
+/// That matters more for Arabic than it would for a Latin face: when a fetch
+/// fails the engine falls back to the platform sans, which positions tashkeel
+/// badly or drops it, so an ayah renders wrong rather than merely plain. The
+/// honest fix until those TTFs are bundled is to say so in the picker — see
+/// [ArabicFontX.availability], which the Personalisation row shows as its
+/// subtitle so the choice is informed instead of a silent surprise on a plane.
 library;
 
 import 'package:flutter/material.dart';
@@ -17,6 +29,19 @@ extension ArabicFontX on ArabicFont {
         ArabicFont.scheherazade => 'Scheherazade New',
         ArabicFont.lateef => 'Lateef',
       };
+
+  /// One line under the font's name in the picker, so a reader knows before
+  /// tapping whether the choice needs a connection. See the library comment.
+  String get availability => switch (this) {
+        ArabicFont.amiri => 'Included in the app — works offline',
+        ArabicFont.scheherazade ||
+        ArabicFont.lateef =>
+          'Downloads once, needs a connection the first time',
+      };
+
+  /// Whether the face is bundled. [ArabicFont.amiri] is the only one, which is
+  /// why it is also the default.
+  bool get isBundled => this == ArabicFont.amiri;
 
   TextStyle style({required double size, Color? color, double? height}) {
     switch (this) {

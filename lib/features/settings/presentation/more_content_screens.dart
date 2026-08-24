@@ -19,14 +19,16 @@ class FaqScreen extends StatelessWidget {
       sections: [
         (
           'Do I need an account?',
-          'No. Quran reading, Tafsir, Seerah, Sahaba and Prophet stories, '
-              '99 Names, and Quran audio all work fully without signing in.',
+          'Yes. Mizan opens on the sign-in screen and an account is created '
+              'once, in about a minute, with an email and a password. It is '
+              'what carries your reflections, your circles and your record '
+              'across to your next phone.',
         ),
         (
-          'What does signing in do?',
-          'An account (via Supabase) lets your Halaqa circles and Al-Minbar '
-              'posts sync and be visible to others. It is only needed for '
-              'those community features.',
+          'What does my account actually hold?',
+          'Your Halaqa circles and your Al-Minbar posts live on the server, so '
+              'the people in your circles can see what you share. Your reading '
+              'progress, saved vocabulary and reflections stay on this device.',
         ),
         (
           'Where is my reading data stored?',
@@ -73,13 +75,13 @@ class HowItWorksScreen extends StatelessWidget {
         ),
         (
           'Halaqa',
-          'Create or join a small private circle to share Quran/Discover '
-              'content with people you choose — requires an account.',
+          'Create or join a small private circle — up to eight people — and '
+              'share Quran or Discover content with people you choose.',
         ),
         (
           'Al-Minbar',
-          'A public feed where signed-in users can share content and react '
-              '— requires an account.',
+          'A public feed where you can share what struck you and react to '
+              'what others shared. Reactions only, never comments.',
         ),
       ],
     );
@@ -121,9 +123,11 @@ class PrivacyScreen extends StatelessWidget {
         ),
         (
           'What is true today',
-          'Reading progress and preferences are stored locally on your '
-              'device. Halaqa/Al-Minbar activity is stored in Supabase '
-              'only if you create an account.',
+          'Reading progress, saved vocabulary, reflections and preferences are '
+              'stored locally on your device. What you share to a Halaqa circle '
+              'or to Al-Minbar is stored on our server (Supabase) along with '
+              'your email and display name, because those features exist to be '
+              'seen by other people.',
         ),
       ],
     );

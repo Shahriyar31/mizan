@@ -13,24 +13,40 @@
 /// list, it should use the nearest role rather than inventing one — the whole
 /// point of a six-role scale is that a reader can tell the roles apart.
 ///
-/// ── Fonts ─────────────────────────────────────────────────────────────
-/// Playfair Display and DM Sans come from `google_fonts`, which fetches and
-/// caches them at runtime on first launch. Amiri is bundled as a TTF, so
-/// Arabic never depends on the network. For a release build you should bundle
-/// Playfair and DM Sans too — see docs/MIZAN_DESIGN_SYSTEM.md.
+/// ── Fonts are bundled, not fetched ────────────────────────────────────
+/// All three families ship as TTFs in `assets/fonts/` and are declared in
+/// `pubspec.yaml`, so every style below is a plain [TextStyle] naming a family
+/// the engine already has.
+///
+/// This file used to call `google_fonts`, which downloads a family the first
+/// time it is asked for and falls back to Roboto until the bytes arrive. The
+/// effect was that a first launch on a phone with no signal — a plane, a
+/// basement, a fresh install before the wifi is joined — rendered the entire app
+/// in a font it was never designed in: the serif/sans contrast that separates an
+/// ayah's meaning from the app's own voice simply vanished, and the wide
+/// letter-spacing on the wordmark and section labels was applied to the wrong
+/// letterforms. Bundling costs about 1 MB in the APK and removes the failure
+/// mode completely.
+///
+/// The weights declared in `pubspec.yaml` are the ones used here: 400/600/700
+/// plus italic for Playfair, 400/500/600/700 for DM Sans. Asking for a weight
+/// with no matching asset makes the engine synthesise one, which looks wrong at
+/// display sizes — so add the TTF rather than the number.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 abstract final class MizanType {
-  // Family names, in one place so a swap to bundled TTFs is a one-line change.
+  // Family names, in one place. These must match the `family:` keys in
+  // pubspec.yaml exactly — a typo does not fail the build, it silently falls
+  // back to the platform default.
   static const String serifFamily = 'Playfair Display';
   static const String sansFamily = 'DM Sans';
   static const String arabicFamily = 'Amiri';
 
   /// Playfair Display 600 · 32/37 · -0.01em. One per screen.
-  static TextStyle screenTitle({Color? color}) => GoogleFonts.playfairDisplay(
+  static TextStyle screenTitle({Color? color}) => TextStyle(
+        fontFamily: serifFamily,
         color: color,
         fontSize: 32,
         fontWeight: FontWeight.w600,
@@ -39,7 +55,8 @@ abstract final class MizanType {
       );
 
   /// Playfair Display 600 · 23/29. Card headlines, questions, prophet names.
-  static TextStyle cardHeadline({Color? color}) => GoogleFonts.playfairDisplay(
+  static TextStyle cardHeadline({Color? color}) => TextStyle(
+        fontFamily: serifFamily,
         color: color,
         fontSize: 23,
         fontWeight: FontWeight.w600,
@@ -49,7 +66,8 @@ abstract final class MizanType {
   /// Playfair Display *italic* 400 · 17/26. Translation and sub-prompt.
   /// Always italic serif — this is what visually separates the meaning of an
   /// ayah from the app's own voice.
-  static TextStyle translation({Color? color}) => GoogleFonts.playfairDisplay(
+  static TextStyle translation({Color? color}) => TextStyle(
+        fontFamily: serifFamily,
         color: color,
         fontSize: 17,
         fontWeight: FontWeight.w400,
@@ -58,7 +76,8 @@ abstract final class MizanType {
       );
 
   /// DM Sans 400 · 15/24. Long narration, list subtitles, everything prose.
-  static TextStyle body({Color? color}) => GoogleFonts.dmSans(
+  static TextStyle body({Color? color}) => TextStyle(
+        fontFamily: sansFamily,
         color: color,
         fontSize: 15,
         fontWeight: FontWeight.w400,
@@ -66,7 +85,8 @@ abstract final class MizanType {
       );
 
   /// DM Sans 600 · 15/24. List row titles and inline emphasis.
-  static TextStyle bodyStrong({Color? color}) => GoogleFonts.dmSans(
+  static TextStyle bodyStrong({Color? color}) => TextStyle(
+        fontFamily: sansFamily,
         color: color,
         fontSize: 15,
         fontWeight: FontWeight.w600,
@@ -76,7 +96,8 @@ abstract final class MizanType {
   /// DM Sans 700 · 11 · 0.16em, uppercase. Section labels and meta rows.
   /// Callers must uppercase the string themselves — letter-spacing this wide
   /// only reads correctly on caps.
-  static TextStyle sectionLabel({Color? color}) => GoogleFonts.dmSans(
+  static TextStyle sectionLabel({Color? color}) => TextStyle(
+        fontFamily: sansFamily,
         color: color,
         fontSize: 11,
         fontWeight: FontWeight.w700,
@@ -96,7 +117,8 @@ abstract final class MizanType {
 
   /// Button labels — DM Sans 600 at 15, the same weight as a list title so a
   /// button never shouts louder than the row above it.
-  static TextStyle button({Color? color}) => GoogleFonts.dmSans(
+  static TextStyle button({Color? color}) => TextStyle(
+        fontFamily: sansFamily,
         color: color,
         fontSize: 15,
         fontWeight: FontWeight.w600,
@@ -105,7 +127,8 @@ abstract final class MizanType {
 
   /// Tab bar labels. DM Sans 600 at 11 — small, but they sit under an icon
   /// and use the theme's single grey, so they still clear contrast.
-  static TextStyle navLabel({Color? color}) => GoogleFonts.dmSans(
+  static TextStyle navLabel({Color? color}) => TextStyle(
+        fontFamily: sansFamily,
         color: color,
         fontSize: 11,
         fontWeight: FontWeight.w600,
@@ -116,8 +139,8 @@ abstract final class MizanType {
   /// The `MIZAN` wordmark: Playfair Display 600, very wide tracking.
   /// Size is caller-supplied because the wordmark appears at 34px on the
   /// welcome screen and ~18px in a header.
-  static TextStyle wordmark({Color? color, double fontSize = 34}) =>
-      GoogleFonts.playfairDisplay(
+  static TextStyle wordmark({Color? color, double fontSize = 34}) => TextStyle(
+        fontFamily: serifFamily,
         color: color,
         fontSize: fontSize,
         fontWeight: FontWeight.w600,
@@ -127,8 +150,8 @@ abstract final class MizanType {
 
   /// `LEARN · REFLECT · GROW`. Same construction as a section label but with
   /// even wider tracking, matching the lockup in the brand sheet.
-  static TextStyle tagline({Color? color, double fontSize = 11}) =>
-      GoogleFonts.dmSans(
+  static TextStyle tagline({Color? color, double fontSize = 11}) => TextStyle(
+        fontFamily: sansFamily,
         color: color,
         fontSize: fontSize,
         fontWeight: FontWeight.w700,

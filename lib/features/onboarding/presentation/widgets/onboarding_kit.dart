@@ -23,16 +23,20 @@
 /// where they would licence drift on every other screen.
 ///
 /// ── Fonts ─────────────────────────────────────────────────────────────
-/// Playfair Display and DM Sans come from `google_fonts`, which fetches on
-/// first launch and caches afterwards. This flow **is** first launch, so on a
-/// phone with no connection the headings fall back to the platform sans until
-/// the fonts arrive. The brief's "renders identically with the network
-/// disconnected" therefore needs both families bundled as TTFs. Amiri already
-/// is, so every Arabic line in this flow is safe either way.
+/// All three families are bundled TTFs declared in `pubspec.yaml`, so this flow
+/// renders identically with the network disconnected — which the brief requires
+/// and which matters more here than anywhere else in the app, because this flow
+/// *is* first launch. It previously called `google_fonts`, which fetches on
+/// first use: the very first person to open Mizan on a phone with no signal saw
+/// the whole poster in the platform sans.
+///
+/// The family strings are taken from [MizanType] rather than written out again,
+/// so a rename in `pubspec.yaml` has one place to follow.
 library;
 
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
+
+import '../../../../core/theme/mizan_typography.dart';
 
 import '../../../../shared/widgets/mizan/mizan_pressable.dart';
 
@@ -118,7 +122,8 @@ abstract final class OnbTok {
 
 abstract final class OnbType {
   /// MIZAN — Playfair 600 · 42 · .2em
-  static TextStyle wordmark() => GoogleFonts.playfairDisplay(
+  static TextStyle wordmark() => const TextStyle(
+        fontFamily: MizanType.serifFamily,
         color: OnbTok.paper,
         fontSize: 42,
         fontWeight: FontWeight.w600,
@@ -127,7 +132,8 @@ abstract final class OnbType {
       );
 
   /// LEARN · REFLECT · GROW — DM Sans · 9.5 · .32em uppercase gold
-  static TextStyle tagline() => GoogleFonts.dmSans(
+  static TextStyle tagline() => const TextStyle(
+        fontFamily: MizanType.sansFamily,
         color: OnbTok.gold,
         fontSize: 9.5,
         fontWeight: FontWeight.w500,
@@ -136,7 +142,8 @@ abstract final class OnbType {
       );
 
   /// Screen heading — Playfair 600 · 31/1.15
-  static TextStyle heading() => GoogleFonts.playfairDisplay(
+  static TextStyle heading() => const TextStyle(
+        fontFamily: MizanType.serifFamily,
         color: OnbTok.paper,
         fontSize: 31,
         fontWeight: FontWeight.w600,
@@ -144,7 +151,8 @@ abstract final class OnbType {
       );
 
   /// Eyebrow — DM Sans 700 · 10 · .16em uppercase gold
-  static TextStyle eyebrow() => GoogleFonts.dmSans(
+  static TextStyle eyebrow() => const TextStyle(
+        fontFamily: MizanType.sansFamily,
         color: OnbTok.gold,
         fontSize: 10,
         fontWeight: FontWeight.w700,
@@ -153,7 +161,8 @@ abstract final class OnbType {
       );
 
   /// The welcome screen's English quote — Playfair italic · 21/1.45
-  static TextStyle quoteLarge() => GoogleFonts.playfairDisplay(
+  static TextStyle quoteLarge() => const TextStyle(
+        fontFamily: MizanType.serifFamily,
         color: OnbTok.paper,
         fontSize: 21,
         fontWeight: FontWeight.w400,
@@ -163,7 +172,8 @@ abstract final class OnbType {
 
   /// A translation or a focused room's description — Playfair italic.
   static TextStyle quote({double fontSize = 15.5, Color? color}) =>
-      GoogleFonts.playfairDisplay(
+      TextStyle(
+        fontFamily: MizanType.serifFamily,
         color: color ?? OnbTok.mist,
         fontSize: fontSize,
         fontWeight: FontWeight.w400,
@@ -174,7 +184,7 @@ abstract final class OnbType {
   /// Arabic — Amiri. Bundled, so it never waits on the network.
   static TextStyle arabic({double fontSize = 22, double height = 2.0}) =>
       TextStyle(
-        fontFamily: 'Amiri',
+        fontFamily: MizanType.arabicFamily,
         color: OnbTok.paper,
         fontSize: fontSize,
         height: height,
@@ -187,7 +197,8 @@ abstract final class OnbType {
     Color? color,
     double height = 1.55,
   }) =>
-      GoogleFonts.dmSans(
+      TextStyle(
+        fontFamily: MizanType.sansFamily,
         color: color ?? OnbTok.mist,
         fontSize: fontSize,
         fontWeight: weight,
@@ -195,7 +206,8 @@ abstract final class OnbType {
       );
 
   /// The gold button's label — DM Sans 700 · 15.5, in ink.
-  static TextStyle buttonLabel() => GoogleFonts.dmSans(
+  static TextStyle buttonLabel() => const TextStyle(
+        fontFamily: MizanType.sansFamily,
         color: OnbTok.ink,
         fontSize: 15.5,
         fontWeight: FontWeight.w700,
@@ -203,7 +215,8 @@ abstract final class OnbType {
       );
 
   /// A numeral on a rhythm card — Playfair 600 · 23.
-  static TextStyle numeral({Color? color}) => GoogleFonts.playfairDisplay(
+  static TextStyle numeral({Color? color}) => TextStyle(
+        fontFamily: MizanType.serifFamily,
         color: color ?? OnbTok.paper,
         fontSize: 23,
         fontWeight: FontWeight.w600,

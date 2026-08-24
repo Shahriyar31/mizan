@@ -85,7 +85,11 @@ class PersonalisationScreen extends ConsumerWidget {
               SettingsRow(
                 icon: Icons.text_fields_rounded,
                 title: font.label,
-                subtitle: null,
+                // Amiri is bundled; the other two fetch on first use. Saying so
+                // here is the difference between an informed choice and an ayah
+                // that silently renders in the platform sans — which mangles
+                // tashkeel — for someone who picked a font while offline.
+                subtitle: font.availability,
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
