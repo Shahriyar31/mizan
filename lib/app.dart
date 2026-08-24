@@ -8,6 +8,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/mizan_theme.dart';
+import 'features/growth/domain/mizan_birth_date.dart';
 import 'features/home/domain/streak_provider.dart';
 import 'features/home/domain/todays_mizan.dart';
 import 'features/settings/domain/settings_providers.dart';
@@ -70,6 +71,11 @@ class _MizanMaterialAppState extends ConsumerState<_MizanMaterialApp>
     // day has not changed, no visible change at all.
     ref.read(streakProvider.notifier).reevaluate();
     ref.read(todaysMizanProvider.notifier).refresh();
+
+    // The Al-Mizan day number is the one figure on Home that changes with no
+    // input from the user, so it is the one a phone left on the Home screen
+    // overnight would show wrong. Same reasoning as above: refresh in place.
+    ref.read(mizanFiguresProvider.notifier).refresh();
   }
 
   @override

@@ -41,6 +41,7 @@ class GrowthStatsRepository {
     // leaves that one area at zero.
     final quranLayers = await _safe(_layers.countUnlocks);
     final quranAyahs = await _safe(_layers.countAyahsTouched);
+    final quranSurahs = await _safe(_layers.countSurahsTouched);
     final reflections = await _safe(_layers.countReflections);
     final hadithReflections = await _safe(_hadith.reflectionCount);
     final vocabCount = await _safe(_vocab.getWordCount);
@@ -50,6 +51,7 @@ class GrowthStatsRepository {
     return GrowthMetrics(
       quranLayers: quranLayers,
       quranAyahs: quranAyahs,
+      quranSurahs: quranSurahs,
       vocabCount: vocabCount,
       streak: signals.streak,
       reflectionsWritten: reflections,

@@ -39,6 +39,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../growth/domain/mizan_record.dart';
 import 'streak_provider.dart';
 
 /// The three facets. Named for what the user *did*, never for a value earned.
@@ -152,8 +153,19 @@ class TodaysMizanController extends StateNotifier<TodaysMizan> {
     // demonstrably used the app today seeing their run marked at risk.
     if (!value.isEmpty) {
       await _ref.read(streakProvider.notifier).recordActivity();
+      await _noteDay();
     }
   }
+
+  /// Tell [MizanRecordStore] that today is a recorded day, so Growth's week strip
+  /// and its "since you began" figures have something true to draw.
+  ///
+  /// Called *after* the streak, never before: the store keeps the high-water mark
+  /// of the run, and comparing against a run that has not yet counted today would
+  /// leave the longest run permanently one short.
+  Future<void> _noteDay() => MizanRecordStore.noteRecorded(
+        currentRun: _ref.read(streakProvider).days,
+      );
 
   /// Record that a facet was engaged today. Idempotent — marking twice is not
   /// different from marking once, because there is nothing to increment.
@@ -167,6 +179,7 @@ class TodaysMizanController extends StateNotifier<TodaysMizan> {
     // Today now holds something. Deliberately after the write: the streak is a
     // claim about a day that is already on disk.
     await _ref.read(streakProvider.notifier).recordActivity();
+    await _noteDay();
   }
 }
 

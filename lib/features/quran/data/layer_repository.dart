@@ -154,6 +154,20 @@ class LayerRepository {
     return (rows.first['c'] as int?) ?? 0;
   }
 
+  /// Distinct surahs the user has opened at least one tafseer layer in.
+  ///
+  /// Growth's map row states "N ayat across M surahs", and M has to be counted
+  /// rather than derived — there is no ratio between the two figures, and a
+  /// reader who has gone deep into one surah and a reader spread across nine are
+  /// telling very different stories about the same ayah count.
+  Future<int> countSurahsTouched() async {
+    final db = await _db.database;
+    final rows = await db.rawQuery(
+      'SELECT COUNT(DISTINCT surah_number) AS c FROM layer_unlocks',
+    );
+    return (rows.first['c'] as int?) ?? 0;
+  }
+
   /// Personal ayah reflections written. Excludes the Muhasabah sentinel row,
   /// which the Muhasabah screen stores at (surah_number = 0, ayah_number = 0).
   Future<int> countReflections() async {

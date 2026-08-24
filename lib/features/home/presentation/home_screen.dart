@@ -2,7 +2,7 @@
 ///
 /// ── What this screen is ───────────────────────────────────────────────
 /// The landing screen, laid out to `Mizan Light.pdf` / `Mizan Dark.pdf` page 2:
-/// a header row, the greeting under an arch watermark, Today's Mizan, the
+/// a header row, the greeting under an arch watermark, the Al-Mizan hero, the
 /// Today's Thread hero, two half-width cards, and the ayah card. It reads only
 /// from [MizanPalette], [MizanType] and [MizanGeometry] — there is not one
 /// `AppColors` reference in this file, which is the whole point of the rebuild.
@@ -26,10 +26,19 @@
 /// hijri-dated event list, and inventing anniversaries for sacred history is not
 /// something this codebase does.
 ///
-/// ── On the Mizan strip ────────────────────────────────────────────────
-/// Rule #4: it records, it does not score. Three facets, filled diamond or empty
-/// diamond, no count and no verdict. The state difference is carried by *shape*
-/// (solid vs outline), not by colour alone.
+/// ── On the Al-Mizan hero ──────────────────────────────────────────────
+/// Al-Mizan sits directly under the greeting, in the slot Today's Mizan used to
+/// hold. The swap was deliberate and in both directions: Today's Mizan moved to
+/// Growth, because a per-day record of what you engaged with is private, and a
+/// week strip that shows a missed day belongs in a private tab rather than on the
+/// screen a person opens first. Al-Mizan came the other way, because it is the
+/// only surface in the app that says something about the reader's own life rather
+/// than about the text, and it was two taps deep.
+///
+/// Two rules govern the hero and neither is negotiable. The headline is
+/// **"Day 9,702"**, never "9,702 days lived" — see [_MizanDayBlock]. And nothing
+/// on it counts down: no progress bar, no life expectancy, no remaining-days
+/// estimate. The lived portion is drawn; the remainder is never quantified.
 library;
 
 import 'package:flutter/material.dart';
@@ -41,6 +50,9 @@ import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../core/util/hijri_date.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
+import '../../../shared/widgets/mizan/mizan_pressable.dart';
+import '../../growth/domain/mizan_birth_date.dart';
+import '../../growth/domain/mizan_figures.dart';
 import '../../identity/domain/identity_providers.dart';
 import '../../quran/presentation/ayah_detail_screen.dart' show SavedAyatStore;
 import '../data/daily_ayah.dart';
@@ -69,7 +81,7 @@ class HomeScreen extends StatelessWidget {
           children: const [
             _HeaderBlock(),
             SizedBox(height: 22),
-            _TodaysMizanCard(),
+            _AlMizanHero(),
             SizedBox(height: MizanGeometry.gap),
             _ThreadHero(),
             SizedBox(height: MizanGeometry.gap),
@@ -230,6 +242,17 @@ class _StreakPill extends ConsumerWidget {
                 ),
               ],
             ),
+            // Growth has no tab of its own — the bar holds Home, Quran,
+            // Discover, Halaqa and Minbar — so this pill is the only door to it,
+            // and until this chevron existed the pill read as a status badge and
+            // nobody found the tab behind it. The screen reader was already told
+            // ("Opens Growth", above); this tells everyone else.
+            const SizedBox(width: 8),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: p.muted,
+            ),
           ],
         ),
       ),
@@ -280,132 +303,236 @@ class _Greeting extends ConsumerWidget {
 //  TODAY'S MIZAN
 // ══════════════════════════════════════════════════════════════════════
 
-class _TodaysMizanCard extends ConsumerWidget {
-  const _TodaysMizanCard();
+class _AlMizanHero extends ConsumerWidget {
+  const _AlMizanHero();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = MizanPalette.of(context);
-    final mizan = ref.watch(todaysMizanProvider);
+    const tone = _heroTone;
+    final on = tone.onColor(p);
+    final onMuted = tone.mutedOn(p);
+    final gold = tone.accentTextOn(p);
+    final figures = ref.watch(mizanFiguresProvider).valueOrNull;
+
     final now = DateTime.now();
     final date = '${weekdayShort(now)} · ${HijriDate.today(now: now).dayAndMonth}';
 
-    return MizanSurface(
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const MizanSectionLabel("Today's Mizan"),
-              const Spacer(),
-              Text(
-                date,
-                style: MizanType.body(color: p.muted).copyWith(fontSize: 13),
+    return MizanPressable(
+      onTap: () => context.push('/growth/meezan'),
+      borderRadius: _heroRadius,
+      fill: tone.resolve(p),
+      border: BorderSide(
+        color: tone.hairlineOn(p),
+        width: MizanGeometry.hairlineWidth,
+      ),
+      padding: EdgeInsets.zero,
+      semanticLabel: figures == null
+          ? 'Al-Mizan. Set your date of birth.'
+          : 'Al-Mizan. Day ${figures.dayNumber} of the life you have been '
+              'given. ${figures.livedLine}. ${figures.ramadanLine}.',
+      child: ClipRRect(
+        borderRadius: _heroRadius,
+        child: Stack(
+          children: [
+            // Bleeds off the top-right corner and is cropped by the card, the
+            // same treatment the Thread hero gives its pair of arches.
+            const Positioned(
+              right: -40,
+              top: -46,
+              width: 170,
+              height: 220,
+              child: MizanArch(opacity: 0.14),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 15),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        'الْمِيزَان',
+                        textDirection: TextDirection.rtl,
+                        style: MizanType.arabic(color: gold, fontSize: 17),
+                      ),
+                      const Spacer(),
+                      Text(
+                        date,
+                        style: MizanType.body(color: onMuted)
+                            .copyWith(fontSize: 11.5),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  if (figures == null)
+                    _MizanAskForBirthDate(on: on, onMuted: onMuted, gold: gold)
+                  else
+                    _MizanDayBlock(
+                      figures: figures,
+                      on: on,
+                      onMuted: onMuted,
+                      gold: gold,
+                    ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Expanded(
-                child: _Facet(
-                  icon: Icons.menu_book_outlined,
-                  label: 'Learned',
-                  done: mizan.learned,
-                ),
-              ),
-              _FacetDivider(color: p.hairline),
-              Expanded(
-                child: _Facet(
-                  icon: Icons.favorite_border_rounded,
-                  label: 'Reflected',
-                  done: mizan.reflected,
-                ),
-              ),
-              _FacetDivider(color: p.hairline),
-              Expanded(
-                child: _Facet(
-                  icon: Icons.directions_walk_rounded,
-                  label: 'Acted',
-                  done: mizan.acted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const MizanRule(),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'A record, not a score.',
-                  style: MizanType.translation(color: p.muted)
-                      .copyWith(fontSize: 14),
-                ),
-              ),
-              _TextLink(
-                label: 'Open Growth',
-                onTap: () => context.go('/growth'),
-              ),
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _Facet extends StatelessWidget {
-  const _Facet({required this.icon, required this.label, required this.done});
+const BorderRadius _heroRadius = BorderRadius.all(Radius.circular(22));
 
-  final IconData icon;
-  final String label;
-  final bool done;
+/// The Al-Mizan hero's surface, and the reason it is not navy.
+///
+/// The spec drew this card in `#0F3B4C` — the same fill the Thread hero directly
+/// beneath it uses. On the device that read as one tall navy slab broken by a
+/// hairline, not as two cards, and the module boundary the whole Home layout
+/// depends on disappeared. So the hero takes the sunk tone instead: warm sand
+/// (`#EADCC8`) on light and the raised navy (`#14495C`) on dark, in both cases a
+/// clear step away from the Thread card below it.
+///
+/// Nothing else about the card changes, because nothing else needed to. Every
+/// colour inside it is asked of the tone rather than named, so the whole block
+/// re-inks itself: the day numeral takes [MizanTone.onColor], the accents take
+/// [MizanTone.accentTextOn] — which quietly becomes bronze rather than gold on
+/// the light theme, since gold is illegal as text on a cream surface and legal
+/// only on the navy inverse panel.
+const MizanTone _heroTone = MizanTone.sunk;
+
+/// The card once a birth date exists.
+///
+/// The headline is **"Day 9,702"**, not "9,702 days lived", and that is the most
+/// load-bearing detail on this screen. A total is the same number every morning
+/// until a person stops reading it; "today is day 9,702" is a different sentence
+/// each day and visibly moves. It must not be turned back into a total.
+class _MizanDayBlock extends StatelessWidget {
+  const _MizanDayBlock({
+    required this.figures,
+    required this.on,
+    required this.onMuted,
+    required this.gold,
+  });
+
+  final MizanFigures figures;
+  final Color on;
+  final Color onMuted;
+  final Color gold;
 
   @override
   Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
-    return Semantics(
-      label: '$label — ${done ? 'recorded today' : 'nothing recorded yet'}',
-      excludeSemantics: true,
-      child: Column(
-        children: [
-          Icon(icon, size: 21, color: p.ink),
-          const SizedBox(height: 10),
-          Text(
-            label,
-            style: MizanType.bodyStrong(color: p.ink)
-                .copyWith(fontSize: 14, height: 1.1),
-          ),
-          const SizedBox(height: 9),
-          MizanDiamond(
-            size: 7,
-            filled: done,
-            // Solid sage when engaged, hollow when not. The shape carries the
-            // meaning; the colour only reinforces it.
-            color: done ? p.sage : p.muted.withValues(alpha: 0.42),
-          ),
-        ],
-      ),
+    final word = MizanType.body(color: onMuted).copyWith(fontSize: 13.5);
+    final numeral = MizanType.bodyStrong(color: gold)
+        .copyWith(fontSize: 13.5, fontWeight: FontWeight.w700);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'DAY',
+          style: MizanType.sectionLabel(color: gold)
+              .copyWith(fontSize: 10, letterSpacing: 2),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          groupThousands(figures.dayNumber),
+          style: MizanType.screenTitle(color: on)
+              .copyWith(fontSize: 44, height: 1.02),
+        ),
+        const SizedBox(height: 4),
+        Text('of the life you have been given', style: word),
+        const SizedBox(height: 13),
+        MizanRule(color: _heroTone.hairlineOn(p)),
+        const SizedBox(height: 11),
+        Row(
+          children: [
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: groupThousands(figures.ramadansWitnessed),
+                      style: numeral,
+                    ),
+                    TextSpan(text: ' Ramadans · ', style: word),
+                    TextSpan(
+                      text: groupThousands(figures.jumuahs),
+                      style: numeral,
+                    ),
+                    TextSpan(text: ' Jumu’ahs', style: word),
+                  ],
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 19, color: onMuted),
+          ],
+        ),
+        const SizedBox(height: 5),
+        // The only forward-looking number on Home, and the one people act on.
+        // It stays, and it stays last.
+        Text(
+          figures.ramadanLine,
+          style: MizanType.body(color: onMuted).copyWith(fontSize: 11.5),
+        ),
+      ],
     );
   }
 }
 
-class _FacetDivider extends StatelessWidget {
-  const _FacetDivider({required this.color});
+/// Shown when no birth date is stored.
+///
+/// It asks. It does not estimate from the install date, average a number, or
+/// render a zero — no figure in Al-Mizan is ever fabricated to fill a slot, and a
+/// "Day 1" for someone who has been alive for decades would be a false statement
+/// about their life.
+class _MizanAskForBirthDate extends StatelessWidget {
+  const _MizanAskForBirthDate({
+    required this.on,
+    required this.onMuted,
+    required this.gold,
+  });
 
-  final Color color;
+  final Color on;
+  final Color onMuted;
+  final Color gold;
 
   @override
-  Widget build(BuildContext context) => Container(
-        width: MizanGeometry.hairlineWidth,
-        height: 62,
-        color: color,
-      );
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Count your days',
+          style: MizanType.cardHeadline(color: on).copyWith(fontSize: 22),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Al-Mizan needs your date of birth. It is kept on this device and '
+          'sent nowhere.',
+          style: MizanType.body(color: onMuted).copyWith(fontSize: 13),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Text(
+              'Set date of birth',
+              style: MizanType.button(color: gold).copyWith(fontSize: 13.5),
+            ),
+            const SizedBox(width: 4),
+            Icon(Icons.chevron_right_rounded, size: 19, color: gold),
+          ],
+        ),
+      ],
+    );
+  }
 }
+
 
 // ══════════════════════════════════════════════════════════════════════
 //  TODAY'S THREAD

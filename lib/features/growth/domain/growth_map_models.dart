@@ -136,6 +136,7 @@ class GrowthMetrics {
   const GrowthMetrics({
     required this.quranLayers,
     required this.quranAyahs,
+    required this.quranSurahs,
     required this.vocabCount,
     required this.streak,
     required this.reflectionsWritten,
@@ -146,6 +147,10 @@ class GrowthMetrics {
 
   final int quranLayers;
   final int quranAyahs;
+
+  /// Distinct surahs touched. Breadth alongside [quranAyahs]; Growth's map row
+  /// reads "N ayat across M surahs" and both halves are counted, never inferred.
+  final int quranSurahs;
   final int vocabCount;
   final int streak;
   final int reflectionsWritten;
@@ -160,6 +165,7 @@ class GrowthMetrics {
   static const empty = GrowthMetrics(
     quranLayers: 0,
     quranAyahs: 0,
+    quranSurahs: 0,
     vocabCount: 0,
     streak: 0,
     reflectionsWritten: 0,
