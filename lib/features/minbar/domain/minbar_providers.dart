@@ -119,6 +119,53 @@ class MinbarFeedNotifier extends AsyncNotifier<List<MinbarShareView>> {
     }
   }
 
+  /// Remove one of your own posts, optimistically, then persist.
+  ///
+  /// Same shape as [react], for the same reason: the card leaves the list before
+  /// the write is attempted, so a deletion the user has just confirmed in a
+  /// dialog does not sit on screen for a round trip looking like it was ignored.
+  /// On failure the error surfaces and [refresh] pulls the true feed back, which
+  /// returns the post if the server still has it.
+  ///
+  /// Authorship is not decided here. [MinbarRepository.deleteShare] takes the
+  /// user id and makes it part of the delete predicate, so this method cannot
+  /// remove someone else's post even if it is called with their post's id — the
+  /// optimistic removal would simply be undone by the [refresh] that follows.
+  Future<void> delete(String shareId) async {
+    final current = state.value;
+    if (current == null) return;
+
+    final remaining =
+        current.where((v) => v.share.id != shareId).toList(growable: false);
+    // Nothing matched, so there is nothing to be optimistic about — and no
+    // reason to touch `_loaded` below.
+    if (remaining.length == current.length) return;
+
+    state = AsyncValue.data(remaining);
+
+    // `_loaded` is the OFFSET the next `loadMore` asks the repository for, so it
+    // has to describe the list we are actually paging over. Left at its old
+    // value after dropping a row it would point one post past the true end of
+    // what we hold, and the post that slid up into the deleted one's place would
+    // never be fetched — deleting one post would silently cost the user a
+    // second, further down the feed, that they never touched.
+    _loaded -= current.length - remaining.length;
+
+    try {
+      final user = await ref.read(effectiveUserProvider.future);
+      await ref.read(minbarRepositoryProvider).deleteShare(
+            shareId: shareId,
+            userId: user.id,
+          );
+    } catch (e, st) {
+      AppLogger.error('Minbar delete failed, reverting: $e', tag: 'Minbar');
+      state = AsyncValue.error(e, st);
+      // Resets `_loaded` and `_hasMore` from the real first page, so the
+      // decrement above is undone along with the removal.
+      await refresh();
+    }
+  }
+
   List<MinbarShareView> _applyToggle(
     List<MinbarShareView> feed,
     String shareId,

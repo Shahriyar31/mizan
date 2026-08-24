@@ -32,6 +32,15 @@
 /// publishing a hadith and a grade this app cannot verify. The slot is kept and
 /// filled with something true instead — how a halaqa works. Supply the verified
 /// text and grade and it swaps in with a single edit.
+///
+/// ── That panel is an introduction, so it stops ─────────────────────────
+/// "How a halaqa works" used to render on every visit to this tab, forever. It
+/// explains what a circle *is*, which is information exactly one person needs:
+/// somebody who has not been in one. To everybody else it was a fixed advert at
+/// the foot of their own circle list. It now shows only while the reader is in no
+/// circles and has not dismissed it, and either of those ending is permanent —
+/// see `_HalaqaScreenState._explainerOwed` for the full rule and what was
+/// rejected.
 library;
 
 import 'package:flutter/material.dart';
@@ -44,31 +53,91 @@ import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
 import '../../../shared/widgets/mizan/mizan_pressable.dart';
+import '../../onboarding/domain/onboarding_flags.dart';
 import '../domain/halaqa_providers.dart';
 import '../models/halaqa_models.dart';
 import 'widgets/halaqa_sheets.dart';
 
-class HalaqaScreen extends ConsumerWidget {
+class HalaqaScreen extends ConsumerStatefulWidget {
   const HalaqaScreen({super.key});
 
-  Future<void> _create(BuildContext context) async {
+  @override
+  ConsumerState<HalaqaScreen> createState() => _HalaqaScreenState();
+}
+
+class _HalaqaScreenState extends ConsumerState<HalaqaScreen> {
+  /// Whether the "How a halaqa works" panel is still owed to this person.
+  ///
+  /// ── The rule, and why it is this one ──────────────────────────────────
+  /// The panel explains what a circle *is*, so the only person it helps is
+  /// someone who has never been in one. It is drawn while two things are true:
+  /// the flag is unset, and this account is in no circles. Either one falling
+  /// away hides it for good.
+  ///
+  ///   • **Being in a circle** answers the question the panel asks, so the first
+  ///     time [myHalaqasProvider] reports one, the flag is written (see [build]).
+  ///     Written, not merely honoured for that frame — otherwise leaving every
+  ///     circle later would hand the beginner's explanation back to somebody who
+  ///     has already run one. It also means every existing user, all of whom
+  ///     have circles, never sees the panel again after this update.
+  ///   • **Dismissing it** covers the person who reads it, understands, and has
+  ///     not joined anything yet. Without an explicit way out they would be shown
+  ///     the same panel on every single visit, which is the complaint this whole
+  ///     change answers.
+  ///
+  /// What is deliberately *not* the rule: "hide it after the first launch". That
+  /// is measured in app opens rather than in understanding, so it would take the
+  /// explanation away from someone who opened the tab, read half of it, and came
+  /// back the next day still not in a circle — while a first launch that happens
+  /// to be interrupted spends the one showing it ever gets.
+  ///
+  /// Read synchronously: [OnboardingFlags] is restored before the first frame, so
+  /// the panel either renders with the screen or never does.
+  late bool _explainerOwed = !OnboardingFlags.halaqaHowItWorksSeen;
+
+  /// Answers the panel from its own button, and never shows it again.
+  void _dismissExplainer() {
+    setState(() => _explainerOwed = false);
+    OnboardingFlags.markHalaqaHowItWorksSeen();
+  }
+
+  Future<void> _create() async {
     final created = await showCreateHalaqaSheet(context);
-    if (created != null && context.mounted) {
+    if (created != null && mounted) {
       context.push('/halaqa/circle/${created.id}');
     }
   }
 
-  Future<void> _join(BuildContext context) async {
+  Future<void> _join() async {
     final joined = await showJoinHalaqaSheet(context);
-    if (joined != null && context.mounted) {
+    if (joined != null && mounted) {
       context.push('/halaqa/circle/${joined.id}');
     }
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
     final circles = ref.watch(myHalaqasProvider);
+
+    // Being in a circle is the implicit answer to the panel — record it once.
+    // Safe from `build` because it touches no provider and requests no rebuild:
+    // it sets a static and writes one boolean to disk. It also cannot change what
+    // this frame draws, since `showExplainer` below is already false whenever
+    // this runs. The write only matters for later launches.
+    if ((circles.valueOrNull?.isNotEmpty ?? false) &&
+        !OnboardingFlags.halaqaHowItWorksSeen) {
+      OnboardingFlags.markHalaqaHowItWorksSeen();
+    }
+
+    final showExplainer = _explainerOwed &&
+        switch (circles) {
+          AsyncData(:final value) => value.isEmpty,
+          // Loading or failed: claim nothing. Drawing the panel and snatching it
+          // away when the circles land is worse than a beat of nothing, and a
+          // failed load is not evidence that somebody has no circles.
+          _ => false,
+        };
 
     return Scaffold(
       backgroundColor: p.page,
@@ -107,7 +176,7 @@ class HalaqaScreen extends ConsumerWidget {
                         icon: Icons.add_rounded,
                         kind: MizanButtonKind.primary,
                         expand: true,
-                        onPressed: () => _create(context),
+                        onPressed: () => _create(),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -117,7 +186,7 @@ class HalaqaScreen extends ConsumerWidget {
                         icon: Icons.login_rounded,
                         kind: MizanButtonKind.secondary,
                         expand: true,
-                        onPressed: () => _join(context),
+                        onPressed: () => _join(),
                       ),
                     ),
                   ],
@@ -146,8 +215,10 @@ class HalaqaScreen extends ConsumerWidget {
                     ],
                   _ => const [_CirclesLoading()],
                 },
-                const SizedBox(height: 22),
-                const _HowItWorks(),
+                if (showExplainer) ...[
+                  const SizedBox(height: 22),
+                  _HowItWorks(onDismiss: _dismissExplainer),
+                ],
               ],
             ),
           ],
@@ -275,8 +346,16 @@ class _InviteCodeLine extends StatelessWidget {
 /// Occupies the slot the mockup reserved for a hadith. Everything stated here is
 /// a product rule, so it needs no citation — and the "no replies" line is the one
 /// thing about this feature a new user will not expect.
+///
+/// Shown only while it can still be useful — see `_HalaqaScreenState`'s
+/// `_explainerOwed` for the rule — and it carries its own way out, because a
+/// panel that cannot be closed is one the user has to scroll past forever.
 class _HowItWorks extends StatelessWidget {
-  const _HowItWorks();
+  const _HowItWorks({required this.onDismiss});
+
+  /// Hides the panel for good. Persisted, not just for this frame: a card that
+  /// comes back after a relaunch is exactly the bug this answers.
+  final VoidCallback onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -313,6 +392,18 @@ class _HowItWorks extends StatelessWidget {
           Text(
             'Al-Minbar is the public one. This is not.',
             style: MizanType.translation(color: tone.mutedOn(p)),
+          ),
+          const SizedBox(height: 16),
+          // A real button rather than a quiet line of text, because the whole
+          // complaint was that this panel would not go away — the way out has to
+          // be as visible as the thing it closes. `onInverse` makes it the
+          // gold-trimmed pill, which is legal on navy in light mode and on the
+          // dark card in dark mode, so one declaration reads correctly in both.
+          MizanButton(
+            label: 'Got it',
+            expand: true,
+            onInverse: true,
+            onPressed: onDismiss,
           ),
         ],
       ),

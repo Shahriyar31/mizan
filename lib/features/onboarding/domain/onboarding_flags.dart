@@ -40,10 +40,29 @@ abstract final class OnboardingFlags {
   /// ayah has been read.
   static bool layersIntroSeen = false;
 
+  /// Stable storage key — renaming it re-shows the Halaqa explainer to everybody.
+  static const _halaqaHowItWorksKey = 'halaqa_how_it_works_seen';
+
+  /// Whether the "How a halaqa works" panel has done its job.
+  ///
+  /// Set two ways, because this card asks a question the user can also answer
+  /// without reading it: explicitly, when they dismiss it, and implicitly, the
+  /// first time they are in a circle at all — somebody who has created or joined
+  /// one has demonstrably worked out what a circle is, and an explainer that
+  /// keeps reappearing above their own circles is an advert. Writing the flag in
+  /// the implicit case rather than merely hiding the card is the point of it:
+  /// leaving every circle later must not bring the explanation back to someone
+  /// who has already run one.
+  ///
+  /// Restored with the others before the first frame, so the Halaqa tab either
+  /// draws the panel or does not, and it can never drop in a beat late.
+  static bool halaqaHowItWorksSeen = false;
+
   static Future<void> restore() async {
     final prefs = await SharedPreferences.getInstance();
     welcomeSeen = prefs.getBool(_welcomeKey) ?? false;
     layersIntroSeen = prefs.getBool(_layersIntroKey) ?? false;
+    halaqaHowItWorksSeen = prefs.getBool(_halaqaHowItWorksKey) ?? false;
   }
 
   static Future<void> markWelcomeSeen() async {
@@ -56,5 +75,15 @@ abstract final class OnboardingFlags {
     layersIntroSeen = true;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_layersIntroKey, true);
+  }
+
+  /// Idempotent, and called from a `build` in one of its two cases — see
+  /// [halaqaHowItWorksSeen]. The static is set first so a caller that checks the
+  /// flag on the very next line is not told to write it twice while the
+  /// [SharedPreferences] future is still in flight.
+  static Future<void> markHalaqaHowItWorksSeen() async {
+    halaqaHowItWorksSeen = true;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_halaqaHowItWorksKey, true);
   }
 }

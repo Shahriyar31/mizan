@@ -90,6 +90,23 @@ abstract class HalaqaRepository {
     required String userId,
   });
 
+  /// Delete a circle outright — for everyone in it, not just [userId].
+  ///
+  /// Creator-only. [userId] must match the circle's `created_by`, and both
+  /// implementations put that column in the statement they run rather than
+  /// trusting the caller to have checked: a menu item that is merely hidden is
+  /// not a permission. A request from anybody else matches no row and is a
+  /// silent no-op, which is the honest outcome for an action the UI never offers
+  /// them.
+  ///
+  /// Members, shares and reactions go with the circle. *How* they go differs by
+  /// backend and is not incidental — SQLite deletes them in one transaction,
+  /// Postgres by `ON DELETE CASCADE`. See each implementation.
+  Future<void> deleteHalaqa({
+    required String halaqaId,
+    required String userId,
+  });
+
   Future<List<HalaqaMember>> getMembers(String halaqaId);
 
   Future<int> memberCount(String halaqaId);
@@ -117,6 +134,26 @@ abstract class HalaqaRepository {
     required String shareId,
     required String userId,
     required ReactionType reaction,
+  });
+
+  /// Remove one share from a circle. Author-only: [userId] must be the share's
+  /// `shared_by`.
+  ///
+  /// This is *self*-deletion, not moderation. There is deliberately no way for a
+  /// circle's creator to take down somebody else's reflection — a private circle
+  /// of eight people does not need a moderator, and giving one member that power
+  /// would change what the circle is. Withdrawing your own words is a different
+  /// thing, and it is the only thing this offers.
+  ///
+  /// Both implementations put `shared_by` in the WHERE clause rather than
+  /// reading the row, comparing, and then deleting. The rule is therefore part
+  /// of the single statement that runs: it cannot be raced, and it still holds
+  /// for a caller that forgot to check.
+  ///
+  /// The share's reactions go with it.
+  Future<void> deleteShare({
+    required String shareId,
+    required String userId,
   });
 
   /// Members who have gone quiet (inactive for [days] or more), excluding

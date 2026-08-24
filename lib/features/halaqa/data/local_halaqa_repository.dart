@@ -169,21 +169,44 @@ class LocalHalaqaRepository implements HalaqaRepository {
     // If the circle is now empty, clean it up entirely (shares + reactions).
     final remaining = await memberCount(halaqaId);
     if (remaining == 0) {
-      await db.transaction((txn) async {
-        final shareRows = await txn.query(_shares,
-            columns: ['id'], where: 'halaqa_id = ?', whereArgs: [halaqaId]);
-        final shareIds =
-            shareRows.map((r) => r['id'] as String).toList();
-        if (shareIds.isNotEmpty) {
-          final placeholders = List.filled(shareIds.length, '?').join(',');
-          await txn.delete(_reactions,
-              where: 'share_id IN ($placeholders)', whereArgs: shareIds);
-        }
-        await txn.delete(_shares, where: 'halaqa_id = ?', whereArgs: [halaqaId]);
-        await txn.delete(_halaqas, where: 'id = ?', whereArgs: [halaqaId]);
-      });
+      await _teardown(db, halaqaId);
       AppLogger.info('Deleted empty halaqa $halaqaId', tag: _tag);
     }
+  }
+
+  /// Creator-only circle deletion — see [HalaqaRepository.deleteHalaqa].
+  ///
+  /// The ownership check is a read here rather than a column in the delete,
+  /// because SQLite has no cascade to lean on: the children have to be removed
+  /// by their own statements, and those statements are keyed by `halaqa_id`, not
+  /// by anything that carries the creator. Doing the check inside the same
+  /// transaction as the teardown is what makes it safe — nothing else can change
+  /// `created_by` between the read and the writes.
+  ///
+  /// A request from a non-creator is a no-op rather than a thrown error. Nothing
+  /// in this app offers that button to a non-creator, so reaching here means a
+  /// bug in a caller, not a person to apologise to; the log line is for whoever
+  /// has to find it.
+  @override
+  Future<void> deleteHalaqa({
+    required String halaqaId,
+    required String userId,
+  }) async {
+    final db = await _db.database;
+    final owner = await db.query(_halaqas,
+        columns: ['created_by'],
+        where: 'id = ?',
+        whereArgs: [halaqaId],
+        limit: 1);
+    if (owner.isEmpty) return; // Already gone — deleting it twice is fine.
+    if ((owner.first['created_by'] as String?) != userId) {
+      AppLogger.warning(
+          'Refused deleteHalaqa: $userId did not create $halaqaId', tag: _tag);
+      return;
+    }
+
+    await _teardown(db, halaqaId);
+    AppLogger.info('Deleted halaqa $halaqaId', tag: _tag);
   }
 
   @override
@@ -309,6 +332,47 @@ class LocalHalaqaRepository implements HalaqaRepository {
     }
   }
 
+  /// Author-only share deletion — see [HalaqaRepository.deleteShare].
+  ///
+  /// `shared_by = ?` is in the delete itself, so a share belonging to another
+  /// member matches nothing and survives even if a caller asked for it. The
+  /// reactions go first: they are keyed by `share_id`, and removing the share
+  /// before them would leave rows pointing at nothing, which the feed would
+  /// still happily count.
+  @override
+  Future<void> deleteShare({
+    required String shareId,
+    required String userId,
+  }) async {
+    final db = await _db.database;
+    // Set inside the transaction, read after it: the `return` below leaves the
+    // transaction callback, not this method, so the outcome has to be carried
+    // out rather than assumed.
+    var deleted = false;
+    await db.transaction((txn) async {
+      // Scoped to the author *and* the id, so a reaction is only cleared when
+      // the share it belongs to is actually about to be deleted.
+      final owned = await txn.query(_shares,
+          columns: ['id'],
+          where: 'id = ? AND shared_by = ?',
+          whereArgs: [shareId, userId],
+          limit: 1);
+      if (owned.isEmpty) return;
+      await txn.delete(_reactions, where: 'share_id = ?', whereArgs: [shareId]);
+      await txn.delete(_shares,
+          where: 'id = ? AND shared_by = ?', whereArgs: [shareId, userId]);
+      deleted = true;
+    });
+
+    if (!deleted) {
+      AppLogger.warning(
+          'Refused deleteShare: share $shareId is missing or not $userId\'s',
+          tag: _tag);
+      return;
+    }
+    AppLogger.info('Deleted share $shareId', tag: _tag);
+  }
+
   @override
   Future<List<HalaqaMember>> quietMembers({
     required String halaqaId,
@@ -338,6 +402,38 @@ class LocalHalaqaRepository implements HalaqaRepository {
   }
 
   // ── helpers ────────────────────────────────────────────────────
+
+  /// Remove a circle and everything hanging off it, in one transaction.
+  ///
+  /// Shared by [leaveHalaqa] (when the last member walks out) and
+  /// [deleteHalaqa] (when the creator ends it), because those two arrive at the
+  /// same place by different routes and a circle half-removed one way and fully
+  /// the other would be two bugs waiting to differ.
+  ///
+  /// Children before parents — reactions, shares, members, then the circle. This
+  /// database has no `ON DELETE CASCADE` (the Postgres side does; see
+  /// SupabaseHalaqaRepository.deleteHalaqa), so nothing removes them but these
+  /// statements, and an orphaned reaction is not merely untidy: the feed's
+  /// `share_id IN (…)` query would still scan it forever.
+  ///
+  /// Deleting the members is a no-op on the [leaveHalaqa] path — it only calls
+  /// this once the count has reached zero — and is what actually empties the
+  /// circle on the [deleteHalaqa] path.
+  Future<void> _teardown(Database db, String halaqaId) async {
+    await db.transaction((txn) async {
+      final shareRows = await txn.query(_shares,
+          columns: ['id'], where: 'halaqa_id = ?', whereArgs: [halaqaId]);
+      final shareIds = shareRows.map((r) => r['id'] as String).toList();
+      if (shareIds.isNotEmpty) {
+        final placeholders = List.filled(shareIds.length, '?').join(',');
+        await txn.delete(_reactions,
+            where: 'share_id IN ($placeholders)', whereArgs: shareIds);
+      }
+      await txn.delete(_shares, where: 'halaqa_id = ?', whereArgs: [halaqaId]);
+      await txn.delete(_members, where: 'halaqa_id = ?', whereArgs: [halaqaId]);
+      await txn.delete(_halaqas, where: 'id = ?', whereArgs: [halaqaId]);
+    });
+  }
 
   /// Trim, collapse, and hard-cap the personal note at the README's limit.
   String? _sanitizeNote(String? note) {

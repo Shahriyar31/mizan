@@ -212,6 +212,67 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
     // Server-side trigger deletes the circle once its last member leaves.
   }
 
+  /// Creator-only circle deletion — see [HalaqaRepository.deleteHalaqa].
+  ///
+  /// ── Delete the parent only. Do not "clean up" the children ────────────
+  /// The obvious implementation is to sweep downward first — reactions, then
+  /// shares, then members, then the circle — and it is wrong here, twice over.
+  ///
+  ///  1. **RLS would silently drop most of the work.** DELETE on
+  ///     `halaqa_shares` is restricted to `shared_by = auth.uid()`, and on
+  ///     `halaqa_reactions` to the reacting user (002/003). A creator sweeping
+  ///     the circle's shares therefore removes only their *own*; every other
+  ///     member's row is filtered out of the statement and the request still
+  ///     comes back successful. Nothing would tell this client it had deleted
+  ///     almost nothing.
+  ///  2. **The failure would then land on the wrong statement.** The `halaqas`
+  ///     delete that followed would hit a foreign-key violation raised by
+  ///     exactly those surviving rows — so the visible error blames the parent
+  ///     delete for children the client was never permitted to touch, and the
+  ///     circle stays half-emptied.
+  ///
+  /// A cascade runs *as part of* the parent delete and is not subject to the
+  /// children's own policies, so one scoped statement removes the circle
+  /// correctly and completely. That is why this method is a single line.
+  ///
+  /// The cascades it relies on:
+  ///   • `halaqa_members.halaqa_id → halaqas.id` ON DELETE CASCADE
+  ///   • `halaqa_shares.halaqa_id  → halaqas.id` ON DELETE CASCADE
+  ///   • `halaqa_reactions.share_id → halaqa_shares.id` ON DELETE CASCADE
+  ///     (reached transitively, as the shares go)
+  ///
+  /// `created_by` in the filter states the creator-only rule client-side as well
+  /// as in the policy: a non-creator's request matches no row and deletes
+  /// nothing, so the two layers agree instead of one relying on the other.
+  @override
+  Future<void> deleteHalaqa({
+    required String halaqaId,
+    required String userId,
+  }) async {
+    try {
+      await _c
+          .from('halaqas')
+          .delete()
+          .eq('id', halaqaId)
+          .eq('created_by', userId);
+    } on PostgrestException catch (e) {
+      // 23503 on *this* statement can only mean a child row refused to go, i.e.
+      // one of the cascades listed above is missing from the live database. The
+      // person holding the phone gets `readableError`'s sentence; this line
+      // exists so whoever reads the log is told which constraint to go and add
+      // instead of inferring it from a Postgres string.
+      if (e.code == '23503') {
+        AppLogger.error(
+            'Circle $halaqaId will not delete: a child table is missing its '
+            'ON DELETE CASCADE (expected halaqa_members.halaqa_id, '
+            'halaqa_shares.halaqa_id, halaqa_reactions.share_id)',
+            tag: _tag);
+      }
+      rethrow;
+    }
+    AppLogger.info('Deleted halaqa $halaqaId', tag: _tag);
+  }
+
   @override
   Future<List<HalaqaMember>> getMembers(String halaqaId) async {
     // `users(display_name)` follows the halaqa_members.user_id → users.id
@@ -357,6 +418,46 @@ class SupabaseHalaqaRepository implements HalaqaRepository {
       await touchMember(
           halaqaId: shareRow['halaqa_id'] as String, userId: userId);
     }
+  }
+
+  /// Author-only share deletion — see [HalaqaRepository.deleteShare].
+  ///
+  /// `shared_by` is in the filter even though the RLS policy on `halaqa_shares`
+  /// already restricts DELETE to `shared_by = auth.uid()`. That is deliberate
+  /// duplication, not a missing cleanup: the same contract is implemented by
+  /// [LocalHalaqaRepository] against a SQLite file with no policies at all, so
+  /// the rule has to be stated by the repository to hold in both. It also keeps
+  /// a mistaken call harmless — it matches no row rather than being refused —
+  /// and it means a change to the policy cannot quietly widen what this app
+  /// does.
+  ///
+  /// The share's reactions are removed by the
+  /// `halaqa_reactions.share_id → halaqa_shares.id` ON DELETE CASCADE. They
+  /// cannot be deleted from here: a reaction belongs to whoever left it, and RLS
+  /// restricts DELETE to that person, so an author sweeping their share's
+  /// reactions would clear only their own and then the share delete would fail
+  /// on the rest. The cascade is not subject to those policies.
+  @override
+  Future<void> deleteShare({
+    required String shareId,
+    required String userId,
+  }) async {
+    try {
+      await _c
+          .from('halaqa_shares')
+          .delete()
+          .eq('id', shareId)
+          .eq('shared_by', userId);
+    } on PostgrestException catch (e) {
+      if (e.code == '23503') {
+        AppLogger.error(
+            'Share $shareId will not delete: halaqa_reactions.share_id is '
+            'missing its ON DELETE CASCADE',
+            tag: _tag);
+      }
+      rethrow;
+    }
+    AppLogger.info('Deleted share $shareId', tag: _tag);
   }
 
   @override

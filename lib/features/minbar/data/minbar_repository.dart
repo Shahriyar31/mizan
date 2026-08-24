@@ -38,4 +38,24 @@ abstract class MinbarRepository {
     required String userId,
     required ReactionType reaction,
   });
+
+  /// Withdraw a post from the public feed. **Author-only self-deletion** — this
+  /// is not a moderation hook.
+  ///
+  /// [userId] is not passed so the implementation can check it and then decide;
+  /// it is part of the delete predicate itself, so a post belonging to anyone
+  /// else matches no row and the call is a no-op rather than a refusal. Both
+  /// implementations enforce that independently of the UI, and the Supabase one
+  /// independently of RLS as well: a caller that reaches this contract from
+  /// somewhere new cannot accidentally acquire the power to remove other
+  /// people's posts. There is deliberately no "delete any post" method to add
+  /// that power to — the only way to remove a post is to have published it.
+  ///
+  /// The post's reactions go with it. A reaction is a response to one specific
+  /// post and cannot outlive it, so leaving the ledger behind would keep counts
+  /// for something nobody can read.
+  Future<void> deleteShare({
+    required String shareId,
+    required String userId,
+  });
 }

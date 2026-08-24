@@ -27,10 +27,19 @@
 /// `citationSource` attached. That is why the citation line at the foot of the
 /// card can be rendered unconditionally: there is no code path that produces an
 /// uncited post.
+///
+/// ── Deleting is the author's own act, and only theirs ──────────────────
+/// A post can be withdrawn by the person who published it and by nobody else.
+/// The tile does not work that out: it is handed [onDelete] on the reader's own
+/// posts and null on everyone else's, so there is no ownership rule in this file
+/// to get out of step with the one in the feed and the two repositories. The
+/// control is a single icon in the footer next to Open — see [_DeleteButton] for
+/// why it is there and not in the author line's absent "..." menu.
 library;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/mizan_tokens.dart';
 import '../../../../core/theme/mizan_typography.dart';
 import '../../../../shared/models/reaction_type.dart';
@@ -45,6 +54,7 @@ class MinbarPostTile extends StatelessWidget {
     required this.view,
     required this.onReact,
     this.onOpen,
+    this.onDelete,
     this.isMine = false,
   });
 
@@ -54,6 +64,14 @@ class MinbarPostTile extends StatelessWidget {
   /// Opens the source content. Null when the share predates route tracking, in
   /// which case the open affordance is hidden rather than dead.
   final VoidCallback? onOpen;
+
+  /// Withdraws this post from the feed. Non-null **only** on posts the current
+  /// user wrote: the feed resolves ownership once, where it already knows who is
+  /// signed in, and passes null for everyone else's posts. So the tile never
+  /// decides who may delete what — it only knows whether it was handed a way to,
+  /// which is what keeps the author-only rule in one place instead of restated
+  /// in every widget that draws a post.
+  final VoidCallback? onDelete;
 
   /// Renders the author as "You". Resolved by the feed, which already knows the
   /// current user, so the tile stays a plain [StatelessWidget].
@@ -76,7 +94,12 @@ class MinbarPostTile extends StatelessWidget {
           const SizedBox(height: 10),
           _ContentCard(content: share.content),
           const SizedBox(height: 10),
-          _ReactionRow(view: view, onReact: onReact, onOpen: onOpen),
+          _ReactionRow(
+            view: view,
+            onReact: onReact,
+            onOpen: onOpen,
+            onDelete: onDelete,
+          ),
         ],
       ),
     );
@@ -144,10 +167,12 @@ class _AuthorLine extends StatelessWidget {
             ],
           ),
         ),
-        // The mockup puts a "..." overflow menu here. Nothing honest sits behind
-        // it yet — there is no report endpoint, no follow graph, and no way to
-        // delete someone else's post — so it is left out until one of those is
-        // real.
+        // The mockup puts a "..." overflow menu here. Nothing that belongs to
+        // *other people's* posts sits behind it yet — there is no report
+        // endpoint, no follow graph, and no way to delete a post you did not
+        // write — so it is still left out. Withdrawing your own post is real,
+        // but it lives in the footer with this card's other actions rather than
+        // in a menu of one; see [_DeleteButton].
       ],
     );
   }
@@ -290,11 +315,11 @@ class _CitationLine extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  FOOTER — reactions left, open far right
+//  FOOTER — reactions left, delete then open far right
 // ══════════════════════════════════════════════════════════════════════
 
 /// One row under the card: the three reactions packed to the left, then all the
-/// remaining width, then the open action hard against the right edge.
+/// remaining width, then the author's own actions hard against the right edge.
 ///
 /// ── Why the open action moved down here ───────────────────────────────
 /// It used to be a bare ↗ arrow in the card's top-right corner, and a bare arrow
@@ -312,6 +337,7 @@ class _ReactionRow extends StatelessWidget {
     required this.view,
     required this.onReact,
     this.onOpen,
+    this.onDelete,
   });
 
   final MinbarShareView view;
@@ -320,6 +346,9 @@ class _ReactionRow extends StatelessWidget {
   /// Null when the share predates route tracking. The affordance is then hidden
   /// rather than drawn dead — a button that goes nowhere is worse than no button.
   final VoidCallback? onOpen;
+
+  /// Null on posts that are not the reader's own, which is most of them.
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -338,8 +367,56 @@ class _ReactionRow extends StatelessWidget {
               ),
             ),
           const Spacer(),
+          // Delete sits inboard of Open, so the destructive control is never the
+          // one closest to the screen edge where a thumb lands by default, and
+          // Open keeps the corner it already had.
+          if (onDelete != null) _DeleteButton(onTap: onDelete!),
           if (onOpen != null) _OpenButton(onTap: onOpen!),
         ],
+      ),
+    );
+  }
+}
+
+/// The author's own withdraw control: one icon, in the footer, on their posts.
+///
+/// It joins the row the card already keeps its actions in rather than reviving
+/// the mockup's "..." menu on the author line. A menu holding exactly one item
+/// is a second place to look for something there is only one of, and the footer
+/// is where a reader has already learned this card's verbs live.
+///
+/// Wordless where [_OpenButton] is labelled. Reading a post is the act this feed
+/// exists for and deleting one is a rare correction, so the two should not have
+/// equal weight; the icon plus its semantic label carries the meaning without
+/// putting a standing invitation to delete beside every post. The label is fixed
+/// — the same icon and the same words on every post — because a control that
+/// renames itself per item has to be re-read each time.
+///
+/// [AppColors.error] is the codebase's single destructive colour and the only
+/// theme-aware one: deep red on cream, soft red on navy (see
+/// core/theme/app_colors.dart, which is itself a view onto the Mizan palette).
+/// The Mizan spec has no red of its own, and that file says plainly that
+/// inventing a "Mizan red" is a design decision to take deliberately — not one
+/// to take here, in a feed tile, by hardcoding a hex that would read correctly
+/// in only one of the two themes.
+class _DeleteButton extends StatelessWidget {
+  const _DeleteButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return MizanPressable(
+      onTap: onTap,
+      fill: Colors.transparent,
+      shadowsEnabled: false,
+      borderRadius: BorderRadius.circular(MizanGeometry.pillRadius),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      semanticLabel: 'Delete your post',
+      child: Icon(
+        Icons.delete_outline_rounded,
+        size: 19,
+        color: AppColors.error,
       ),
     );
   }

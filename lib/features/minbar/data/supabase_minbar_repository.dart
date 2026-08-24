@@ -120,6 +120,50 @@ class SupabaseMinbarRepository implements MinbarRepository {
     }
   }
 
+  /// Author-only self-deletion. See [MinbarRepository.deleteShare].
+  ///
+  /// `shared_by` is the column [shareToMinbar] inserts `user.id` into. It is in
+  /// the filter as well as the id, so this is defence in depth rather than
+  /// belt-and-braces duplication: RLS already enforces `auth.uid() = shared_by`
+  /// on DELETE independently (minbar_shares_delete_own, see
+  /// supabase/migrations/005_fix_rls_and_backfill.sql), and the client filter
+  /// means the request never asks for something the policy will refuse. Either
+  /// one alone would be enough; neither is trusted to be the only one.
+  ///
+  /// The reactions are removed by the database — minbar_reactions.share_id is
+  /// `REFERENCES minbar_shares(id) ON DELETE CASCADE`, so no second call is
+  /// needed here. The local repository has to delete them by hand because
+  /// on-device SQLite carries no such foreign key.
+  @override
+  Future<void> deleteShare({
+    required String shareId,
+    required String userId,
+  }) async {
+    try {
+      await _c
+          .from('minbar_shares')
+          .delete()
+          .eq('id', shareId)
+          .eq('shared_by', userId);
+    } on PostgrestException catch (e) {
+      // 23503 here has exactly one possible cause: a reaction row refused to
+      // go, meaning the cascade this method depends on is absent from the live
+      // database. Worth naming, because that constraint is *declared* in
+      // 003 — and 005 and 006 both exist because this database was built from a
+      // schema dump that carried the table definitions and none of the rules
+      // attached to them. supabase/migrations/007_fix_delete_cascades.sql
+      // verifies and repairs it.
+      if (e.code == '23503') {
+        AppLogger.error(
+            'Post $shareId will not delete: minbar_reactions.share_id is '
+            'missing its ON DELETE CASCADE — run migration 007',
+            tag: _tag);
+      }
+      rethrow;
+    }
+    AppLogger.info('Removed an Al-Minbar post and its reactions', tag: _tag);
+  }
+
   MinbarShare _shareFromRow(Map<String, dynamic> row) {
     final json = row['content_json'] as String?;
     return MinbarShare(

@@ -91,6 +91,22 @@ class MyHalaqasNotifier extends AsyncNotifier<List<Halaqa>> {
         .leaveHalaqa(halaqaId: halaqaId, userId: user.id);
     await refresh();
   }
+
+  /// End a circle for everyone in it. Creator-only — the repository puts
+  /// `created_by` in the statement, so this cannot delete somebody else's
+  /// circle even if it is called for one.
+  ///
+  /// Failures are not caught. The circle screen awaits this inside its confirm
+  /// flow and needs to know whether the circle actually went, because it pops
+  /// the screen afterwards — swallowing the error here would return the user to
+  /// a list still holding a circle they were told was deleted.
+  Future<void> deleteCircle(String halaqaId) async {
+    final user = await ref.read(effectiveUserProvider.future);
+    await ref
+        .read(halaqaRepositoryProvider)
+        .deleteHalaqa(halaqaId: halaqaId, userId: user.id);
+    await refresh();
+  }
 }
 
 // ── A single circle ───────────────────────────────────────────────
@@ -234,6 +250,44 @@ class HalaqaFeedNotifier
       ref.invalidate(quietMembersProvider(_halaqaId));
     } catch (e, st) {
       AppLogger.error('Reaction failed, reverting: $e', tag: 'HalaqaFeed');
+      state = AsyncValue.error(e, st);
+      await refresh();
+    }
+  }
+
+  /// Remove one of *my* shares from this circle, then drop it from the feed.
+  ///
+  /// Optimistic in the same way [react] is, and for the same reason: a tile the
+  /// person has just confirmed they want gone must not sit there for a round
+  /// trip, because a delete button that leaves the thing on screen reads as one
+  /// that failed. On failure the error is logged and [refresh] restores the true
+  /// feed — which puts the tile back if the row is in fact still there.
+  ///
+  /// Unlike [react] this does **not** invalidate [halaqaMembersProvider] and
+  /// [quietMembersProvider], and that is a decision rather than an omission.
+  /// Those two exist to reflect `last_active_at`, and neither repository treats
+  /// deleting as activity — there is no `touchMember` call on this path, on
+  /// purpose: withdrawing something you posted is not participation, and
+  /// counting it would reset your own nudge timer for taking a reflection away.
+  /// With no member row changed there is nothing for them to re-read. They also
+  /// both `ref.watch` this notifier, so the `state =` above already re-runs
+  /// them; invalidating as well would buy two extra reloads to render an
+  /// identical member ring.
+  Future<void> deleteShare(String shareId) async {
+    final current = state.value;
+    if (current == null) return;
+
+    state = AsyncValue.data(
+      current.where((view) => view.share.id != shareId).toList(),
+    );
+
+    try {
+      final user = await ref.read(effectiveUserProvider.future);
+      await ref
+          .read(halaqaRepositoryProvider)
+          .deleteShare(shareId: shareId, userId: user.id);
+    } catch (e, st) {
+      AppLogger.error('Delete failed, reverting: $e', tag: 'HalaqaFeed');
       state = AsyncValue.error(e, st);
       await refresh();
     }

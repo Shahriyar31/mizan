@@ -235,16 +235,96 @@ class _MinbarScreenState extends ConsumerState<MinbarScreen> {
 
     return [
       for (final view in posts)
-        MinbarPostTile(
-          view: view,
-          isMine: myId != null && view.share.sharedBy == myId,
-          onReact: (r) =>
-              ref.read(minbarFeedProvider.notifier).react(view.share.id, r),
-          onOpen: view.share.content.routePath == null
-              ? null
-              : () => context.go(view.share.content.routePath!),
-        ),
+        _tile(view, isMine: myId != null && view.share.sharedBy == myId),
     ];
+  }
+
+  /// One post. Ownership is decided by the caller and arrives as [isMine], where
+  /// it is spent twice: on how the author line reads, and on whether a delete
+  /// control exists at all. Passing `onDelete: null` for other people's posts is
+  /// what keeps the author-only rule in this one expression instead of restated
+  /// inside the tile.
+  Widget _tile(MinbarShareView view, {required bool isMine}) {
+    return MinbarPostTile(
+      view: view,
+      isMine: isMine,
+      onReact: (r) =>
+          ref.read(minbarFeedProvider.notifier).react(view.share.id, r),
+      onOpen: view.share.content.routePath == null
+          ? null
+          : () => context.go(view.share.content.routePath!),
+      onDelete: isMine ? () => _confirmDelete(view) : null,
+    );
+  }
+
+  /// Confirms, then withdraws one of the reader's own posts.
+  ///
+  /// Always confirmed, with no undo offered afterwards, because there is none to
+  /// offer: the notifier removes the card optimistically and the row is gone from
+  /// the database a moment later, so this dialog is the only place to change your
+  /// mind. The copy therefore says what actually happens — that the reactions go
+  /// with the post, and that the ayah or story itself is untouched — rather than
+  /// asking "are you sure?" and leaving the reader to guess the scope.
+  ///
+  /// Styled like the account dialog in Settings (Mizan card, hairline border,
+  /// quiet cancel) and shaped like Halaqa's leave dialog: a `showDialog<bool>`
+  /// whose result is the answer, so a dismissed dialog and a refused one are the
+  /// same non-`true` and neither deletes anything.
+  Future<void> _confirmDelete(MinbarShareView view) async {
+    final p = MizanPalette.of(context);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: p.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: MizanGeometry.cardBorderRadius,
+          side: BorderSide(color: p.hairline, width: MizanGeometry.hairlineWidth),
+        ),
+        title: Text('Delete this post?',
+            style: MizanType.cardHeadline(color: p.ink)),
+        content: Text(
+          'It leaves Al-Minbar for everyone, and the reactions people left on '
+          'it go with it. This cannot be undone. What you shared is not lost — '
+          'the ayah or story itself stays where it was in the app.',
+          style: MizanType.body(color: p.muted),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
+        actions: [
+          MizanButton(
+            label: 'Keep',
+            kind: MizanButtonKind.quiet,
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+          ),
+          MizanButton(
+            label: 'Delete',
+            kind: MizanButtonKind.primary,
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    await ref.read(minbarFeedProvider.notifier).delete(view.share.id);
+    if (!mounted) return;
+
+    // Re-read the palette rather than reusing `p`: two awaits have passed, and
+    // the theme could have flipped under a long-lived dialog.
+    final after = MizanPalette.of(context);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          behavior: SnackBarBehavior.floating,
+          // The inverse pair, so this reads on both themes: navy on cream in
+          // light, cream on navy in dark.
+          backgroundColor: after.ink,
+          content: Text('Your post was deleted.',
+              style: MizanType.body(color: after.page)),
+        ),
+      );
   }
 }
 

@@ -24,11 +24,25 @@ class HalaqaShareTile extends StatelessWidget {
     required this.view,
     required this.onReact,
     this.onOpen,
+    this.onDelete,
   });
 
   final HalaqaShareView view;
   final ValueChanged<ReactionType> onReact;
   final VoidCallback? onOpen;
+
+  /// Removes this share. Null on every share the viewer did not write.
+  ///
+  /// The tile does not compare ids to work that out, and deliberately never
+  /// learns who is looking: [HalaqaCircleScreen] owns the one ownership check
+  /// and passes null for other people's shares, so the rule that decides who may
+  /// delete lives in exactly one place instead of being restated by every widget
+  /// that draws a share.
+  ///
+  /// Null draws no control rather than a disabled one — "you may not delete this"
+  /// is not information another member needs about a reflection that was never
+  /// theirs.
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -53,6 +67,27 @@ class HalaqaShareTile extends StatelessWidget {
               RelativeTime.short(share.sharedAt),
               style: AppTypography.caption(color: AppColors.muted),
             ),
+            // The one way to remove a share, beside the time that says when it
+            // arrived. Error-coloured like the "Leave circle" row in the circle
+            // menu, so the destructive controls in this feature look alike, and
+            // labelled the same two words on every share it appears on — a
+            // control that renamed itself per item ("Remove ayah", "Remove
+            // story") would read as several different features.
+            if (onDelete != null) ...[
+              const SizedBox(width: 2),
+              IconButton(
+                onPressed: onDelete,
+                icon: Icon(Icons.delete_outline_rounded,
+                    size: 18, color: AppColors.error),
+                tooltip: 'Delete share',
+                padding: EdgeInsets.zero,
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(
+                  minWidth: 40,
+                  minHeight: 40,
+                ),
+              ),
+            ],
           ],
         ),
 

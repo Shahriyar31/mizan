@@ -4,8 +4,22 @@
 /// invite others (the invite code), a gentle nudge for anyone who's gone quiet,
 /// and the feed of shared reflections — each answerable only with the three
 /// reactions. It reads four providers (the circle, its members, its quiet
-/// members, and its feed) and writes nothing directly; reactions and leaving go
-/// through the notifiers, which keeps this screen declarative.
+/// members, and its feed) and writes nothing directly; reactions, leaving and
+/// both deletions go through the notifiers, which keeps this screen declarative.
+///
+/// ── Who may remove what ───────────────────────────────────────────────
+/// Two destructive actions live here, and they are scoped differently on
+/// purpose:
+///
+///   • **Deleting a share** is author-only, and it is self-deletion rather than
+///     moderation — there is no way to take down somebody else's reflection. The
+///     tile is handed a callback only for shares the viewer wrote.
+///   • **Deleting the circle** is creator-only, and sits in the menu beside
+///     Leave rather than replacing it.
+///
+/// Both rules are decided once in this file and enforced again in the
+/// repository (and, online, a third time by row-level security). A hidden
+/// control is a courtesy, not a permission.
 library;
 
 import 'package:flutter/material.dart';
@@ -86,29 +100,125 @@ class _CircleBody extends ConsumerWidget {
     if (context.mounted) context.pop();
   }
 
+  /// End the circle for everyone. Offered to the creator only — see [_showMenu].
+  ///
+  /// Separate from [_leave] rather than a mode of it, because they are different
+  /// acts with different consequences and a single control that changed meaning
+  /// depending on who tapped it would be the worst version of this.
+  Future<void> _deleteCircle(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        // Named, like the leave dialog, because a member of several circles must
+        // be able to see *which* one is about to end.
+        title: Text('Delete “${halaqa.name}”?',
+            style: AppTypography.displaySmall(color: AppColors.textPrimary)),
+        // The three facts that make this different from leaving: it is not just
+        // you, it takes the contents with it, and there is no undo.
+        content: Text(
+          'This removes the circle for everyone in it, along with every '
+          'reflection shared here and every reaction to them. This cannot be '
+          'undone.',
+          style: AppTypography.bodyMedium(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Keep circle',
+                style: AppTypography.buttonSecondary(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Delete',
+                style: AppTypography.buttonSecondary(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await ref.read(myHalaqasProvider.notifier).deleteCircle(halaqa.id);
+    } catch (e) {
+      // The likeliest failure is the database missing one of the cascades the
+      // delete depends on, which arrives as a raw Postgres foreign-key string.
+      // `readableError` logs the real cause and returns a sentence. The screen
+      // stays where it is on purpose — the circle is still there, so popping out
+      // of it would say the opposite of what happened.
+      if (context.mounted) {
+        _toast(context, readableError(e, tag: 'HalaqaCircleScreen'));
+      }
+      return;
+    }
+
+    // The circle this screen is built on is gone, so remaining here would render
+    // `_MissingCircle` behind a back button. Leave the way [_leave] does.
+    if (context.mounted) context.pop();
+  }
+
+  /// Remove one of the viewer's own shares. Reached only from a tile the viewer
+  /// wrote — the ownership check is in [build], and the repository re-checks
+  /// `shared_by` regardless.
+  ///
+  /// The copy names no ayah, surah or story: it is the same question on every
+  /// share, because the control that opened it is the same control on every
+  /// share.
+  Future<void> _deleteShare(
+      BuildContext context, WidgetRef ref, String shareId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: Text('Delete this share?',
+            style: AppTypography.displaySmall(color: AppColors.textPrimary)),
+        content: Text(
+          'It will be removed from the circle for everyone, along with any '
+          'reactions it has. This cannot be undone.',
+          style: AppTypography.bodyMedium(color: AppColors.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Keep it',
+                style: AppTypography.buttonSecondary(color: AppColors.muted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: Text('Delete',
+                style: AppTypography.buttonSecondary(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    // The notifier handles this optimistically and restores the true feed if the
+    // write fails, so there is nothing to catch here.
+    await ref.read(halaqaFeedProvider(halaqa.id).notifier).deleteShare(shareId);
+  }
+
   void _copyInvite(BuildContext context) {
     Clipboard.setData(ClipboardData(text: halaqa.inviteCode));
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: AppColors.surfaceElevated,
-          content: Text('Invite code copied — share it with a friend.',
-              style: AppTypography.bodyMedium(color: AppColors.textPrimary)),
-        ),
-      );
+    _toast(context, 'Invite code copied — share it with a friend.');
   }
 
   void _nudge(BuildContext context, HalaqaMember member) {
     // Symbolic for now (local-first, no push yet). See NudgeCard docs.
+    _toast(context, '${member.displayName} will know they\'re missed. 🤍');
+  }
+
+  /// One floating snackbar for every message this screen has to show, so a
+  /// confirmation and a failure are told in the same voice and the same place.
+  void _toast(BuildContext context, String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.surfaceElevated,
-          content: Text('${member.displayName} will know they\'re missed. 🤍',
+          content: Text(message,
               style: AppTypography.bodyMedium(color: AppColors.textPrimary)),
         ),
       );
@@ -146,7 +256,8 @@ class _CircleBody extends ConsumerWidget {
               ),
               _CircleIconButton(
                 icon: Icons.more_horiz_rounded,
-                onTap: () => _showMenu(context, ref),
+                onTap: () =>
+                    _showMenu(context, ref, isCreator: halaqa.createdBy == myId),
               ),
             ],
           ),
@@ -225,6 +336,15 @@ class _CircleBody extends ConsumerWidget {
                               ? () =>
                                   context.push(view.share.content.routePath!)
                               : null,
+                          // The one ownership check in this screen. The tile
+                          // stays dumb — it is handed a callback or null and
+                          // never learns whose share it is drawing. `myId` is ''
+                          // until the user resolves, and no real `sharedBy` can
+                          // be empty, so an unresolved viewer offers no delete
+                          // rather than offering it on everything.
+                          onDelete: view.share.sharedBy == myId
+                              ? () => _deleteShare(context, ref, view.share.id)
+                              : null,
                         ),
                         const SizedBox(height: 22),
                       ],
@@ -236,7 +356,18 @@ class _CircleBody extends ConsumerWidget {
     );
   }
 
-  void _showMenu(BuildContext context, WidgetRef ref) {
+  /// The circle's menu.
+  ///
+  /// [isCreator] is passed in rather than re-derived here. `build` already
+  /// resolves the current user for the member ring, so deriving it a second time
+  /// would mean two comparisons of `createdBy` against two separately-read ids —
+  /// which is exactly the shape of bug where a menu offers an action the rest of
+  /// the screen believes you cannot take.
+  void _showMenu(
+    BuildContext context,
+    WidgetRef ref, {
+    required bool isCreator,
+  }) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -267,6 +398,25 @@ class _CircleBody extends ConsumerWidget {
                 _leave(context, ref);
               },
             ),
+            // Creator only, and *in addition* to Leave rather than instead of
+            // it: a creator who simply wants out of a circle other people are
+            // still using must not have "end it for everybody" as their only
+            // exit. Everyone else sees the single row they saw before.
+            if (isCreator)
+              ListTile(
+                leading:
+                    Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                title: Text('Delete circle',
+                    style: AppTypography.labelLarge(color: AppColors.error)),
+                // Says who it affects up front, so the difference from the row
+                // above it is legible before the confirm dialog, not only in it.
+                subtitle: Text('Removes it for everyone',
+                    style: AppTypography.caption(color: AppColors.muted)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _deleteCircle(context, ref);
+                },
+              ),
           ],
         ),
       ),
