@@ -66,7 +66,7 @@ class PersonalisationScreen extends ConsumerWidget {
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const MizanMark(size: 30),
+                  const MizanMark(width: 30),
                   const SizedBox(width: 12),
                   Icon(Icons.chevron_right_rounded,
                       size: 20, color: AppColors.muted),

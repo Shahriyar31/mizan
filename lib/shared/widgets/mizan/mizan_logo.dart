@@ -2,14 +2,14 @@
 ///
 /// Three pieces, each usable alone:
 ///
-///   [MizanMark]     the rounded tile with the book-and-scales artwork
+///   [MizanMark]     the rounded tile with the arch, calligraphy and open book
 ///   [MizanWordmark] `MIZAN` in Playfair Display with wide tracking
 ///   [MizanTagline]  `LEARN · REFLECT · GROW`, gold dots, optional flanking rules
 ///   [MizanLogo]     all three stacked — the welcome-screen lockup
 ///
 /// [MizanMark] and [MizanLogo] honour the user's icon choice from
 /// Settings › Personalisation › App Icon. Pass an explicit `variant` to override
-/// (the Settings chooser does this, to show both options at once).
+/// (the Settings chooser does this, to show all five options at once).
 library;
 
 import 'package:flutter/material.dart';
@@ -23,11 +23,31 @@ import '../../../core/theme/mizan_typography.dart';
 //  MARK
 // ══════════════════════════════════════════════════════════════════════
 
-/// The app mark. Square, rounded, drawn from a bundled PNG at 1x/2x/3x.
+/// The app mark: the mihrab arch, `ميزان`, and the open book, on a coloured tile.
+///
+/// ── Sized by width, and only by width ─────────────────────────────────
+/// The tiles are 900×1046, not square. Forcing them into a square box squashes
+/// the book at the bottom of the mark, which is why this takes [width] and lets
+/// the height fall out of [_aspect]. That is the asset README's third rule, and
+/// it is also why the parameter is no longer called `size` — the old name
+/// invited exactly the square box the artwork cannot survive.
+///
+/// ── And not clipped ───────────────────────────────────────────────────
+/// The corners arrive already cut to transparency at the iOS squircle ratio. A
+/// `ClipRRect` over that lays a second corner of a slightly different shape over
+/// the first, and the two edges read as a visible double-rounded seam. The only
+/// thing still using the ratio is the optional drop shadow, which needs a
+/// silhouette to trace.
 class MizanMark extends ConsumerWidget {
-  const MizanMark({super.key, this.size = 72, this.variant, this.shadow = false});
+  const MizanMark({
+    super.key,
+    this.width = 72,
+    this.variant,
+    this.shadow = false,
+  });
 
-  final double size;
+  /// The mark's width. Its height is `width / 0.8604`.
+  final double width;
 
   /// Null → the user's choice, falling back to the theme-appropriate variant.
   final MizanLogoVariant? variant;
@@ -36,6 +56,13 @@ class MizanMark extends ConsumerWidget {
   /// depth belongs to things you tap, and a logo is not a button.
   final bool shadow;
 
+  /// 900 / 1046, the tiles' own aspect ratio.
+  static const double _aspect = 0.8604;
+
+  /// The height this mark will occupy at a given width — so callers laying out
+  /// a fixed-height row do not have to re-derive the ratio.
+  static double heightFor(double width) => width / _aspect;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = MizanPalette.of(context);
@@ -43,61 +70,61 @@ class MizanMark extends ConsumerWidget {
         ref.watch(logoVariantProvider) ??
         MizanLogoVariant.forPalette(p);
 
-    // The asset is a plain square; the rounding happens here so it stays crisp
-    // at any size. See [mizanMarkRadiusRatio] for why the number is what it is.
-    final radius = BorderRadius.circular(size * mizanMarkRadiusRatio);
+    final height = heightFor(width);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        boxShadow: shadow ? p.restShadow : null,
-      ),
-      child: ClipRRect(
-        borderRadius: radius,
-        child: Image.asset(
-          chosen.asset,
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          filterQuality: FilterQuality.medium,
-          semanticLabel: 'Mizan',
-        ),
-      ),
-    );
-  }
-}
+    // The masters are ~900px and the mark is drawn between 30 and 152. Decoded
+    // at full size that is 3.8MB of RGBA per variant, and the Settings chooser
+    // shows five at once. Decoding to the size actually needed keeps the cache in
+    // the low hundreds of KB and gives a properly filtered downsample rather than
+    // a 30:1 point-sample.
+    final ratio = MediaQuery.devicePixelRatioOf(context);
 
-// ══════════════════════════════════════════════════════════════════════
-//  GLYPH
-// ══════════════════════════════════════════════════════════════════════
-
-/// The artwork with **no tile behind it**, sitting straight on the page.
-///
-/// Sized by [width], never by height, and the height is left to fall out of the
-/// aspect ratio. The two masters are 0.914 and 0.933 of their width across the
-/// book — a 2% difference, invisible — but their *heights* differ by 5%, because
-/// only the cream-ink master carries the mihrab arch. Constraining the width
-/// therefore keeps the book optically the same size in both themes; constraining
-/// the height would visibly shrink the mark in the dark theme to make room for
-/// the arch.
-///
-/// The ink follows the page, not the user's App Icon choice — see [MizanGlyphInk].
-class MizanGlyph extends StatelessWidget {
-  const MizanGlyph({super.key, this.width = 150});
-
-  final double width;
-
-  @override
-  Widget build(BuildContext context) {
-    final ink = MizanGlyphInk.forPalette(MizanPalette.of(context));
-    return Image.asset(
-      ink.asset,
+    final image = Image.asset(
+      chosen.asset,
       width: width,
+      height: height,
+      // contain, not cover: cover on an off-square box is the crop this widget
+      // exists to prevent.
+      fit: BoxFit.contain,
+      cacheWidth: (width * ratio).round(),
       filterQuality: FilterQuality.medium,
       semanticLabel: 'Mizan',
     );
+
+    if (!shadow) return image;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(width * mizanMarkRadiusRatio),
+        boxShadow: p.restShadow,
+      ),
+      child: image,
+    );
   }
 }
+
+// ══════════════════════════════════════════════════════════════════════
+//  GLYPH — withdrawn
+// ══════════════════════════════════════════════════════════════════════
+//
+// There used to be a `MizanGlyph`: the artwork cut out on transparency, with no
+// tile behind it, for placing straight on a page. The welcome screen used it.
+//
+// The new brand set has no such file. All five variants are *tiles* — the arch
+// and calligraphy sit on a field colour, and the only transparency is the four
+// rounded corners. Nothing here fakes the old cut-out, because the two ways to
+// fake it both fail:
+//
+//   • Tinting or masking a tile cannot separate ink from field; the field is
+//     opaque behind every stroke.
+//   • Drawing the tile and calling it a glyph is not the same picture. It is a
+//     tile, and pretending otherwise is how a widget name starts lying.
+//
+// So the welcome screen now shows [MizanMark] — the tile, honestly — and the
+// decorative [MizanArch] it used to draw behind the cut-out is gone, because
+// every one of the five tiles already has the arch in the artwork and two arches
+// is one too many. If a true cut-out glyph is wanted later it needs new art, not
+// new code.
 
 // ══════════════════════════════════════════════════════════════════════
 //  WORDMARK
@@ -243,7 +270,7 @@ class MizanLogo extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        MizanMark(size: markSize, variant: variant),
+        MizanMark(width: markSize, variant: variant),
         SizedBox(height: markSize * 0.29),
         MizanWordmark(fontSize: wordmarkSize, color: color),
         if (showTagline) ...[
@@ -280,7 +307,7 @@ class MizanLogoRow extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        MizanMark(size: markSize, variant: variant),
+        MizanMark(width: markSize, variant: variant),
         SizedBox(width: markSize * 0.32),
         Column(
           mainAxisSize: MainAxisSize.min,

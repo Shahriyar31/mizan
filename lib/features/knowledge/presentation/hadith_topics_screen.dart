@@ -200,12 +200,7 @@ class _Results extends StatelessWidget {
           MizanRow(
             title: items[i].display,
             subtitle: _snippet(items[i]),
-            leading: MizanIconTile(
-              icon: knowledgeTypeIcon(EntityType.hadith),
-              circle: false,
-              size: 40,
-              iconSize: 18,
-            ),
+            leading: knowledgeTypeTile(EntityType.hadith),
             onTap: () =>
                 KnowledgeRoutes.open(context, items[i].ref.entityRef),
           ),

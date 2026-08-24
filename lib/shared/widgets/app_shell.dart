@@ -19,6 +19,22 @@
 ///   • The bar sits on `card` — a shade brighter than the page on light, a shade
 ///     lighter than the page on dark — with a hairline along its top edge.
 ///
+/// ── The icons are artwork, not glyphs ─────────────────────────────────
+/// Each tab draws one of the ten bundled PNGs through [MizanIcon]. They were
+/// `Icons.home_outlined` and friends until the artwork arrived; the asset README
+/// forbids both tinting them and substituting a Material icon for them, so the
+/// active state is carried entirely by the three cues in the table below.
+///
+/// The one mistake worth naming, because it is the natural way to write this and
+/// it is wrong: the inactive fade goes on the **image**, not on the tab's Column.
+/// Fading the column takes the label with it, and a 10px label at 52% is around
+/// 2:1 against the card — unreadable in daylight and a WCAG failure regardless.
+/// [MizanIcon.opacity] exists so the fade lands in the right place.
+///
+///   Icon        active 1.0            inactive 0.52
+///   Label       w700, `p.ink`         w400, `p.muted`
+///   Under it    5px gold diamond      an empty 5px box, so nothing shifts
+///
 /// ── Growth and Settings are deliberately not tabs ─────────────────────
 /// The design has eight screens but five tabs. Growth is reached from Today's
 /// Mizan on Home (and from the streak pill), and Settings from the avatar in any
@@ -34,6 +50,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/branding/mizan_icons.dart';
 import '../../core/theme/mizan_tokens.dart';
 import '../../core/theme/mizan_typography.dart';
 import 'mizan/mizan_components.dart';
@@ -99,12 +116,12 @@ class _MizanTabBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
 
-  static const _tabs = <({IconData icon, String label})>[
-    (icon: Icons.home_outlined, label: 'Home'),
-    (icon: Icons.menu_book_outlined, label: 'Quran'),
-    (icon: Icons.explore_outlined, label: 'Discover'),
-    (icon: Icons.people_outline_rounded, label: 'Halaqa'),
-    (icon: Icons.campaign_outlined, label: 'Minbar'),
+  static const _tabs = <({MizanIcons icon, String label})>[
+    (icon: MizanIcons.home, label: 'Home'),
+    (icon: MizanIcons.quran, label: 'Quran'),
+    (icon: MizanIcons.discover, label: 'Discover'),
+    (icon: MizanIcons.halaqa, label: 'Halaqa'),
+    (icon: MizanIcons.minbar, label: 'Minbar'),
   ];
 
   @override
@@ -154,7 +171,7 @@ class _NavItem extends StatelessWidget {
     required this.onTap,
   });
 
-  final IconData icon;
+  final MizanIcons icon;
   final String label;
   final bool isActive;
   final VoidCallback onTap;
@@ -165,10 +182,18 @@ class _NavItem extends StatelessWidget {
   static const double _markerSize = 5;
   static const double _markerBox = _markerSize * 1.42;
 
+  /// Icon edge, from the asset README. Larger than the 22px Material icon it
+  /// replaced because this artwork carries interior detail — a mihrab arch with
+  /// something inside it — where a glyph carried one silhouette.
+  static const double _iconSize = 27;
+
+  /// What the inactive icon fades to. The label does **not** fade with it; see
+  /// the note at the top of this file.
+  static const double _inactiveOpacity = 0.52;
+
   @override
   Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
-    final color = isActive ? p.ink : p.muted;
 
     return MizanPressable(
       onTap: onTap,
@@ -181,17 +206,27 @@ class _NavItem extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 4),
+          MizanIcon(
+            icon,
+            size: _iconSize,
+            opacity: isActive ? 1.0 : _inactiveOpacity,
+          ),
+          const SizedBox(height: 5),
           Text(
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: MizanType.navLabel(color: color).copyWith(
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w600,
+            // navLabel is 11px/w600 — the right role, but the tab bar is
+            // specified at 10px and swings the weight the full w400–w700 range,
+            // because with no pill and no tint the weight is a third of the
+            // active signal rather than a flourish on it.
+            style: MizanType.navLabel(color: isActive ? p.ink : p.muted)
+                .copyWith(
+              fontSize: 10,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
             ),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 5),
           SizedBox(
             height: _markerBox,
             child: isActive

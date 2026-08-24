@@ -131,12 +131,7 @@ class _IndexRow extends StatelessWidget {
     return MizanRow(
       title: entity.title,
       subtitle: entity.teaser ?? entity.subtitle,
-      leading: MizanIconTile(
-        icon: knowledgeTypeIcon(entity.type),
-        circle: false,
-        size: 40,
-        iconSize: 18,
-      ),
+      leading: knowledgeTypeTile(entity.type),
       trailing: entity.titleArabic == null
           ? null
           : Text(

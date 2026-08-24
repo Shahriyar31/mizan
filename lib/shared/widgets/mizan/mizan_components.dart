@@ -20,6 +20,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../core/branding/mizan_icons.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import 'mizan_pressable.dart';
@@ -327,10 +328,19 @@ class MizanButton extends StatelessWidget {
 /// The circular or squared icon touchable: the profile and bell buttons on
 /// Home, the four action icons on an ayah card, the Settings gear, the audio
 /// controls. Always at least 44×44.
+///
+/// Takes *either* a Material [icon] or a piece of [artwork] from the brand set.
+/// Artwork exists for ten things — the five tabs plus hadith, prophet, sahaba,
+/// names99 and settings — and where one of those ten is the subject, the artwork
+/// is what must appear; see `assets/README.md`. It is two-colour raster art, so
+/// [iconColor], [filled] and anything else that would recolour it does not apply
+/// to it: pass artwork only on a `card` or `sunk` tone, which is the cream (or
+/// navy, in the dark set) ground it was drawn against.
 class MizanIconTile extends StatelessWidget {
   const MizanIconTile({
     super.key,
-    required this.icon,
+    this.icon,
+    this.artwork,
     this.onTap,
     this.size = MizanGeometry.tapTarget,
     this.iconSize = 20,
@@ -340,9 +350,18 @@ class MizanIconTile extends StatelessWidget {
     this.filled = false,
     this.semanticLabel,
     this.badge = false,
-  });
+  })  : assert(icon != null || artwork != null,
+            'MizanIconTile needs an icon or artwork'),
+        assert(artwork == null || !filled,
+            'Artwork cannot sit on a filled tile — it would be two-colour art '
+            'on navy or gold, which is not a ground it was drawn for');
 
-  final IconData icon;
+  /// The Material glyph. Null when [artwork] carries the tile instead.
+  final IconData? icon;
+
+  /// Brand artwork, for the ten things that have it. Never tinted.
+  final MizanIcons? artwork;
+
   final VoidCallback? onTap;
   final double size;
   final double iconSize;
@@ -385,7 +404,12 @@ class MizanIconTile extends StatelessWidget {
       child: SizedBox(
         width: size,
         height: size,
-        child: Center(child: Icon(icon, size: iconSize, color: fg)),
+        child: Center(
+          child: artwork != null
+              // No colour passed: the art carries its own two.
+              ? MizanIcon(artwork!, size: iconSize, semanticLabel: semanticLabel)
+              : Icon(icon, size: iconSize, color: fg),
+        ),
       ),
     );
 

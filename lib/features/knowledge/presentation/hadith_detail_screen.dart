@@ -737,12 +737,7 @@ class SavedHadithScreen extends ConsumerWidget {
                   MizanRow(
                     title: items[i].display,
                     subtitle: items[i].english,
-                    leading: MizanIconTile(
-                      icon: knowledgeTypeIcon(EntityType.hadith),
-                      circle: false,
-                      size: 40,
-                      iconSize: 18,
-                    ),
+                    leading: knowledgeTypeTile(EntityType.hadith),
                     onTap: () =>
                         KnowledgeRoutes.open(context, items[i].ref.entityRef),
                   ),

@@ -35,7 +35,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/branding/mizan_brand.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
@@ -95,9 +94,9 @@ class WelcomeScreen extends ConsumerWidget {
 class _Lockup extends StatelessWidget {
   const _Lockup();
 
-  /// Width of the glyph. The mockup's mark is ~35% of the screen width; this is
+  /// Width of the mark. The mockup's mark is ~35% of the screen width; this is
   /// a fixed value instead so the lockup does not balloon on a tablet.
-  static const double _glyphWidth = 152;
+  static const double _markWidth = 132;
 
   /// `mīzān` — the scale, the balance. The app's own name, so it is the app's
   /// own voice and needs no attribution.
@@ -106,38 +105,17 @@ class _Lockup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = MizanPalette.of(context);
-    final ink = MizanGlyphInk.forPalette(p);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: _glyphWidth * 1.62,
-          height: _glyphWidth * 1.30,
-          child: Stack(
-            alignment: Alignment.bottomCenter,
-            children: [
-              // The cream-ink master already has the mihrab arch drawn into it;
-              // adding a second one would double the lines in the dark theme.
-              if (!ink.hasArch)
-                Positioned.fill(
-                  child: Padding(
-                    padding: EdgeInsets.only(top: _glyphWidth * 0.02),
-                    child: MizanArch(
-                      rings: 2,
-                      opacity: 0.42,
-                      color: p.accent,
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: EdgeInsets.only(bottom: _glyphWidth * 0.03),
-                child: const MizanGlyph(width: _glyphWidth),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 6),
+        // The mark, and nothing behind it. This used to be a cut-out glyph inside
+        // a drawn [MizanArch]; the new artwork is a tile with the arch already in
+        // it, so the drawn one would be a second arch around the first. Narrower
+        // than the old 152 because the tile occupies its full box, where the
+        // cut-out left air around the edges.
+        const MizanMark(width: _markWidth),
+        const SizedBox(height: 14),
         const MizanWordmark(fontSize: 36),
         const SizedBox(height: 2),
         // The Arabic name, on the Arabic role — never a Latin style, even for

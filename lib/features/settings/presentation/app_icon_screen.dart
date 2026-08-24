@@ -1,8 +1,17 @@
-/// App Icon — pick which of the two Mizan marks the app wears.
+/// App Icon — pick which of the five Mizan marks the app wears.
 ///
-/// Three states, not two. "Match my theme" is the default and a real choice, not
+/// Six states, not five. "Match my theme" is the default and a real choice, not
 /// an absence of one: it keeps the mark contrasting with the page, so it flips
 /// with the theme. Picking a variant explicitly stops it following.
+///
+/// ── Why rows and not a grid of cards ──────────────────────────────────
+/// This was two big tap-cards side by side when two variants shipped. Five do
+/// not fit that shape: three across leaves a ragged second row of two, two
+/// across needs a scroll to reach the fifth, and either way the artwork ends up
+/// smaller than it was. So the marks are shown once at a size where the
+/// calligraphy is actually readable, and the choice itself is five rows in the
+/// same idiom as every other Settings list. What a chooser row has to answer is
+/// "which field colour is this" — a 40px tile answers that.
 ///
 /// The chrome is still [SettingsSubScaffold] so this reads as part of the
 /// Settings section; the body is built from Mizan primitives.
@@ -21,6 +30,13 @@ import 'widgets/settings_row.dart';
 class AppIconScreen extends ConsumerWidget {
   const AppIconScreen({super.key});
 
+  /// The preview mark's width. Sized by width only — the tiles are 900×1046 and
+  /// a square box crops the book. See [MizanMark].
+  static const double _previewWidth = 104;
+
+  /// The mark beside each row.
+  static const double _rowMarkWidth = 40;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = MizanPalette.of(context);
@@ -31,42 +47,67 @@ class AppIconScreen extends ConsumerWidget {
     return SettingsSubScaffold(
       title: 'App Icon',
       children: [
-        const _Label('The mark'),
+        // The mark you have, large. This is the only place on the screen where
+        // the artwork is big enough to read, which is why it is here at all.
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: MizanGeometry.gutter,
-          ),
-          child: Row(
-            children: [
-              for (final variant in MizanLogoVariant.values) ...[
-                if (variant != MizanLogoVariant.values.first)
-                  const SizedBox(width: MizanGeometry.gap),
-                Expanded(
-                  child: _VariantCard(
-                    variant: variant,
-                    // Only an explicit pick reads as chosen. When following the
-                    // theme, neither card is checked — the effective one is
-                    // marked "in use" instead, so the two ideas stay distinct.
-                    chosen: chosen == variant,
-                    inUse: chosen == null && effective == variant,
-                    onTap: () => controller.set(variant),
-                  ),
+          padding: const EdgeInsets.only(top: 8, bottom: 4),
+          child: Center(
+            child: Column(
+              children: [
+                MizanMark(width: _previewWidth, variant: effective),
+                const SizedBox(height: 12),
+                Text(
+                  chosen == null
+                      ? '${effective.label} — matching your theme'
+                      : effective.label,
+                  style: MizanType.body(color: p.muted),
                 ),
               ],
-            ],
+            ),
           ),
         ),
 
-        const SizedBox(height: MizanGeometry.gap),
+        const _Label('The mark'),
+        for (final variant in MizanLogoVariant.values)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              MizanGeometry.gutter,
+              0,
+              MizanGeometry.gutter,
+              MizanGeometry.gap,
+            ),
+            // MizanRow draws its own fill, border and press feedback — wrapping it
+            // in a MizanSurface would double the hairline and nest two InkWells.
+            child: MizanRow(
+              title: variant.label,
+              subtitle: variant.description,
+              // Passed explicitly, so each row shows its own mark rather than
+              // five copies of whatever is currently selected.
+              leading: MizanMark(width: _rowMarkWidth, variant: variant),
+              showChevron: false,
+              // Only an explicit pick reads as chosen. When following the theme,
+              // no row is checked — the effective one is marked "in use"
+              // instead, so the two ideas stay distinct.
+              trailing: chosen == variant
+                  ? const _Check(on: true)
+                  : (chosen == null && effective == variant
+                      ? Text(
+                          'IN USE',
+                          style: MizanType.sectionLabel(color: p.muted),
+                        )
+                      : const _Check(on: false)),
+              onTap: () => controller.set(variant),
+            ),
+          ),
+
+        const SizedBox(height: 4),
         Padding(
           padding: const EdgeInsets.symmetric(
             horizontal: MizanGeometry.gutter,
           ),
-          // MizanRow draws its own fill, border and press feedback — wrapping it
-          // in a MizanSurface would double the hairline and nest two InkWells.
           child: MizanRow(
             title: 'Match my theme',
-            subtitle: 'Navy in the light theme, cream in the dark',
+            subtitle: 'Midnight in the light theme, Classic in the dark',
             leading: Icon(
               Icons.brightness_auto_rounded,
               size: 20,
@@ -101,10 +142,10 @@ class AppIconScreen extends ConsumerWidget {
                     launcherSwapSupported
                         ? 'Your choice also changes the icon on your home '
                             'screen.'
-                        : 'This changes the mark inside the app. Changing the '
-                            'icon on your home screen needs platform-specific '
-                            'setup that is not finished yet, so it stays as it '
-                            'is for now.',
+                        : 'This changes the mark inside the app. The icon on '
+                            'your home screen stays Classic — changing that '
+                            'needs platform-specific setup that is not '
+                            'finished yet.',
                     style: MizanType.body(color: p.muted),
                   ),
                 ),
@@ -132,59 +173,6 @@ class _Label extends StatelessWidget {
         ),
         child: MizanSectionLabel(text),
       );
-}
-
-/// One icon option: the mark at a size where the artwork is actually readable,
-/// its name, and its state.
-class _VariantCard extends StatelessWidget {
-  const _VariantCard({
-    required this.variant,
-    required this.chosen,
-    required this.inUse,
-    required this.onTap,
-  });
-
-  final MizanLogoVariant variant;
-  final bool chosen;
-  final bool inUse;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final p = MizanPalette.of(context);
-
-    return MizanSurface(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
-      child: Column(
-        children: [
-          // The variant is passed explicitly, so each card shows its own mark
-          // rather than both showing whatever is currently selected.
-          MizanMark(size: 76, variant: variant),
-          const SizedBox(height: 16),
-          Text(variant.label, style: MizanType.bodyStrong(color: p.ink)),
-          const SizedBox(height: 4),
-          Text(
-            variant.description,
-            textAlign: TextAlign.center,
-            style: MizanType.body(color: p.muted).copyWith(fontSize: 13),
-          ),
-          const SizedBox(height: 14),
-          if (chosen)
-            _Check(on: true)
-          else if (inUse)
-            Text(
-              'IN USE',
-              style: MizanType.sectionLabel(color: p.muted),
-            )
-          else
-            // Holds the row's height steady, so selecting does not make the
-            // cards jump.
-            const SizedBox(height: 20),
-        ],
-      ),
-    );
-  }
 }
 
 /// A gold diamond when on, an empty ring when off — the palette has no green,

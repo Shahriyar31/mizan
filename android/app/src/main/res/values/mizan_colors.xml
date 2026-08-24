@@ -7,8 +7,16 @@
     <color name="mizan_page_light">#FAF6EE</color>
     <!-- Dark theme Page -->
     <color name="mizan_page_dark">#0A2233</color>
-    <!-- Adaptive-icon background for the navy tile -->
-    <color name="ic_launcher_background">#0F3B4C</color>
-    <!-- Adaptive-icon background for the cream tile -->
-    <color name="ic_launcher_background_cream">#FAF6EE</color>
+    <!-- Adaptive-icon background. This is the Classic tile's own field colour,
+         sampled from assets/logo/square/mizan_classic.png rather than taken
+         from the palette — the launcher background must match the bitmap
+         exactly, and the artwork's cream is #FDFAEC, a shade off the page's
+         #FAF6EE. Regenerate both with tools/make_launcher_icons.py, which
+         prints the colour it sampled.
+
+         There is no second entry here any more. A cream/navy pair existed for
+         an activity-alias that was never added to the manifest, so the alternate
+         icon was unreachable; `launcherSwapSupported` in mizan_brand.dart is
+         false and the App Icon screen says so plainly. -->
+    <color name="ic_launcher_background">#FDFAEC</color>
 </resources>

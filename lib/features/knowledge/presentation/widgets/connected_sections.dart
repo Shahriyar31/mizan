@@ -19,6 +19,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/knowledge/entity_ref.dart';
 import '../../../../core/knowledge/knowledge_graph.dart';
 import '../../../../core/knowledge/knowledge_providers.dart';
+import '../../../../core/branding/mizan_icons.dart';
 import '../../../../core/theme/mizan_tokens.dart';
 import '../../../../core/theme/mizan_typography.dart';
 import '../../../../shared/widgets/mizan/mizan_components.dart';
@@ -177,12 +178,7 @@ class ConnectedRow extends StatelessWidget {
     return MizanRow(
       title: entity.title,
       subtitle: reason == null || reason.trim().isEmpty ? null : reason.trim(),
-      leading: MizanIconTile(
-        icon: knowledgeTypeIcon(entity.type),
-        circle: false,
-        size: 40,
-        iconSize: 18,
-      ),
+      leading: knowledgeTypeTile(entity.type),
       showChevron: canOpen,
       onTap: canOpen ? () => KnowledgeRoutes.open(context, entity.ref) : null,
       footer: _RelationNote(connection: connection),
@@ -244,8 +240,47 @@ class _RelationNote extends StatelessWidget {
   }
 }
 
+/// The 40px leading tile every knowledge row uses — connected sections, the
+/// index, hadith topics, hadith detail. It existed as the same six-line
+/// `MizanIconTile` copied into four files; now that artwork has to be chosen per
+/// type, one copy is the only version that can stay correct.
+///
+/// A glyph type gets the bordered tile. An artwork type gets the art bare, in a
+/// box of the same 40px footprint so rows stay aligned either way. Two reasons
+/// not to put the art inside the tile: four of the five marks are *drawn inside a
+/// mihrab arch already*, so the tile's hairline becomes a second frame around a
+/// frame; and the art needs 28px to resolve (below that `names99` is a faint ring
+/// and `prophet` is a smudge — measured on both card colours), which inside a
+/// 40px tile leaves 6px of clearance and reads as bursting out of it.
+///
+/// This cannot produce a visually mixed list, because every list that calls it is
+/// single-type: `KnowledgeIndexScreen` takes `required this.type` and lists
+/// `g.ofType(type)`, `ConnectedSection` renders exactly one `type`, and the two
+/// hadith screens are all hadith.
+Widget knowledgeTypeTile(EntityType type) {
+  final art = knowledgeTypeArtwork(type);
+  if (art != null) {
+    return SizedBox(
+      width: 40,
+      height: 40,
+      child: Center(child: MizanIcon(art, size: 28)),
+    );
+  }
+  return MizanIconTile(
+    icon: knowledgeTypeIcon(type),
+    circle: false,
+    size: 40,
+    iconSize: 18,
+  );
+}
+
 /// One glyph per entity type, used by every connected row, index and search
 /// result so the types stay recognisable across the app.
+///
+/// Four of the ten types also have real brand artwork — see
+/// [knowledgeTypeArtwork]. This function stays the fallback for the other six,
+/// and stays total so a new [EntityType] is a compile error rather than a blank
+/// row.
 IconData knowledgeTypeIcon(EntityType type) => switch (type) {
       EntityType.prophet => Icons.brightness_low_outlined,
       EntityType.sahabi => Icons.person_outline_rounded,
@@ -257,4 +292,30 @@ IconData knowledgeTypeIcon(EntityType type) => switch (type) {
       EntityType.scholar => Icons.account_balance_outlined,
       EntityType.place => Icons.place_outlined,
       EntityType.journey => Icons.route_outlined,
+    };
+
+/// The brand artwork for an entity type, where one of the ten marks in
+/// `assets/README.md` actually names it — otherwise null, and the caller falls
+/// back to [knowledgeTypeIcon].
+///
+/// `prophet` the *mark* is the calligraphic محمد in a mihrab arch, so it names
+/// the Prophet ﷺ and belongs to [EntityType.seerah] — his life. It is
+/// deliberately **not** given to [EntityType.prophet], which is the twenty-five
+/// prophets from Adam onward; putting his name beside Nuh or Musa would be a
+/// quiet inaccuracy, and inaccuracy about who is being depicted is not the kind
+/// of thing this app trades for a nicer-looking row.
+///
+/// `verse` returns null because a single ayah is not the Quran section, and the
+/// `quran` mark says Quran.
+MizanIcons? knowledgeTypeArtwork(EntityType type) => switch (type) {
+      EntityType.seerah => MizanIcons.prophet,
+      EntityType.sahabi => MizanIcons.sahaba,
+      EntityType.divineName => MizanIcons.names99,
+      EntityType.hadith => MizanIcons.hadith,
+      EntityType.prophet => null,
+      EntityType.verse => null,
+      EntityType.theme => null,
+      EntityType.scholar => null,
+      EntityType.place => null,
+      EntityType.journey => null,
     };

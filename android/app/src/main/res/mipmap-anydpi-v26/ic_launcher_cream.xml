@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- The cream tile, offered as the alternate launcher icon. Referenced by the
-     activity-alias that Settings > Appearance > App icon toggles. -->
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@color/ic_launcher_background_cream" />
-    <foreground android:drawable="@mipmap/ic_launcher_foreground_cream" />
-</adaptive-icon>

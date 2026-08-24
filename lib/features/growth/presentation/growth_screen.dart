@@ -28,6 +28,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/branding/mizan_icons.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
@@ -108,7 +109,11 @@ class _Header extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         MizanIconTile(
-          icon: Icons.settings_outlined,
+          // Artwork, not `Icons.settings_outlined` — Settings is one of the ten
+          // things with a real mark. 24 rather than the tile's default 20: the
+          // art has internal detail a gear glyph does not.
+          artwork: MizanIcons.settings,
+          iconSize: 24,
           circle: true,
           semanticLabel: 'Settings',
           onTap: () => context.push('/settings'),

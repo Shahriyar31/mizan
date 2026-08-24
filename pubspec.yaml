@@ -66,7 +66,26 @@ flutter:
 
   assets:
     - .env
-    - assets/brand/
+
+    # Icons and logo — see assets/README.md, which is the spec these follow.
+    #
+    # The density folders are a Flutter convention: the framework resolves 2.0x
+    # and 3.0x from the device pixel ratio, so code only ever names the 1x path.
+    # `dark/` is the second colourway, not a second set — same ten filenames, and
+    # only that one path segment changes on a theme switch.
+    #
+    # `assets/icons/master/` is deliberately absent. Those are the ~300px
+    # originals; shipping them would put four unreachable copies of every icon in
+    # the APK.
+    - assets/icons/
+    - assets/icons/2.0x/
+    - assets/icons/3.0x/
+    - assets/icons/dark/
+    - assets/icons/dark/2.0x/
+    - assets/icons/dark/3.0x/
+    - assets/logo/
+    - assets/logo/square/
+
     - assets/data/ibn_kathir/
     - assets/data/ibn_kathir_processed/
     - assets/data/discover/prophets/

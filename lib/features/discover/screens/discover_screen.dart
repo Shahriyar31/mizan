@@ -50,6 +50,7 @@ import 'package:mizan/core/theme/app_colors.dart';
 import 'package:mizan/core/theme/app_typography.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/branding/mizan_icons.dart';
 import '../../../core/theme/mizan_tokens.dart';
 import '../../../core/theme/mizan_typography.dart';
 import '../../../shared/widgets/mizan/mizan_components.dart';
@@ -106,9 +107,12 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
 
   static const _tabs = [
     _TabInfo('Prophets', 'أَنْبِيَاء', Icons.auto_stories_outlined),
-    _TabInfo('Sahabah', 'صَحَابَة', Icons.groups_outlined),
-    _TabInfo('99 Names', 'أَسْمَاء', Icons.brightness_low_outlined),
-    _TabInfo('Seerah', 'سِيرَة', Icons.timeline_outlined),
+    _TabInfo('Sahabah', 'صَحَابَة', Icons.groups_outlined,
+        art: MizanIcons.sahaba),
+    _TabInfo('99 Names', 'أَسْمَاء', Icons.brightness_low_outlined,
+        art: MizanIcons.names99),
+    _TabInfo('Seerah', 'سِيرَة', Icons.timeline_outlined,
+        art: MizanIcons.prophet),
   ];
 
   @override
@@ -196,7 +200,15 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
           MizanRow(
             title: 'All four collections',
             subtitle: 'The front page',
-            leading: Icon(Icons.grid_view_outlined, size: 20, color: p.sage),
+            leading: SizedBox(
+              // Same box the four section rows below use, so all five titles
+              // share one left edge.
+              width: _TabInfo._leadingBox,
+              height: _TabInfo._leadingBox,
+              child: Center(
+                child: Icon(Icons.grid_view_outlined, size: 20, color: p.sage),
+              ),
+            ),
             onTap: () {
               Navigator.of(sheetContext).pop();
               setState(() => _section = null);
@@ -207,7 +219,7 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
             MizanRow(
               title: _tabs[i].label,
               subtitle: _tabs[i].arabic,
-              leading: Icon(_tabs[i].icon, size: 20, color: p.sage),
+              leading: _tabs[i].leading(p),
               trailing: _section == i
                   ? Icon(Icons.check, size: 18, color: p.accentText)
                   : null,
@@ -225,10 +237,48 @@ class _DiscoverScreenState extends ConsumerState<DiscoverScreen>
 }
 
 class _TabInfo {
+  const _TabInfo(this.label, this.arabic, this.icon, {this.art});
+
   final String label;
   final String arabic;
+
+  /// The fallback glyph, for a section with no artwork of its own.
   final IconData icon;
-  const _TabInfo(this.label, this.arabic, this.icon);
+
+  /// Brand artwork, where the section has it — see `assets/README.md`.
+  ///
+  /// **Prophets deliberately has none, and Seerah wears `prophet`.** The mark
+  /// named `prophet` is the calligraphic محمد inside a mihrab arch — it is the
+  /// Prophet ﷺ himself, not prophethood in general, so on a list of the
+  /// twenty-five prophets it would be quietly wrong, and on Seerah, which is his
+  /// life, it is exactly right. Prophets keeps an open-book glyph.
+  final MizanIcons? art;
+
+  /// The leading widget for a [MizanRow].
+  ///
+  /// Both branches are centred in the same 32px box so the titles down the list
+  /// stay on one left edge regardless of which branch a row took. They share no
+  /// colour, on purpose: artwork carries its own two and may never be tinted.
+  ///
+  /// 28 for artwork is not a taste call — it is the floor. Rendered at the sizes
+  /// this list used before (22 and 24) on the real card colours, `names99`
+  /// collapsed to a faint ring and `prophet` went muddy, worse on navy than on
+  /// cream. The marks carry an arch, an inner rule and Arabic letterforms, and
+  /// below 28 the letterforms stop resolving. An outline glyph has no such
+  /// interior, so 20 still reads.
+  Widget leading(MizanPalette p) => SizedBox(
+        width: _leadingBox,
+        height: _leadingBox,
+        child: Center(
+          child: art != null
+              ? MizanIcon(art!, size: 28)
+              : Icon(icon, size: 20, color: p.sage),
+        ),
+      );
+
+  /// Shared with the "All four collections" row above the four sections, which
+  /// is a glyph row in the same list and has to align with them.
+  static const double _leadingBox = 32;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -911,11 +961,8 @@ class _RecentlyAdded extends ConsumerWidget {
               subtitle: _clip(
                 '${_DiscoverScreenState._tabs[e.section].label} · ${e.subtitle}',
               ),
-              leading: Icon(
-                _DiscoverScreenState._tabs[e.section].icon,
-                size: 20,
-                color: MizanPalette.of(context).sage,
-              ),
+              leading: _DiscoverScreenState._tabs[e.section]
+                  .leading(MizanPalette.of(context)),
               onTap: () => context.push(e.path),
             ),
           ),
@@ -949,36 +996,55 @@ class _BrowseMoreBar extends ConsumerWidget {
   /// Label, glyph, route, and where the count comes from. The counts are read
   /// from the knowledge corpus at build time, not from the mockup — it says 18
   /// themes and 22 scholars, the corpus has what it has.
-  static const List<(String, IconData, String, String)> _ways = [
+  /// Named fields rather than a positional tuple: `way.$2` was already hard to
+  /// read at the call site, and Hadith needs a fifth value that only it uses.
+  ///
+  /// `art` is the brand artwork from `assets/README.md`. Only Hadith has any —
+  /// Themes, Journeys, Scholars and Places are graph views with no mark of their
+  /// own, and rule 2 says not to press one of the ten into a name it does not
+  /// belong to.
+  static const List<
+      ({
+        String label,
+        IconData icon,
+        MizanIcons? art,
+        String route,
+        String blurb,
+      })> _ways = [
     (
-      'Hadith',
-      Icons.format_quote_outlined,
-      KnowledgeRoutes.hadithTopicsIndex,
-      'Narrations by topic',
+      label: 'Hadith',
+      icon: Icons.format_quote_outlined,
+      art: MizanIcons.hadith,
+      route: KnowledgeRoutes.hadithTopicsIndex,
+      blurb: 'Narrations by topic',
     ),
     (
-      'Themes',
-      Icons.category_outlined,
-      KnowledgeRoutes.themesIndex,
-      'Threads running through the Quran',
+      label: 'Themes',
+      icon: Icons.category_outlined,
+      art: null,
+      route: KnowledgeRoutes.themesIndex,
+      blurb: 'Threads running through the Quran',
     ),
     (
-      'Journeys',
-      Icons.route_outlined,
-      KnowledgeRoutes.journeysIndex,
-      'Routes, stop by stop',
+      label: 'Journeys',
+      icon: Icons.route_outlined,
+      art: null,
+      route: KnowledgeRoutes.journeysIndex,
+      blurb: 'Routes, stop by stop',
     ),
     (
-      'Scholars',
-      Icons.account_balance_outlined,
-      KnowledgeRoutes.scholarsIndex,
-      'Lives that carried the text',
+      label: 'Scholars',
+      icon: Icons.account_balance_outlined,
+      art: null,
+      route: KnowledgeRoutes.scholarsIndex,
+      blurb: 'Lives that carried the text',
     ),
     (
-      'Places',
-      Icons.place_outlined,
-      KnowledgeRoutes.placesIndex,
-      'Sites, mapped',
+      label: 'Places',
+      icon: Icons.place_outlined,
+      art: null,
+      route: KnowledgeRoutes.placesIndex,
+      blurb: 'Sites, mapped',
     ),
   ];
 
@@ -1035,12 +1101,23 @@ class _BrowseMoreBar extends ConsumerWidget {
         children: [
           for (final way in _ways) ...[
             MizanRow(
-              title: way.$1,
-              subtitle: way.$4,
-              leading: Icon(way.$2, size: 20, color: p.sage),
+              title: way.label,
+              subtitle: way.blurb,
+              // Artwork at 28 in a shared 32px box — see [_TabInfo.leading] for
+              // why 28 is a floor rather than a preference. Artwork takes no
+              // colour; it carries its own.
+              leading: SizedBox(
+                width: _TabInfo._leadingBox,
+                height: _TabInfo._leadingBox,
+                child: Center(
+                  child: way.art != null
+                      ? MizanIcon(way.art!, size: 28)
+                      : Icon(way.icon, size: 20, color: p.sage),
+                ),
+              ),
               onTap: () {
                 Navigator.of(sheetContext).pop();
-                context.push(way.$3);
+                context.push(way.route);
               },
             ),
             const SizedBox(height: 8),
@@ -1056,10 +1133,16 @@ class _BrowseMoreBar extends ConsumerWidget {
             subtitle: saved == null
                 ? 'Everything you kept'
                 : '$saved item${saved == 1 ? '' : 's'}',
-            leading: Icon(
-              Icons.bookmark_border,
-              size: 20,
-              color: p.sage,
+            leading: SizedBox(
+              width: _TabInfo._leadingBox,
+              height: _TabInfo._leadingBox,
+              child: Center(
+                child: Icon(
+                  Icons.bookmark_border,
+                  size: 20,
+                  color: p.sage,
+                ),
+              ),
             ),
             onTap: () {
               Navigator.of(sheetContext).pop();
