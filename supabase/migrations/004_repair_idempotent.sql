@@ -359,15 +359,34 @@ CREATE POLICY halaqas_delete_own ON public.halaqas
 -- in. 002's version showed only fellow members, which meant "my circles" and
 -- the already-a-member check both returned nothing — the queries that run
 -- before you are a fellow member of anything.
+--
+-- The membership test goes through public.is_halaqa_member(), created by
+-- 005_fix_rls_and_backfill.sql. It must not be inlined here. An earlier version
+-- of this file wrote the EXISTS clause directly, and because a SELECT policy on
+-- halaqa_members whose USING clause reads halaqa_members re-triggers itself,
+-- every query against the table died with 42P17 "infinite recursion detected in
+-- policy for relation halaqa_members". That shipped, and it broke circles and
+-- Al-Minbar for a real user. SECURITY DEFINER is what breaks the loop.
+CREATE OR REPLACE FUNCTION public.is_halaqa_member(p_halaqa_id UUID)
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.halaqa_members
+    WHERE halaqa_id = p_halaqa_id AND user_id = auth.uid()
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_halaqa_member(UUID) TO authenticated;
+
 DROP POLICY IF EXISTS halaqa_members_select_fellow ON public.halaqa_members;
 DROP POLICY IF EXISTS halaqa_members_select_self_or_fellow ON public.halaqa_members;
 CREATE POLICY halaqa_members_select_self_or_fellow ON public.halaqa_members
-  FOR SELECT TO authenticated USING (
-    user_id = auth.uid() OR EXISTS (
-      SELECT 1 FROM public.halaqa_members hm
-      WHERE hm.halaqa_id = halaqa_members.halaqa_id AND hm.user_id = auth.uid()
-    )
-  );
+  FOR SELECT TO authenticated
+  USING (user_id = auth.uid() OR public.is_halaqa_member(halaqa_id));
 DROP POLICY IF EXISTS halaqa_members_insert_self ON public.halaqa_members;
 CREATE POLICY halaqa_members_insert_self ON public.halaqa_members
   FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
@@ -379,22 +398,15 @@ CREATE POLICY halaqa_members_delete_self ON public.halaqa_members
   FOR DELETE TO authenticated USING (auth.uid() = user_id);
 
 -- halaqa_shares: a circle's feed belongs to its members and to nobody else.
+-- Same helper, same reason: an inline read of halaqa_members here triggers
+-- halaqa_members' own policy, and the recursion aborts this query too.
 DROP POLICY IF EXISTS halaqa_shares_select_member ON public.halaqa_shares;
 CREATE POLICY halaqa_shares_select_member ON public.halaqa_shares
-  FOR SELECT TO authenticated USING (
-    EXISTS (
-      SELECT 1 FROM public.halaqa_members hm
-      WHERE hm.halaqa_id = halaqa_shares.halaqa_id AND hm.user_id = auth.uid()
-    )
-  );
+  FOR SELECT TO authenticated USING (public.is_halaqa_member(halaqa_id));
 DROP POLICY IF EXISTS halaqa_shares_insert_member ON public.halaqa_shares;
 CREATE POLICY halaqa_shares_insert_member ON public.halaqa_shares
-  FOR INSERT TO authenticated WITH CHECK (
-    auth.uid() = shared_by AND EXISTS (
-      SELECT 1 FROM public.halaqa_members hm
-      WHERE hm.halaqa_id = halaqa_shares.halaqa_id AND hm.user_id = auth.uid()
-    )
-  );
+  FOR INSERT TO authenticated
+  WITH CHECK (auth.uid() = shared_by AND public.is_halaqa_member(halaqa_id));
 DROP POLICY IF EXISTS halaqa_shares_update_own ON public.halaqa_shares;
 CREATE POLICY halaqa_shares_update_own ON public.halaqa_shares
   FOR UPDATE TO authenticated USING (auth.uid() = shared_by);

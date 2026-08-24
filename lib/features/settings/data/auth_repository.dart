@@ -506,6 +506,22 @@ class AuthRepository {
   /// write was redundant and silence is correct. If it does not, say so — the
   /// person is about to hit a wall in Halaqa and deserves the warning here,
   /// where it is still explicable.
+  ///
+  /// ── Why the confirming read is no longer allowed to end in silence ────
+  /// The second `catch` used to `return null` with the comment "do not cry wolf
+  /// on a flaky connection". That misclassified the exact failure that shipped:
+  /// when row-level security refuses `public.users`, BOTH the upsert and the
+  /// confirming select throw a [PostgrestException], and the method returned
+  /// null — so a completely broken login looked flawless, and the person only
+  /// discovered it later when circles and Minbar failed with no connection to
+  /// the sign-in that had gone wrong.
+  ///
+  /// A [PostgrestException] is a *server refusal*: the request arrived, was
+  /// understood, and was denied. That is nothing like a dropped connection, and
+  /// it is never transient. Only a genuine transport failure — no exception code
+  /// at all, a socket that closed, a lookup that failed — earns the benefit of
+  /// the doubt, because in that case the row may well be there and the phone
+  /// simply cannot see it.
   Future<String?> _syncProfile(String id, String name, String email) async {
     if (email.isEmpty) return null; // `users.email` is NOT NULL UNIQUE.
     try {
@@ -524,19 +540,34 @@ class AuthRepository {
             .eq('id', id)
             .maybeSingle();
         if (existing != null) return null; // The trigger did cover it.
+      } on PostgrestException catch (e2) {
+        // The server answered, and its answer was no. Say so.
+        AppLogger.error(
+          'users row read refused by the server',
+          error: e2,
+          tag: 'AuthRepository',
+        );
+        return _profileWarning;
       } catch (e2) {
         AppLogger.error(
           'could not confirm the users row either',
           error: e2,
           tag: 'AuthRepository',
         );
-        // Cannot tell. Do not cry wolf on a flaky connection — the row is
+        // No code, so this is transport rather than refusal. The row is
         // probably there from the trigger, and the person will find out for
         // certain the moment they open Halaqa.
         return null;
       }
-      return 'You are signed in, but your profile did not finish saving. '
-          'Circles and Minbar may not work until you log in again.';
+      return _profileWarning;
     }
   }
 }
+
+/// Shown when the account exists in Supabase Auth but its `public.users` mirror
+/// does not. Deliberately does not name the table: the reader cannot act on
+/// "public.users", and the two things they *can* do are in the sentence.
+const String _profileWarning =
+    'You are signed in, but your profile did not finish saving. Circles and '
+    'Al-Minbar will not work yet. Try signing out and in again — if it keeps '
+    'happening, tell whoever sent you the app.';

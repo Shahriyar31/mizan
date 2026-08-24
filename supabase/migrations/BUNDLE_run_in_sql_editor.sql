@@ -1,3 +1,17 @@
+-- ⚠  SUPERSEDED — DO NOT RUN THIS FILE.
+--
+-- The halaqa_members SELECT policy below is recursive: its USING clause reads
+-- halaqa_members, which re-triggers the same policy, so Postgres aborts every
+-- query against the table with
+--     42P17  infinite recursion detected in policy for relation "halaqa_members"
+-- This shipped. It broke loading circles, creating a circle, and sharing to
+-- Al-Minbar for a real user, while signing in still appeared to work.
+--
+-- Run supabase/migrations/005_fix_rls_and_backfill.sql instead. It replaces
+-- these policies with ones that route the membership test through the
+-- SECURITY DEFINER helper public.is_halaqa_member(uuid), which does not
+-- re-enter RLS. This file is kept only as migration history.
+--
 -- Mizan — full schema bundle for a fresh cloud project.
 -- Paste into Supabase Studio → SQL Editor → Run. Safe to run once, in this order.
 

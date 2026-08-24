@@ -59,6 +59,25 @@ const String _notSetUp =
 const String _alreadyDone = 'You have already done that.';
 const String _generic = 'This could not be loaded. Try again in a moment.';
 
+/// For the class of failure where the *server* is wrong, not the request and
+/// not the connection.
+///
+/// This sentence was written after a real launch-day incident: signing in
+/// worked, then loading circles, creating a circle and sharing all failed, and
+/// every screen said some variant of "check your connection". The person spent
+/// their evening restarting their router. The cause was a recursive row-level
+/// security policy in the database (Postgres 42P17) — nothing about the phone,
+/// the network or the account. Telling somebody to check a connection that is
+/// demonstrably fine is worse than saying nothing, because it sends them to
+/// fix the one thing that is not broken.
+///
+/// So this says three things, in order: it cannot work right now, it is not
+/// your fault, and here is the one action that helps — tell the person who
+/// gave you the app, because only they can fix it.
+const String _serverMisconfigured =
+    'The server is not set up for this yet. Nothing is wrong with your phone '
+    'or your connection — please tell whoever sent you the app.';
+
 /// A short, calm sentence for [error], and a log line carrying the truth.
 ///
 /// Safe to call from `build` — repeated calls with the same error object log
@@ -105,6 +124,16 @@ String _postgrest(PostgrestException e) {
 
     case '401':
       return _signIn;
+
+    // 42P17 is "infinite recursion detected in policy for relation …" — a
+    // security policy whose own condition reads the table it guards, so
+    // Postgres aborts the query rather than looping. 42P01 and 42703 are a
+    // missing table and a missing column. All three mean the database does not
+    // match the app, which no amount of retrying or reconnecting will change.
+    case '42P17':
+    case '42P01':
+    case '42703':
+      return _serverMisconfigured;
 
     // PGRST116: `.single()` matched no row. PGRST200: the embed named a
     // relationship PostgREST cannot see. The second is a schema bug rather

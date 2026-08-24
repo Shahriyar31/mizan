@@ -17,6 +17,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/errors/readable_error.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../shared/models/shared_content.dart';
@@ -80,10 +81,10 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
       ref.invalidate(minbarFeedProvider);
       _markActed();
       _confirm('Al-Minbar');
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        _error();
+        _error(e);
       }
     }
   }
@@ -102,10 +103,10 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
       ref.invalidate(halaqaFeedProvider(circle.id));
       _markActed();
       _confirm(circle.name);
-    } catch (_) {
+    } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        _error();
+        _error(e);
       }
     }
   }
@@ -119,14 +120,27 @@ class _ShareSheetState extends ConsumerState<_ShareSheet> {
     ref.read(todaysMizanProvider.notifier).mark(MizanFacet.acted);
   }
 
-  void _error() {
+  /// The failure snackbar.
+  ///
+  /// This used to take no argument and always say "Could not share. Please try
+  /// again." — which was a lie whenever the server had refused the row, and the
+  /// thrown exception was discarded by `catch (_)` so nothing reached the log
+  /// either. A share that failed because a row-level security policy in the
+  /// database was recursive looked identical to a share that failed because the
+  /// train went into a tunnel. [readableError] both logs the truth and picks
+  /// the sentence that matches the cause.
+  void _error(Object error) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
           behavior: SnackBarBehavior.floating,
           backgroundColor: AppColors.surfaceElevated,
-          content: Text('Could not share. Please try again.',
+          // Longer than the default 4s: the misconfiguration sentence is two
+          // clauses and asks the reader to pass a message on, which they cannot
+          // do if it has already gone.
+          duration: const Duration(seconds: 7),
+          content: Text(readableError(error, tag: 'ShareTargetSheet'),
               style: AppTypography.bodyMedium(color: AppColors.error)),
         ),
       );

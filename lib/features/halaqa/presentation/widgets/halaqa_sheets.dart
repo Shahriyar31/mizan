@@ -36,6 +36,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/errors/readable_error.dart';
 import '../../../../core/theme/mizan_tokens.dart';
 import '../../../../core/theme/mizan_typography.dart';
 import '../../../../core/utils/logger.dart';
@@ -192,12 +193,16 @@ class _CreateHalaqaFormState extends ConsumerState<_CreateHalaqaForm> {
       // The real cause goes to the log — a Postgrest error carries the column
       // or constraint that refused, and swallowing it entirely is how a broken
       // create stayed invisible for as long as it did.
-      AppLogger.error('Create circle failed: $e', tag: _tag);
+      //
+      // The sentence shown is no longer hardcoded. It used to read "Check your
+      // connection and try again", which was wrong for every server-side
+      // refusal: a recursive RLS policy in the database produced exactly this
+      // path, and the copy sent the person off to blame their wifi.
+      // readableError() reads the Postgres code and says what is actually true.
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Could not create the circle. Check your connection and '
-            'try again.';
+        _error = readableError(e, tag: _tag);
       });
     }
   }
@@ -338,12 +343,12 @@ class _JoinHalaqaFormState extends ConsumerState<_JoinHalaqaForm> {
         _error = _messageFor(e);
       });
     } catch (e) {
-      AppLogger.error('Join circle failed: $e', tag: _tag);
+      // Same reasoning as the create path above: let readableError name the
+      // real cause rather than blaming the network for a server refusal.
       if (!mounted) return;
       setState(() {
         _busy = false;
-        _error = 'Could not join the circle. Check your connection and '
-            'try again.';
+        _error = readableError(e, tag: _tag);
       });
     }
   }
