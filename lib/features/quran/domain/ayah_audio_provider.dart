@@ -61,6 +61,11 @@
 ///      ayah was downloaded twice and renamed into place twice while the decoder
 ///      was reading it. [_sourceFor] now waits for a download already in flight
 ///      instead of opening a competing one.
+///   5. **The browser played the first ayah for every ayah.** Web only, and not
+///      our arithmetic: `just_audio_web` caches the loaded source by id and
+///      `AudioPlayer`'s root playlist has the *constant* id `''`, so every
+///      `setAudioSource` after the first was discarded. Fixed by releasing the
+///      platform player between ayat — see [_startAyah].
 ///
 /// Per-ayah `setAudioSource` remains the design — see the note on repeat above
 /// for why a gapless playlist (`AudioPlayer.setAudioSources`) cannot replace it
@@ -304,6 +309,18 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     final wantsMore = s.repeatsForever || done < s.repeatTarget;
 
     if (wantsMore) {
+      // Web takes the long way round: reload the ayah rather than rewinding it.
+      //
+      // `just_audio_web` clears its `_playing` flag only in `pause()`, and a
+      // clip that ends naturally never goes through `pause()` — `onEnded` leaves
+      // the flag raised. The next `play()` then hits its own
+      // `if (_playing) return;` guard and never touches the `<audio>` element,
+      // so seek-to-zero-and-play left the reader looking at a playing button
+      // with silence behind it. Reloading goes through [_startAyah], which
+      // releases the platform player, so there is no stale flag to trip over.
+      if (AppPlatform.isWeb) {
+        return _startAyah(surah, ayah, lastAyah: s.lastAyah, repeatDone: done);
+      }
       state = s.copyWith(repeatDone: done);
       await _player.seek(Duration.zero);
       // Not awaited, for the reason spelled out in [playAyah]: this future does
@@ -316,7 +333,7 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     }
 
     if (s.continuous && ayah < s.lastAyah) {
-      await playAyah(surah, ayah + 1, lastAyah: s.lastAyah);
+      await _startAyah(surah, ayah + 1, lastAyah: s.lastAyah);
       return;
     }
 
@@ -336,6 +353,25 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
       if (state.status == AyahAudioStatus.paused) return resume();
     }
 
+    return _startAyah(surahNumber, ayahNumber, lastAyah: lastAyah);
+  }
+
+  /// Loads one ayah and starts it, unconditionally.
+  ///
+  /// Split out of [playAyah] because two callers need the loading half without
+  /// the tap-toggle half: auto-advance, and a repeat on web (where restarting a
+  /// finished clip in place does not work — see [_onAyahFinished]). Both arrive
+  /// while `status` is still `playing`, which the toggle would read as "the
+  /// listener tapped the playing ayah" and pause instead.
+  ///
+  /// [repeatDone] carries the repeat counter across a reload so the count shown
+  /// under the repeat button does not reset to zero mid-loop.
+  Future<void> _startAyah(
+    int surahNumber,
+    int ayahNumber, {
+    required int lastAyah,
+    int repeatDone = 0,
+  }) async {
     final r = reciter;
 
     // The two players share one output and one audio session, so exactly one of
@@ -361,8 +397,43 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
     // Pausing first both stops the sound immediately and drops `playing` to
     // false, so the new source cannot auto-start before `play()` is called
     // deliberately below.
+    //
+    // ── ON WEB, PAUSING IS NOT ENOUGH, AND THIS IS THE WHOLE BUG ─────────
+    // In a browser the same tap played the *first* ayah of the page session
+    // again, for every ayah, in every surah, until the tab was reloaded — while
+    // Android was fine. It is not the URL, the ayah number or the cache. It is
+    // an id collision inside just_audio, and it is worth writing down because
+    // nothing about the symptom points at it:
+    //
+    //   • `AudioPlayer` keeps ONE root playlist for its whole life
+    //     (`just_audio.dart:119`), and that playlist is constructed with
+    //     `super(id: '')` — a hardcoded, constant id, not a uuid like every
+    //     other audio source gets.
+    //   • `setAudioSource(x)` is `setAudioSources([x])`: it swaps the children
+    //     of that same playlist and sends it to the platform. So every load
+    //     message carries id `''`.
+    //   • `just_audio_web`'s `getAudioSource` caches players by message id
+    //     (`_audioSourcePlayers[id]`) and returns the cached one whenever the id
+    //     repeats. The second load therefore got back the *first* ayah's player
+    //     and the new URL was dropped on the floor. Android's plugin rebuilds
+    //     its source tree from the message instead, which is why only the PWA
+    //     broke.
+    //
+    // `stop()` is what escapes it: it deactivates the platform player, which
+    // disposes the `Html5AudioPlayer` (`disposePlayer` → `players.remove`), so
+    // the next load creates a fresh one whose cache is empty and whose `<audio>`
+    // element has no `src`. `load()` also takes its `!_active` branch, building
+    // a new platform player rather than reusing the poisoned one.
+    //
+    // Gated on [AppPlatform.isWeb] — a `static const`, so the Android build
+    // compiles to exactly the `pause()` it has today. Native keeps its decoders
+    // warm; the browser has none to keep.
     try {
-      await _player.pause();
+      if (AppPlatform.isWeb) {
+        await _player.stop();
+      } else {
+        await _player.pause();
+      }
     } catch (_) {
       // Nothing loaded yet on the very first ayah. Not a failure.
     }
@@ -372,7 +443,7 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
       surahNumber: surahNumber,
       ayahNumber: ayahNumber,
       lastAyah: lastAyah,
-      repeatDone: 0,
+      repeatDone: repeatDone,
       clearError: true,
     );
 

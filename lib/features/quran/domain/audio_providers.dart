@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/platform/app_platform.dart';
 import '../../../core/utils/logger.dart';
 import '../../../services/audio/mp3quran_service.dart';
 import '../../../services/audio/playback_arbiter.dart';
@@ -211,6 +212,23 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
       tag: _tag,
     );
     try {
+      // In a browser, release the platform player before loading a different
+      // surah. `AudioPlayer`'s root playlist carries the constant id `''` and
+      // `just_audio_web` caches its loaded source by that id, so a second
+      // `setUrl` on a live player is silently ignored and the *first* surah of
+      // the page session keeps playing — the reader-side twin of this is
+      // documented at length in `ayah_audio_provider.dart` (_startAyah).
+      // `stop()` disposes the web player, so the next load builds a fresh one.
+      //
+      // [AppPlatform.isWeb] is a `static const`, so this whole branch is
+      // compiled out of the Android build, which behaves exactly as before.
+      if (AppPlatform.isWeb) {
+        try {
+          await _player.stop();
+        } catch (_) {
+          // Nothing loaded yet. Not a failure.
+        }
+      }
       final duration = await _player.setUrl(url);
       AppLogger.info('setUrl ok, duration=$duration', tag: _tag);
       // Not awaited: just_audio's `play()` future completes when the surah
