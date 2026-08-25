@@ -105,6 +105,15 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 10),
             _SettingsGroup(
               children: [
+                // First in the group on purpose: this one is about the reader's
+                // own writing and can be lost forever, while the row below is
+                // about downloaded content that comes back on its own.
+                _SettingsRow(
+                  icon: Icons.inventory_2_outlined,
+                  title: 'Your data',
+                  subtitle: 'Keep a copy, or bring one back',
+                  onTap: () => context.push('/settings/data'),
+                ),
                 _SettingsRow(
                   icon: Icons.cloud_download_outlined,
                   title: 'Offline & storage',

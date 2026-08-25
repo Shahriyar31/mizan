@@ -12,9 +12,14 @@ MIRROR=/tmp/mizan-analyze
 DART="$MNT/flutter/bin/cache/dart-sdk/bin/dart"
 
 mkdir -p "$MIRROR/.dart_tool"
-rm -rf "$MIRROR/lib" "$MIRROR/test"
+rm -rf "$MIRROR/lib" "$MIRROR/test" "$MIRROR/tools"
 cp -a "$PROJ/lib" "$MIRROR/lib"
 [ -d "$PROJ/test" ] && cp -a "$PROJ/test" "$MIRROR/test"
+# tools/ holds real Dart too — the corpus audit, the layout checks, the backup
+# proof. Mirrored so `analyze.sh lib test tools` can cover them, and because
+# tools/verify_backup.dart imports test/support/, which only resolves if both
+# directories are present in the same mirror.
+[ -d "$PROJ/tools" ] && cp -a "$PROJ/tools" "$MIRROR/tools"
 cp -a "$PROJ/pubspec.yaml" "$MIRROR/pubspec.yaml"
 [ -f "$PROJ/analysis_options.yaml" ] && cp -a "$PROJ/analysis_options.yaml" "$MIRROR/analysis_options.yaml"
 

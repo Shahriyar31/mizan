@@ -9,10 +9,13 @@
 /// properties below are asserted rather than eyeballed.
 library;
 
+// A command-line report is the whole output of this file, so print is correct.
+// ignore_for_file: avoid_print
+
 import 'dart:io';
 
-import '../lib/core/util/hijri_date.dart';
-import '../lib/features/growth/domain/mizan_figures.dart';
+import 'package:mizan/core/util/hijri_date.dart';
+import 'package:mizan/features/growth/domain/mizan_figures.dart';
 
 int _failures = 0;
 

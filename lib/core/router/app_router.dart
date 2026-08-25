@@ -34,6 +34,7 @@ import '../../features/settings/presentation/app_icon_screen.dart';
 import '../../features/settings/presentation/audio_screen.dart';
 import '../../features/settings/presentation/translation_screen.dart';
 import '../../features/settings/presentation/system_screen.dart';
+import '../../features/settings/presentation/data_screen.dart';
 import '../../features/settings/presentation/language_screen.dart';
 import '../../features/settings/presentation/more_screen.dart';
 import '../../features/settings/presentation/more_content_screens.dart';
@@ -295,6 +296,10 @@ class AppRouter {
               GoRoute(
                 path: 'system',
                 builder: (context, state) => const SystemScreen(),
+              ),
+              GoRoute(
+                path: 'data',
+                builder: (context, state) => const DataScreen(),
               ),
               GoRoute(
                 path: 'language',

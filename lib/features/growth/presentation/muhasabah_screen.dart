@@ -1,18 +1,20 @@
 /// Muhasabah Screen — 3-question private nightly self-reckoning
 ///
 /// Private forever — never synced to any server.
-/// Stored only in SQLite on device.
+/// Stored only in SQLite on device, one row per night, through
+/// [MuhasabahRepository]. It used to write a single sentinel row into the
+/// `reflections` table, which meant each night replaced the night before; see
+/// that file for the full account.
 /// Accessible from Home (Muhasabah state) and Growth tab.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:sqflite/sqflite.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
-import '../../../services/database/database_service.dart';
 import '../../home/domain/todays_mizan.dart';
+import '../data/muhasabah_repository.dart';
 
 class MuhasabahScreen extends ConsumerStatefulWidget {
   const MuhasabahScreen({super.key});
@@ -25,6 +27,7 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
   final _q1Controller = TextEditingController();
   final _q2Controller = TextEditingController();
   final _q3Controller = TextEditingController();
+  final _repo = MuhasabahRepository();
   bool _saving = false;
   bool _saved = false;
 
@@ -33,6 +36,33 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     'What did my nafs pull me toward that I should not have followed?',
     'What is my intention for tomorrow?',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _prefillTonight();
+  }
+
+  /// If the reader already wrote tonight, show them their own words.
+  ///
+  /// Saving replaces the row for this date, so an empty form would be an
+  /// invitation to overwrite what they wrote an hour ago without ever seeing
+  /// it. Loading it first turns the second visit into editing.
+  ///
+  /// Failure is silent on purpose: an empty form is a usable screen, and an
+  /// error banner on a page whose entire promise is privacy and quiet would
+  /// cost more than the prefill is worth.
+  Future<void> _prefillTonight() async {
+    try {
+      final existing = await _repo.entryFor(DateTime.now());
+      if (existing == null || !mounted) return;
+      _q1Controller.text = existing.forAllah;
+      _q2Controller.text = existing.nafsPull;
+      _q3Controller.text = existing.tomorrow;
+    } catch (_) {
+      // Leave the form empty.
+    }
+  }
 
   @override
   void dispose() {
@@ -47,24 +77,20 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
     setState(() => _saving = true);
 
     try {
-      final db = await DatabaseService.instance.database;
       final today = DateTime.now();
-      final todayStr = '${today.year}-${today.month.toString().padLeft(2,'0')}-${today.day.toString().padLeft(2,'0')}';
 
-      await db.insert(
-        'reflections',
-        {
-          'surah_number': 0, // 0 = muhasabah entry, not ayah reflection
-          'ayah_number': 0,
-          'reflection': '${_q1Controller.text.trim()}|||${_q2Controller.text.trim()}|||${_q3Controller.text.trim()}',
-          'saved_at': today.toIso8601String(),
-        },
-        conflictAlgorithm: ConflictAlgorithm.replace,
+      await _repo.save(
+        forAllah: _q1Controller.text,
+        nafsPull: _q2Controller.text,
+        tomorrow: _q3Controller.text,
+        when: today,
       );
 
-      // Mark muhasabah done for today
+      // Mark muhasabah done for today. Same date function as the row key, so
+      // the flag Home reads and the row it refers to can never disagree.
       final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('last_muhasabah_date', todayStr);
+      await prefs.setString(
+          'last_muhasabah_date', MuhasabahRepository.dateKey(today));
 
       // Sitting with the three questions is the clearest "reflected" the app
       // has. `TodaysMizanController` already unions `last_muhasabah_date` in on
@@ -78,7 +104,20 @@ class _MuhasabahScreenState extends ConsumerState<MuhasabahScreen> {
         _saved = true;
       });
     } catch (e) {
+      // A failed save must say so. The success state clears the fields behind a
+      // "May Allah accept it" screen, so failing quietly would let someone walk
+      // away believing tonight was written down when it wasn't.
+      if (!mounted) return;
       setState(() => _saving = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.surfaceElevated,
+          content: Text(
+            'Could not save tonight\'s muhasabah. Your words are still here — try again.',
+            style: AppTypography.bodySmall(color: AppColors.textPrimary),
+          ),
+        ),
+      );
     }
   }
 

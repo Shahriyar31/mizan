@@ -19,6 +19,9 @@
 //
 // Run:  dart tools/verify_mizan_layout.dart
 
+// A command-line report is the whole output of this file, so print is correct.
+// ignore_for_file: avoid_print
+
 import 'dart:math' as math;
 
 // ── Tokens, copied from the real source ─────────────────────────────────
@@ -203,7 +206,7 @@ double akhiraCardHeight({bool pessimistic = false}) {
   var sentenceLines = linesFor(sentence, 13, cardInner);
   if (pessimistic) sentenceLines += 1;
   // _Built: a 62px-wide figure in screenTitle(22) beside a 13.5 description.
-  final descWidth = cardInner - 62;
+  const descWidth = cardInner - 62;
   final builtRows = <String>[
     'ayat read with their meaning',
     'roots learned',
@@ -345,7 +348,7 @@ void main() {
 
   // Where it stops fitting, on the tightest chrome, reported both ways so the
   // number is not silently the pessimistic one.
-  final tightFold = screenH - 47 - tabBarHeight - 34;
+  const tightFold = screenH - 47 - tabBarHeight - 34;
   var nominal = 0;
   while (nominal <= 100 && akhiraBottom(nominal) <= tightFold) {
     nominal++;

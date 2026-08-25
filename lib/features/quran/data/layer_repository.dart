@@ -168,8 +168,15 @@ class LayerRepository {
     return (rows.first['c'] as int?) ?? 0;
   }
 
-  /// Personal ayah reflections written. Excludes the Muhasabah sentinel row,
-  /// which the Muhasabah screen stores at (surah_number = 0, ayah_number = 0).
+  /// Personal ayah reflections written.
+  ///
+  /// The `surah_number != 0` filter is a leftover with a reason to stay.
+  /// Muhasabah used to be stored here as a single sentinel row at
+  /// (surah_number 0, ayah_number 0); schema v7 moved it to `muhasabah_entries`
+  /// and deletes the sentinel. But that migration swallows its own failures so a
+  /// broken upgrade cannot stop the app opening, which means a device can still
+  /// be carrying the row. Dropping the filter would quietly add 1 to this count
+  /// on exactly those devices, so it stays.
   Future<int> countReflections() async {
     final db = await _db.database;
     final rows = await db.rawQuery(

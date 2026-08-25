@@ -9,6 +9,13 @@
 /// v6 adds hadith_reflections, the fifth layer of the hadith page. Keyed by
 /// (collection, number) like the citations themselves, rather than forced into
 /// the ayah `reflections` table's two integer columns.
+/// v7 adds muhasabah_entries, and it is a **data-loss fix**, not a feature.
+/// Muhasabah used to write into `reflections` at (surah_number 0, ayah_number 0)
+/// — a single sentinel row on a table with `UNIQUE(surah_number, ayah_number)`,
+/// saved with `ConflictAlgorithm.replace`. So each night silently overwrote the
+/// night before and exactly one entry ever existed. The new table is keyed by
+/// date, which makes replace mean "I am editing tonight's" instead of "delete
+/// everything I have ever written". See [_createMuhasabahTable].
 library;
 
 import 'dart:io';
@@ -22,7 +29,7 @@ class DatabaseService {
   static final DatabaseService instance = DatabaseService._();
   static Database? _database;
   static const String _tag = 'DatabaseService';
-  static const int _version = 6; // v6 adds hadith_reflections
+  static const int _version = 7; // v7 adds muhasabah_entries
   static const String _dbName = 'mizan.db';
   static const String _legacyDbName = 'taddabur.db';
 
@@ -135,6 +142,9 @@ class DatabaseService {
     // Generic UmmahAPI response cache
     await _createApiCacheTable(db);
 
+    // Nightly self-accounting, one row per night
+    await _createMuhasabahTable(db);
+
     AppLogger.info('Database schema created', tag: _tag);
   }
 
@@ -190,6 +200,96 @@ class DatabaseService {
 
     await db.execute(
         'CREATE INDEX IF NOT EXISTS idx_hadith_reflections_saved ON hadith_reflections (saved_at)');
+  }
+
+  /// The nightly muhasabah — one row per night, keyed by the local calendar date.
+  ///
+  /// The key is the whole point. Muhasabah used to live in `reflections` as a
+  /// single row at (0, 0), and because that table declares
+  /// `UNIQUE(surah_number, ayah_number)` and the screen saved with
+  /// `ConflictAlgorithm.replace`, every night overwrote the one before it. A
+  /// reader who sat with the three questions for a month owned one entry.
+  ///
+  /// Keyed by date, the same `replace` now means "I am correcting tonight's",
+  /// which is the behaviour you want, while last night's is untouchable. Anything
+  /// that can silently delete a person's own words is worse than a missing
+  /// feature, and this was that.
+  ///
+  /// The three answers get three columns rather than one `'|||'`-joined string.
+  /// The old delimiter was fragile in a field the user types freely — three
+  /// pipes in a sentence would have split their answer in half — and columns mean
+  /// a question can be reworded later without re-parsing anybody's history.
+  ///
+  /// No index: `entry_date` is the primary key, it sorts as a date because
+  /// `yyyy-MM-dd` sorts lexicographically, and a year of nights is 365 rows.
+  Future<void> _createMuhasabahTable(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS muhasabah_entries (
+        entry_date TEXT PRIMARY KEY,
+        for_allah  TEXT NOT NULL DEFAULT '',
+        nafs_pull  TEXT NOT NULL DEFAULT '',
+        tomorrow   TEXT NOT NULL DEFAULT '',
+        saved_at   TEXT NOT NULL
+      )
+    ''');
+  }
+
+  /// Moves the one muhasabah entry that survived the old scheme into the new
+  /// table, then removes the sentinel row.
+  ///
+  /// Only one row can exist to rescue — that is the bug — and it is whichever
+  /// night the user last sat down. Its own `saved_at` supplies the date, so the
+  /// entry keeps the night it belongs to rather than being stamped with the day
+  /// of the upgrade.
+  ///
+  /// `insert` without `replace` on purpose: if a v7 row already exists for that
+  /// date, the new table is the newer truth and the sentinel must not overwrite
+  /// it. Failure is swallowed for the same reason as the legacy file rename — a
+  /// migration that cannot complete must not stop the app from opening, and the
+  /// sentinel row is left in place so a later run can try again.
+  Future<void> _rescueMuhasabahSentinel(Database db) async {
+    try {
+      final rows = await db.query(
+        'reflections',
+        where: 'surah_number = 0 AND ayah_number = 0',
+        limit: 1,
+      );
+      if (rows.isEmpty) return;
+
+      final raw = (rows.first['reflection'] as String?) ?? '';
+      final savedAt = (rows.first['saved_at'] as String?) ?? '';
+      // Guard a malformed timestamp: without a date there is no key to file the
+      // entry under, and inventing today's would misdate the user's own night.
+      if (savedAt.length < 10) return;
+
+      // The third answer absorbs any surplus delimiters, so a reader who typed
+      // "|||" inside their intention keeps the whole sentence.
+      final parts = raw.split('|||');
+      String at(int i) => i < parts.length ? parts[i].trim() : '';
+
+      await db.insert(
+        'muhasabah_entries',
+        {
+          'entry_date': savedAt.substring(0, 10),
+          'for_allah': at(0),
+          'nafs_pull': at(1),
+          'tomorrow': parts.length > 3
+              ? parts.sublist(2).join('|||').trim()
+              : at(2),
+          'saved_at': savedAt,
+        },
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
+
+      await db.delete(
+        'reflections',
+        where: 'surah_number = 0 AND ayah_number = 0',
+      );
+      AppLogger.info('Rescued the muhasabah sentinel row into v7', tag: _tag);
+    } catch (e) {
+      AppLogger.error('Muhasabah sentinel rescue failed',
+          error: e, tag: _tag);
+    }
   }
 
   /// The generic response cache — shared by [_onCreate] and [_onUpgrade].
@@ -366,6 +466,13 @@ class DatabaseService {
       // Hadith reflections — new in v6. Devices upgrading from v4 or v5 already
       // have hadith_cache and need only this table.
       await _createHadithReflectionTable(db);
+    }
+
+    if (oldVersion < 7) {
+      // Muhasabah gets its own table, and the one night that survived the old
+      // overwriting insert is carried across before the sentinel row is dropped.
+      await _createMuhasabahTable(db);
+      await _rescueMuhasabahSentinel(db);
     }
   }
 

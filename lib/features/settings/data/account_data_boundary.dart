@@ -36,10 +36,10 @@
 ///     cleared before the new session is used, and the new person starts clean.
 ///
 /// ── What counts as personal, and what counts as the phone's ────────────
-/// Cleared: things that are a record of one person — reflections, saved words,
-/// which layers they have opened, their streak, their Al-Mizan record, their
-/// date of birth, where they had reached in the Qur'an, their Discover
-/// progress, and the local Halaqa/Minbar mirror.
+/// Cleared: things that are a record of one person — reflections, their nightly
+/// muhasabah, saved words, which layers they have opened, their streak, their
+/// Al-Mizan record, their date of birth, where they had reached in the Qur'an,
+/// their Discover progress, and the local Halaqa/Minbar mirror.
 ///
 /// Kept: things that describe the phone or how its owner likes to read — theme,
 /// app-icon variant, reciter, translation and tafsir choice, Arabic font and
@@ -77,6 +77,9 @@ class AccountDataBoundary {
     'vocab_words',
     'layer_unlocks',
     'hadith_reflections',
+    // The nightly self-accounting. The most personal thing the app stores, and
+    // the one that would be most alarming to find under somebody else's name.
+    'muhasabah_entries',
     // The offline mirror of the social features. Keyed to the local
     // `user_profile` id, so it belongs to whoever that row described.
     'halaqa_reactions',
