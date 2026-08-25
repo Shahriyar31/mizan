@@ -10,7 +10,7 @@ publish_to: 'none'
 # UMMAH_API_KEY are not compiled in (tools/build_release.sh withholds them), so
 # it replaces the v1.0.0 asset on the GitHub release rather than adding a new
 # version — nobody has the +1 build except the developer's own device.
-version: 1.0.0+2
+version: 1.0.0+3
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
