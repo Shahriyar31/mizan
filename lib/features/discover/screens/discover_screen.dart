@@ -734,10 +734,19 @@ class _ContinueReading extends ConsumerWidget {
         .fold<int>(0, (n, l) => n + l.content.trim().split(RegExp(r'\s+')).length);
     final minutesLeft = (wordsLeft / 200).ceil();
 
+    // Asked of the tone rather than named directly. `p.onFilled` is navy on
+    // dark — right for text on a gold or ink *fill*, which is what its
+    // docstring says — but this card is `inverse`, and on dark `inverse`
+    // resolves to the teal card, not to a fill. Naming onFilled here painted
+    // near-black on teal: correct in light, invisible in dark. The tone already
+    // knows the answer for both themes, so it is the only thing asked.
+    const tone = MizanTone.inverse;
+    final on = tone.onColor(p);
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: MizanGeometry.gutter),
       child: MizanSurface(
-        tone: MizanTone.inverse,
+        tone: tone,
         onTap: () => context.push(entry!.path),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -749,7 +758,7 @@ class _ContinueReading extends ConsumerWidget {
               children: [
                 Text(
                   entry.title,
-                  style: MizanType.cardHeadline(color: p.onFilled),
+                  style: MizanType.cardHeadline(color: on),
                 ),
                 const SizedBox(width: 10),
                 Flexible(
@@ -757,7 +766,10 @@ class _ContinueReading extends ConsumerWidget {
                     entry.arabic,
                     textDirection: TextDirection.rtl,
                     overflow: TextOverflow.ellipsis,
-                    style: MizanType.arabic(color: p.accentText, fontSize: 20),
+                    style: MizanType.arabic(
+                      color: tone.accentTextOn(p),
+                      fontSize: 20,
+                    ),
                   ),
                 ),
               ],
@@ -767,7 +779,7 @@ class _ContinueReading extends ConsumerWidget {
               Text(
                 'Layer ${current.layerNumber} — ${current.title}. '
                 '${current.subtitle}',
-                style: MizanType.body(color: p.onFilled)
+                style: MizanType.body(color: on)
                     .copyWith(fontStyle: FontStyle.italic, height: 1.5),
               ),
             ],
@@ -780,8 +792,8 @@ class _ContinueReading extends ConsumerWidget {
                       height: 2,
                       margin: EdgeInsets.only(right: i == total - 1 ? 0 : 5),
                       color: i < read
-                          ? p.accentText
-                          : p.onFilled.withValues(alpha: 0.25),
+                          ? tone.accentTextOn(p)
+                          : on.withValues(alpha: 0.25),
                     ),
                   ),
               ],
@@ -791,9 +803,7 @@ class _ContinueReading extends ConsumerWidget {
               minutesLeft <= 0
                   ? 'One layer left'
                   : 'about $minutesLeft min left',
-              style: MizanType.sectionLabel(
-                color: p.onFilled.withValues(alpha: 0.7),
-              ),
+              style: MizanType.sectionLabel(color: tone.mutedOn(p)),
             ),
           ],
         ),
@@ -1052,6 +1062,10 @@ class _BrowseMoreBar extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final p = MizanPalette.of(context);
+    // Same reasoning as [_ContinueReading]: this is an `inverse` panel, not a
+    // filled one, so the text colour comes from the tone.
+    const tone = MizanTone.inverse;
+    final on = tone.onColor(p);
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -1061,27 +1075,29 @@ class _BrowseMoreBar extends ConsumerWidget {
         MizanGeometry.gap,
       ),
       child: MizanSurface(
-        tone: MizanTone.inverse,
+        tone: tone,
         padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         onTap: () => _open(context, ref),
         child: Row(
           children: [
-            Icon(Icons.grid_view_outlined, size: 18, color: p.accentText),
+            Icon(
+              Icons.grid_view_outlined,
+              size: 18,
+              color: tone.accentTextOn(p),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Text(
                 'Browse more',
-                style: MizanType.button(color: p.onFilled),
+                style: MizanType.button(color: on),
               ),
             ),
             Text(
               '${_ways.length} more ways in',
-              style: MizanType.sectionLabel(
-                color: p.onFilled.withValues(alpha: 0.7),
-              ),
+              style: MizanType.sectionLabel(color: tone.mutedOn(p)),
             ),
             const SizedBox(width: 8),
-            Icon(Icons.keyboard_arrow_up, size: 18, color: p.onFilled),
+            Icon(Icons.keyboard_arrow_up, size: 18, color: on),
           ],
         ),
       ),
