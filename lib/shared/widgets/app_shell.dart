@@ -91,8 +91,20 @@ class AppShell extends StatelessWidget {
     return Scaffold(
       backgroundColor: p.page,
 
-      // Unconstrained on phones; capped to a comfortable reading width and
-      // centred on tablets so content never stretches edge to edge.
+      // Inert as of the web port, and kept deliberately.
+      //
+      // `MizanResponsiveShell` in `app.dart` now caps the whole app — bar
+      // included — at 520pt and overrides MediaQuery to match, so by the time
+      // this builds the reported width is 520 and ResponsiveCenter's own
+      // threshold (600) is never crossed: it returns `child` unchanged at every
+      // real window size. The 520 cap supersedes the 700/840 one here because
+      // those were chosen to fill a tablet, before line length was measured —
+      // 700pt of 15pt body text is about 90 characters per line, well past
+      // comfortable. See MizanBreakpoints.contentMaxWidth for that arithmetic.
+      //
+      // Left in place rather than deleted so that raising the outer cap, or
+      // dropping the shell, restores tablet behaviour instead of silently
+      // stretching content edge to edge.
       body: ResponsiveCenter(child: child),
 
       bottomNavigationBar: _MizanTabBar(

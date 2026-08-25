@@ -31,6 +31,20 @@ dependencies:
   # Local storage
   sqflite: ^2.3.2
   path: ^1.9.0
+  # Web only. `sqflite` itself declares android/ios/macos and no web, so in a
+  # browser the first getDatabasesPath() throws MissingPluginException before
+  # the first frame — this supplies real SQLite compiled to WebAssembly, running
+  # in a web worker and persisting to IndexedDB, so the app's schema and queries
+  # need no web-specific variant.
+  #
+  # Reached from exactly one file, lib/services/database/web_database_setup_web.dart,
+  # behind a `if (dart.library.js_interop)` conditional import, because this
+  # package is built on dart:js_interop and cannot compile for Android or iOS.
+  #
+  # After `flutter pub get`, run once to fetch the two runtime assets it serves
+  # from web/ (they are not part of the Dart bundle):
+  #     dart run sqflite_common_ffi_web:setup
+  sqflite_common_ffi_web: ^0.4.0
 
   # Crypto (local account password hashing)
   crypto: ^3.0.6

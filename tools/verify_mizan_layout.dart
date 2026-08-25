@@ -100,7 +100,23 @@ bool checkNinePerRow() {
   // Sweep every plausible number of witnessed Ramadans at every supported
   // width. A newborn's parent has 0; the oldest plausible user has fewer than
   // 100.
-  const widths = [320.0, 360.0, 375.0, 390.0, 412.0, 430.0, 600.0, 834.0];
+  //
+  // 520 is the one that now matters most, and it was missing. MizanResponsiveShell
+  // (lib/shared/widgets/mizan/mizan_responsive.dart) caps content at
+  // MizanBreakpoints.contentMaxWidth = 520 and overrides MediaQuery.size to
+  // match, so on a tablet, a desktop browser, or an iPad in landscape the field
+  // is laid out at 520 — not at the window width. Before the cap existed the
+  // widest real case was 834; now 834 is unreachable from inside the app.
+  //
+  // 600 and 834 are kept anyway. They are no longer reachable, but they are the
+  // proof that nine-per-row is a property of the chunker and the mark clamp
+  // rather than a property of the cap. If someone raises contentMaxWidth later,
+  // this sweep already says whether the geometry survives it.
+  const widths = [
+    320.0, 360.0, 375.0, 390.0, 412.0, 430.0, // phones
+    520.0, // MizanBreakpoints.contentMaxWidth — the widest the app now lays out
+    600.0, 834.0, // beyond the cap: unreachable in-app, kept as a guard
+  ];
   for (final screenWidth in widths) {
     final inner = screenWidth - 2 * gutter - 2 * 18; // page gutter, card padding
     final mark = markFor(inner);
@@ -148,11 +164,16 @@ bool checkNinePerRow() {
 
     // (e) The mark's rotated bounding box fits its column at this width.
     final fits = cell >= mark * 1.42 - 0.0001;
+    final note = screenWidth == 520
+        ? '  <- content cap'
+        : screenWidth > 520
+            ? '  (beyond the cap)'
+            : '';
     print('  width ${screenWidth.toStringAsFixed(0).padLeft(3)} -> '
         'cell ${cell.toStringAsFixed(1).padLeft(5)}pt, '
         'mark ${mark.toStringAsFixed(1).padLeft(4)}pt '
         '(box ${(mark * 1.42).toStringAsFixed(1)}pt)  '
-        '${fits ? "fits" : "OVERFLOWS"}');
+        '${fits ? "fits" : "OVERFLOWS"}$note');
     if (!fits) ok = false;
   }
 
@@ -291,8 +312,9 @@ void main() {
   }
   final ninePerRow = checkNinePerRow();
   print(ninePerRow
-      ? '  PASS  0..100 Ramadans x 8 widths (320..834): every row but the last '
-          'holds 9, pitch constant, mark inside its column'
+      ? '  PASS  0..100 Ramadans x 9 widths (320..834, including the 520 content '
+          'cap): every row but the last holds 9, pitch constant, mark inside '
+          'its column'
       : '  FAIL');
   if (!ninePerRow) allPassed = false;
 

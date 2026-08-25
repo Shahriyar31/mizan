@@ -1,12 +1,17 @@
 {
-    "name": "Mizan",
+    "name": "Mizan — Qur'an, layer by layer",
     "short_name": "Mizan",
+    "id": "mizan",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
-    "orientation": "portrait-primary",
+    "display_override": ["standalone", "minimal-ui"],
+    "background_color": "#0A2233",
+    "theme_color": "#0A2233",
+    "description": "Read the Qur'an a layer at a time — translation, roots, and tafsir — keep your own reflections, and read alongside a small circle.",
+    "orientation": "any",
+    "lang": "en",
+    "dir": "ltr",
+    "categories": ["education", "books", "lifestyle"],
     "prefer_related_applications": false,
     "icons": [
         {

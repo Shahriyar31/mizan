@@ -4,6 +4,12 @@
 /// should be and when to be reminded; the promise is what the reminder will and
 /// will not do, and it is binding.
 ///
+/// ── On web the promise is withdrawn, not broken ────────────────────────
+/// A browser cannot schedule a notification for tomorrow morning, so on web the
+/// reminder time and the promise note are not rendered and the two buttons
+/// collapse to a plain "Begin". See [AppPlatform.canScheduleNotifications].
+/// Withdrawing an offer is honest; making it and not keeping it is not.
+///
 /// ── The permission prompt fires here and nowhere earlier ──────────────
 /// The system dialog is requested by the primary button on this screen, after
 /// the person has read what the notification will contain. An app that asks on
@@ -42,6 +48,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/platform/app_platform.dart';
 import '../../../settings/domain/notification_preferences_provider.dart';
 import '../../domain/onboarding_answers.dart';
 import '../widgets/onboarding_kit.dart';
@@ -99,15 +106,28 @@ class _OnbRhythmPageState extends ConsumerState<OnbRhythmPage> {
       footer: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          OnbPrimaryButton(
-            label: 'Allow reminders & begin',
-            onTap: _allowAndContinue,
-          ),
-          const SizedBox(height: 14),
-          OnbQuietButton(
-            label: 'Begin without reminders',
-            onTap: widget.onDone,
-          ),
+          // Step 3 of onboarding is the first place a brand-new web visitor
+          // would have hit the reminder path, so the honest version of this
+          // screen matters more here than anywhere else. On a platform that
+          // cannot schedule, offering "Allow reminders" and then silently never
+          // reminding anyone is worse than not offering it: the person has
+          // agreed to something, and is owed it.
+          //
+          // So the two buttons collapse to one. "Begin" still carries
+          // `onDone`, which is what "Begin without reminders" always did — the
+          // only thing removed is the promise.
+          if (AppPlatform.canScheduleNotifications) ...[
+            OnbPrimaryButton(
+              label: 'Allow reminders & begin',
+              onTap: _allowAndContinue,
+            ),
+            const SizedBox(height: 14),
+            OnbQuietButton(
+              label: 'Begin without reminders',
+              onTap: widget.onDone,
+            ),
+          ] else
+            OnbPrimaryButton(label: 'Begin', onTap: widget.onDone),
         ],
       ),
       child: Column(
@@ -145,19 +165,24 @@ class _OnbRhythmPageState extends ConsumerState<OnbRhythmPage> {
             ],
           ),
 
-          const SizedBox(height: 22),
-          Text('REMIND ME', style: OnbType.eyebrow()),
-          const SizedBox(height: 10),
-          _ReminderRow(
-            hour: prefs.hour,
-            minute: prefs.minute,
-            onPick: (picked) => ref
-                .read(notificationPreferencesProvider.notifier)
-                .setTime(picked),
-          ),
-
-          const SizedBox(height: 14),
-          const _PromiseNote(),
+          // The time picker and the promise note both describe a reminder that
+          // will arrive. Neither can be honoured in a browser, so both go
+          // rather than being shown inert. "Minutes a day" above stays: that is
+          // the reader's own intention, and it is stored and used regardless.
+          if (AppPlatform.canScheduleNotifications) ...[
+            const SizedBox(height: 22),
+            Text('REMIND ME', style: OnbType.eyebrow()),
+            const SizedBox(height: 10),
+            _ReminderRow(
+              hour: prefs.hour,
+              minute: prefs.minute,
+              onPick: (picked) => ref
+                  .read(notificationPreferencesProvider.notifier)
+                  .setTime(picked),
+            ),
+            const SizedBox(height: 14),
+            const _PromiseNote(),
+          ],
         ],
       ),
     );

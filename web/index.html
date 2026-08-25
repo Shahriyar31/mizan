@@ -1,46 +1,194 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
   <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
+    Replaced by the value of `flutter build web`'s `--base-href`. Leave it alone
+    unless the app is served from a subdirectory: on Vercel or GitHub Pages under
+    a custom domain the app is at the root and the default "/" is correct. Served
+    from `<user>.github.io/mizan/` it must be `--base-href /mizan/`, or every
+    asset request 404s and the app loads to a blank page.
   -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
 
-  <!-- iOS meta tags & icons -->
+  <!--
+    viewport-fit=cover so that in standalone mode on a notched iPhone the page
+    fills the display instead of being letterboxed between two bars of
+    background colour. `user-scalable=no` is deliberately NOT set: Flutter draws
+    its own text, so pinch-zoom is the only way a reader can enlarge it, and
+    taking that away would make the Arabic unreadable for exactly the people most
+    likely to need it larger.
+  -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="description" content="Read the Qur'an a layer at a time — translation, roots, and tafsir — keep your own reflections, and read alongside a small circle.">
+
+  <!-- ── Installability ───────────────────────────────────────────────
+    Both spellings on purpose. `mobile-web-app-capable` is the standard and is
+    what Android and iOS 16.4+ read; `apple-mobile-web-app-capable` is the older
+    Apple-only name and is still what earlier iOS versions require to launch
+    without Safari's address bar. Since the whole point of this build is iPhone
+    and iPad users who cannot install from the App Store, dropping the legacy tag
+    to look tidy would break the feature for the audience it exists for.
+  -->
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <!--
+    `black`, not `default` or `black-translucent`. `default` gives the status bar
+    dark text, which on Mizan's #0A2233 page is close to invisible.
+    `black-translucent` would let content slide under the clock, and Flutter web
+    does not surface `env(safe-area-inset-top)` into MediaQuery.padding, so
+    nothing in the app would know to move out of the way.
+  -->
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
   <meta name="apple-mobile-web-app-title" content="Mizan">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+  <meta name="theme-color" content="#0A2233">
 
-  <!-- Favicon -->
+  <!--
+    iOS ignores the manifest's `icons` array completely and reads this tag, and
+    it also ignores `purpose: maskable`. This file is opaque for the same reason:
+    iOS flattens alpha onto black. See tools/make_web_icons.py.
+  -->
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png">
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <title>Mizan</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /*
+      The first visit downloads Flutter's renderer before it can paint anything —
+      several megabytes on a cold cache. Without this the reader stares at a blank
+      white rectangle for that whole time, on a phone, over mobile data, having
+      just been told this was an app. White is also the worst possible colour to
+      flash: the app is navy, so the handover is a hard flash rather than a fade.
+
+      So the page paints Mizan's own page colour and mark immediately, from
+      inlined CSS that needs no network at all, and is removed on Flutter's
+      `flutter-first-frame` event. Inlined rather than in a stylesheet precisely
+      so it cannot itself be waiting on a request.
+    */
+    :root { color-scheme: dark light; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #0A2233;
+      /* Stops the rubber-band overscroll showing white above the app in
+         standalone mode on iOS. */
+      overscroll-behavior: none;
+    }
+
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 22px;
+      background-color: #0A2233;
+      /* Above Flutter's canvas until it is removed. */
+      z-index: 1;
+      transition: opacity 260ms ease-out;
+      /* System stack only — the app's real fonts are inside the bundle that has
+         not arrived yet, so asking for Playfair here would either block or
+         fall back mid-flash. */
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                   "Helvetica Neue", Arial, sans-serif;
+    }
+
+    #loading.done { opacity: 0; pointer-events: none; }
+
+    #loading img {
+      width: 96px;
+      height: 96px;
+      border-radius: 22px;
+    }
+
+    #loading .wordmark {
+      color: #F3EDE0;
+      font-size: 15px;
+      letter-spacing: 0.34em;
+      text-transform: uppercase;
+      /* The letter-spacing is applied to the right of the last glyph too, which
+         pushes the word visibly off-centre. Half of it back as padding-left. */
+      padding-left: 0.34em;
+    }
+
+    #loading .hint {
+      color: #A9BFC9;
+      font-size: 12.5px;
+      letter-spacing: 0.01em;
+      /* Hidden until the wait stops being brief — see the timer below. There is
+         no honest progress figure available (the bootstrap does not report bytes),
+         so this says what is happening rather than pretending to measure it. */
+      opacity: 0;
+      transition: opacity 400ms ease-in;
+    }
+
+    #loading .hint.show { opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #loading, #loading .hint { transition: none; }
+    }
+
+    noscript div {
+      color: #F3EDE0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      text-align: center;
+      padding: 48px 28px;
+      line-height: 1.6;
+    }
+  </style>
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <div id="loading">
+    <img src="icons/Icon-192.png" width="96" height="96" alt="Mizan">
+    <div class="wordmark">Mizan</div>
+    <div class="hint" id="loading-hint">Loading for the first time — this is the only slow open.</div>
+  </div>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+  <noscript>
+    <div>
+      Mizan needs JavaScript to run.<br>
+      If you would rather not enable it, the Android app works without it.
+    </div>
+  </noscript>
+
+  <script>
+    (function () {
+      var loading = document.getElementById('loading');
+      var hint = document.getElementById('loading-hint');
+
+      // Only mention the wait once it is actually a wait. On a warm cache the
+      // first frame arrives well inside this, so a returning reader never sees a
+      // sentence apologising for a delay that did not happen.
+      var hintTimer = setTimeout(function () {
+        if (hint) hint.classList.add('show');
+      }, 1200);
+
+      // Flutter's documented signal that it has painted. Listening for this
+      // rather than `load` matters: `load` fires when the bootstrap script has
+      // arrived, which is long before the engine has drawn anything, so the
+      // overlay would lift onto a still-blank canvas and reintroduce the flash
+      // this exists to prevent.
+      window.addEventListener('flutter-first-frame', function () {
+        clearTimeout(hintTimer);
+        if (!loading) return;
+        loading.classList.add('done');
+        // Removed rather than left at opacity 0: it is a fixed, full-viewport
+        // element, and leaving it in the tree keeps it as an invisible layer
+        // over the app and inside the accessibility tree.
+        setTimeout(function () {
+          if (loading && loading.parentNode) loading.parentNode.removeChild(loading);
+        }, 300);
+      });
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>

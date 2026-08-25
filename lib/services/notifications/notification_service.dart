@@ -8,6 +8,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:timezone/data/latest.dart' as tz_data;
 import 'package:timezone/timezone.dart' as tz;
 
+import '../../core/platform/app_platform.dart';
 import '../../core/utils/logger.dart';
 
 /// Stable ids — one per notification category, so re-scheduling one never
@@ -94,6 +95,29 @@ class NotificationService {
     required int hour,
     required int minute,
   }) async {
+    // The one call in this class a browser cannot make.
+    //
+    // `flutter_local_notifications` genuinely does have a web implementation, and
+    // that is what makes this worth gating explicitly rather than trusting a
+    // smoke test: `init()`, `requestPermission()`, `cancel()` and `cancelAll()`
+    // all work in a browser, so everything around this line looks healthy.
+    // `zonedSchedule()` throws `UnsupportedError` — and it is not an oversight
+    // upstream that some future version will fix. A page can only fire a
+    // notification while it or its service worker is alive, so "every morning at
+    // this time, whether or not Mizan is open" has nothing to compile down to.
+    //
+    // Returning rather than throwing because the UI is gated too (the reminder
+    // rows are hidden on web) — so if this is ever reached on web it is a
+    // programming error, and the log line is how it gets found. Throwing here
+    // would take out the onboarding screen that used to call it.
+    if (!AppPlatform.canScheduleNotifications) {
+      AppLogger.warning(
+        'scheduleDaily($id) ignored: this platform cannot schedule reminders',
+        tag: _tag,
+      );
+      return;
+    }
+
     await init();
     final now = tz.TZDateTime.now(tz.local);
     var scheduled =

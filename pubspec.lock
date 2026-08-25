@@ -217,6 +217,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.7.15"
+  dev_build:
+    dependency: transitive
+    description:
+      name: dev_build
+      sha256: f639b36c1cf845c11b506b562e162eca84f2cb368cf9cca48117069f881d4be8
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.8+3"
   dio:
     dependency: "direct main"
     description:
@@ -605,6 +613,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "5.8.1"
+  native_toolchain_c:
+    dependency: transitive
+    description:
+      name: native_toolchain_c
+      sha256: f9c168717100ae6d9fee9ffb0be379bf1f8b26b0f6bcbd4fdddcd931993a6a72
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.19.2"
   objective_c:
     dependency: transitive
     description:
@@ -749,6 +765,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.9.1"
+  process_run:
+    dependency: transitive
+    description:
+      name: process_run
+      sha256: dadbf4986ddab79086a107b2f893bacd580a523453f76238bc0c13a9faa982af
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.3.4+1"
   pub_semver:
     dependency: transitive
     description:
@@ -914,6 +938,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.5.11"
+  sqflite_common_ffi:
+    dependency: transitive
+    description:
+      name: sqflite_common_ffi
+      sha256: d5564f1308cafbf064be498f2beb1e993e742985a7cca9e2e228d6cbccd84a05
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.4.2+1"
+  sqflite_common_ffi_web:
+    dependency: "direct main"
+    description:
+      name: sqflite_common_ffi_web
+      sha256: "61ea702e7aba727f28be7ead00b84c19c745cd4a4934d0c41473303df11ac9ea"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.4.5+4"
   sqflite_darwin:
     dependency: transitive
     description:
@@ -930,6 +970,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.1"
+  sqlite3:
+    dependency: transitive
+    description:
+      name: sqlite3
+      sha256: "4c7fe79840389aaeaf05fd093f795b631b5a98e2bd28d54e555c100f4a9c7a1c"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.5.2"
   stack_trace:
     dependency: transitive
     description:

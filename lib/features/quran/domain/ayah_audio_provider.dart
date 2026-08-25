@@ -74,6 +74,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../../core/platform/app_platform.dart';
 import '../../../core/utils/logger.dart';
 import '../../../services/audio/playback_arbiter.dart';
 import '../../../services/audio/recitation_cache.dart';
@@ -440,18 +441,43 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
   /// A local file when this ayah has been heard before, otherwise a caching
   /// stream that writes it to that same file as it plays. Null when no URL for
   /// this ayah exists at all.
+  ///
+  /// On web it is always the plain stream: see [AppPlatform.canCacheAudio].
   Future<AudioSource?> _sourceFor(
     AyahReciter r,
     int surahNumber,
     int ayahNumber,
   ) async {
-    final cached = await _cache.cached(r.id, surahNumber, ayahNumber);
-    if (cached != null) return AudioSource.file(cached.path);
+    // Streaming-only platforms take the short path, and it has to be *before*
+    // any cache call rather than inside the try below.
+    //
+    // This was the defect that broke recitation entirely on web, and it broke it
+    // in the least obvious way available: `cached()` reaches
+    // `getApplicationCacheDirectory()`, which has no web implementation, and
+    // every link in that chain — `cached` → `fileFor` → `_rootDirectory` — makes
+    // its call *outside* its own try. So MissingPluginException travelled all the
+    // way up past this method to `playAyah`'s outer catch, and every single ayah
+    // reported "Ayah playback failed". The `catch` at the bottom of this method,
+    // whose comment offers exactly the right fallback, was never reached.
+    //
+    // A compile-time const, so on web the whole caching branch below is
+    // tree-shaken out of the bundle rather than merely skipped.
+    if (!AppPlatform.canCacheAudio) {
+      final url = await _repository.urlFor(r, surahNumber, ayahNumber);
+      return url == null ? null : AudioSource.uri(Uri.parse(url));
+    }
 
     final url = await _repository.urlFor(r, surahNumber, ayahNumber);
     if (url == null) return null;
 
     try {
+      // Inside the try, not before it. A cache read is an optimisation; it must
+      // never be the reason an ayah does not play. This held on Android and iOS
+      // only because the directory always resolved — a revoked permission or a
+      // full disk would have produced the same total failure web just did.
+      final cached = await _cache.cached(r.id, surahNumber, ayahNumber);
+      if (cached != null) return AudioSource.file(cached.path);
+
       final file = await _cache.fileFor(r.id, surahNumber, ayahNumber);
 
       // Only one writer per path, ever.
@@ -503,6 +529,11 @@ class AyahAudioController extends StateNotifier<AyahAudioState> {
   /// learn the URL and a speculative request for an ayah that may never be
   /// reached is not worth it.
   void _warmNext(AyahReciter r, int surahNumber, int ayahNumber, int lastAyah) {
+    // Nothing to warm where nothing can be kept. `prefetch` is fire-and-forget,
+    // so on web its filesystem failure would surface as an unhandled async error
+    // with no call stack pointing back here — the worst kind to debug for a
+    // feature that cannot work on the platform anyway.
+    if (!AppPlatform.canCacheAudio) return;
     if (!state.continuous) return;
     if (ayahNumber >= lastAyah) return;
     final next = ayahNumber + 1;

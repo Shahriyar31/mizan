@@ -13,6 +13,7 @@ import 'features/home/domain/streak_provider.dart';
 import 'features/home/domain/todays_mizan.dart';
 import 'features/settings/domain/settings_providers.dart';
 import 'l10n/app_localizations.dart';
+import 'shared/widgets/mizan/mizan_responsive.dart';
 
 class MizanApp extends StatelessWidget {
   const MizanApp({super.key});
@@ -107,9 +108,18 @@ class _MizanMaterialAppState extends ConsumerState<_MizanMaterialApp>
         // And because that palette is global rather than inherited, a legacy
         // screen has no way to know it changed. Remounting on brightness forces
         // one. Goes away with AppColors; Mizan screens need neither.
-        return KeyedSubtree(
-          key: ValueKey(brightness),
-          child: child ?? const SizedBox.shrink(),
+        //
+        // Wrapped in the responsive shell here, at the outermost point, for two
+        // reasons. It has to be outside the Router so it also caps the tab bar
+        // and every modal sheet — a full-width bar under a 520pt column would
+        // look like a bug — and it has to be inside MaterialApp so there is a
+        // MediaQuery and a resolved Theme to read. Below 520pt wide, which is
+        // every phone in portrait, it returns this child untouched.
+        return MizanResponsiveShell(
+          child: KeyedSubtree(
+            key: ValueKey(brightness),
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       localizationsDelegates: const [

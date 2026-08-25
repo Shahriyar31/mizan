@@ -5,6 +5,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/platform/app_platform.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_typography.dart';
 import '../domain/notification_preferences_provider.dart';
@@ -15,6 +16,31 @@ class NotificationsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // A browser cannot schedule a daily reminder — not as a missing feature but
+    // as a structural one: notifications only fire while a page or its service
+    // worker is alive, so there is nothing for "every morning at 06:30" to
+    // become. `NotificationService.scheduleDaily` already refuses on web, so
+    // leaving these switches visible would give the reader a row of controls
+    // that persist their state, look accepted, and never produce a
+    // notification. Saying so once is better than four switches that lie.
+    if (!AppPlatform.canScheduleNotifications) {
+      return const SettingsSubScaffold(
+        title: 'Notifications',
+        children: [
+          SettingsSectionLabel('Not available here'),
+          SettingsGroup(children: [
+            SettingsRow(
+              icon: Icons.notifications_off_outlined,
+              title: 'Reminders need the app',
+              subtitle: 'A browser can only notify you while its tab is open, '
+                  'so daily reminders are only in the Android app. Everything '
+                  'else works the same here.',
+            ),
+          ]),
+        ],
+      );
+    }
+
     final prefs = ref.watch(notificationPreferencesProvider);
     final controller = ref.read(notificationPreferencesProvider.notifier);
 

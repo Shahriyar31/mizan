@@ -6,11 +6,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/branding/mizan_brand.dart';
 import 'core/config/build_config.dart';
 import 'core/config/supabase_config.dart';
+import 'core/platform/app_platform.dart';
 import 'core/utils/logger.dart';
 import 'features/home/domain/streak_provider.dart';
 import 'features/onboarding/domain/onboarding_flags.dart';
 import 'features/onboarding/domain/session_gate.dart';
 import 'services/database/database_service.dart';
+import 'services/database/web_database_setup.dart';
 import 'services/audio/audio_session_setup.dart';
 import 'services/audio/playback_arbiter.dart';
 import 'services/seed/social_seeder.dart';
@@ -31,6 +33,12 @@ Future<void> main() async {
   // Logged once, by name and length only, so a debug console says which
   // variables a build actually received.
   AppLogger.info('build config: ${BuildConfig.describe()}', tag: 'main');
+
+  // Which capabilities this build has, logged beside the config for the same
+  // reason: when someone reports that reminders do nothing, the first question
+  // is whether they are on the web build, and the answer should be in the log
+  // rather than inferred. Names capabilities, never values.
+  AppLogger.info('platform: ${AppPlatform.describe()}', tag: 'main');
 
   // Tell the OS this app plays recitation, before any player exists. Without
   // this iOS routes it to the ambient stream (thin, silenced by the ringer
@@ -67,6 +75,14 @@ Future<void> main() async {
   await StreakStore.recordOpen();
 
   // Initialize SQLite (personal local data)
+  //
+  // The factory has to be chosen before this line on web, where there is no
+  // sqflite plugin to register one: `getDatabasesPath()` would throw
+  // MissingPluginException here, before `runApp`, and an exception on this line
+  // has no UI to land in — the result is a white page and a console message.
+  // That single missing registration was the whole of the web build's failure.
+  // A no-op on Android and iOS. See web_database_setup.dart.
+  await configureDatabaseFactory();
   await DatabaseService.instance.database;
 
   // Initialize Supabase (social data + layer cache).
