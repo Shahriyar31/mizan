@@ -1,7 +1,11 @@
 name: mizan
 description: "Islamic knowledge and transformation app"
 publish_to: 'none'
-version: 0.1.0+1
+# 1.0.0 because that is what the release tag, the APK filename and the site all
+# say. +1 is the Android versionCode: it must increase on every build you ship,
+# even a re-upload of the same 1.0.0 — Android refuses to install a build whose
+# versionCode is not higher than the one already on the device.
+version: 1.0.0+1
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -34,8 +38,11 @@ dependencies:
   # Fonts
   google_fonts: ^6.2.1
 
-  # Environment variables
-  flutter_dotenv: ^5.1.0
+  # No dotenv. Configuration arrives as compile-time --dart-define constants
+  # instead — see lib/core/config/build_config.dart. flutter_dotenv reads `.env`
+  # through the asset bundle, which requires `.env` to be declared as an asset,
+  # which puts a plaintext copy of every key inside the APK. Removing the package
+  # is what makes that impossible rather than merely discouraged.
 
   # Internationalisation
   flutter_localizations:
@@ -65,7 +72,12 @@ flutter:
   generate: true
 
   assets:
-    - .env
+    # `.env` is deliberately NOT listed here, and must never be added back.
+    # Anything in this list is a file inside the build: `unzip -p app.apk
+    # assets/flutter_assets/.env` would print every key in it, and a web build
+    # would serve it at `/assets/.env`. Configuration comes in through
+    # --dart-define instead; see lib/core/config/build_config.dart and
+    # tools/build_release.sh.
 
     # Icons and logo — see assets/README.md, which is the spec these follow.
     #

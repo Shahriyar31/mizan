@@ -9,9 +9,9 @@
 ///
 /// It is now two tests over the design system, chosen because they are the only
 /// interesting thing that can be asserted without platform channels: the real
-/// app root boots GoRouter, sqflite, dotenv and SharedPreferences, none of which
-/// answer in a bare `flutter test`. Widening this beyond the theme layer means
-/// mocking those, which is a real piece of work and not one to fake here.
+/// app root boots GoRouter, sqflite, Supabase and SharedPreferences, none of
+/// which answer in a bare `flutter test`. Widening this beyond the theme layer
+/// means mocking those, which is a real piece of work and not one to fake here.
 library;
 
 import 'package:flutter/material.dart';

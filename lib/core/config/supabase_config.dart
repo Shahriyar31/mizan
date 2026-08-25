@@ -18,7 +18,9 @@
 ///  * An **empty `SUPABASE_URL`** never reaches the fallback. `flutter_dotenv`
 ///    returns `''` for a key that is present but blank, and `''` is not null, so
 ///    `??` does not fire. `SupabaseClient` does no URL validation, so the app
-///    starts up pointed at nothing.
+///    starts up pointed at nothing. This hazard outlived the mechanism:
+///    `String.fromEnvironment` also yields `''` for a variable that was never
+///    passed, so the checks below test for content, never for null.
 ///  * The **localhost fallback** is worse than no fallback. It looks like it
 ///    helps, but `127.0.0.1:54321` is only reachable from a desktop simulator
 ///    running a local stack; on a real phone it cannot resolve. And it silently
@@ -42,10 +44,16 @@
 ///
 /// It never logs or exposes the key itself — only its length and whether it
 /// looks structurally right.
+///
+/// ── Where the two values come from ─────────────────────────────────────
+/// [BuildConfig], which reads them as compile-time `--dart-define` constants
+/// rather than from a bundled `.env`. Both are meant to be in the app: the anon
+/// key names the project and carries no privileges of its own, since every table
+/// is reached through row-level security. See `build_config.dart` for why the
+/// `.env` asset was removed and what that does and does not protect.
 library;
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
-
+import 'build_config.dart';
 import '../utils/logger.dart';
 
 class SupabaseConfig {
@@ -83,23 +91,21 @@ class SupabaseConfig {
   static void debugOverride(SupabaseConfig config) => _cached = config;
 
   static SupabaseConfig _read() {
-    // `dotenv.env` throws `NotInitializedError` if `load` was never called or
-    // failed. A missing .env is itself one of the configurations this is here to
-    // report, so it must not become an uncaught error during startup.
-    Map<String, String> env;
-    try {
-      env = dotenv.env;
-    } catch (_) {
+    final rawUrl = BuildConfig.supabaseUrl;
+    final rawKey = BuildConfig.supabaseAnonKey;
+
+    // Neither variable defined at all. Its own message, because the fix is a
+    // build command rather than a wrong value — and because this is what a run
+    // with no `--dart-define-from-file=.env` looks like from in here.
+    if (rawUrl.isEmpty && rawKey.isEmpty) {
       return const SupabaseConfig._(
         url: unconfiguredUrl,
         key: 'unconfigured',
-        problem: 'This build has no .env file, so it cannot reach the server. '
-            'Accounts and circles will not work.',
+        problem: 'This build was made without its server settings, so it cannot '
+            'reach the server. Accounts and circles will not work. Reading works '
+            'as normal.',
       );
     }
-
-    final rawUrl = (env['SUPABASE_URL'] ?? '').trim();
-    final rawKey = (env['SUPABASE_ANON_KEY'] ?? '').trim();
 
     final urlProblem = _urlProblem(rawUrl);
     final keyProblem = _keyProblem(rawKey);
@@ -140,7 +146,8 @@ class SupabaseConfig {
   /// it names variables and lengths, never a value.
   String get detail {
     if (isUsable) return 'Connected to ${Uri.parse(url).host}';
-    return 'SUPABASE_URL / SUPABASE_ANON_KEY missing or invalid in .env';
+    return 'SUPABASE_URL / SUPABASE_ANON_KEY missing or invalid — '
+        '${BuildConfig.describe()}';
   }
 
   static String? _urlProblem(String url) {
@@ -200,12 +207,5 @@ class SupabaseConfig {
   }
 
   // `assert` runs only in debug, so this flips itself on there and nowhere else.
-  static bool get _isDebug {
-    var debug = false;
-    assert(() {
-      debug = true;
-      return true;
-    }());
-    return debug;
-  }
+  static bool get _isDebug => BuildConfig.isDebug;
 }

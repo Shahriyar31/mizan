@@ -1,13 +1,16 @@
-/// Hadith API configuration — read once from `.env`, never from a widget.
+/// Hadith API configuration — read once from the build, never from a widget.
 ///
 /// The brief says "The application uses UmmahAPI." It does not, yet: there is no
 /// endpoint, no key and no client anywhere in the repo, and
 /// `services/hadith/hadith_api_service.dart` is a five-line stub. Rather than
-/// hardcode a guess at somebody's URL shape, the fetcher is configured from
-/// `.env` and the whole hadith system works without it — bundled and cached texts
-/// resolve offline, and a numbered citation with no text yet says so plainly.
+/// hardcode a guess at somebody's URL shape, the fetcher is configured from the
+/// build environment and the whole hadith system works without it — bundled and
+/// cached texts resolve offline, and a numbered citation with no text yet says so
+/// plainly.
 ///
-/// Set these to switch the remote fetch on:
+/// Put these in `.env` and they reach the app through `--dart-define-from-file`;
+/// see `build_config.dart`. Nothing here is passed by the release build script,
+/// so setting `HADITH_API_KEY` affects development only until a proxy exists.
 ///
 /// ```
 /// HADITH_API_BASE_URL=https://api.example.com
@@ -20,19 +23,13 @@
 /// ever printed.
 library;
 
-import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'build_config.dart';
 
 class HadithApiConfig {
   HadithApiConfig._();
 
-  static String? _value(String key) {
-    final raw = dotenv.maybeGet(key)?.trim();
-    if (raw == null || raw.isEmpty) return null;
-    return raw;
-  }
-
   static String? get baseUrl {
-    final raw = _value('HADITH_API_BASE_URL');
+    final raw = BuildConfig.hadithApiBaseUrl;
     if (raw == null) return null;
     return raw.endsWith('/') ? raw.substring(0, raw.length - 1) : raw;
   }
@@ -40,17 +37,17 @@ class HadithApiConfig {
   /// Path template. The default is the shape most hadith APIs use; override it
   /// per provider without touching code.
   static String get pathTemplate =>
-      _value('HADITH_API_PATH') ?? '/hadiths/{collection}/{number}';
+      BuildConfig.hadithApiPath ?? '/hadiths/{collection}/{number}';
 
-  static String? get apiKey => _value('HADITH_API_KEY');
+  static String? get apiKey => BuildConfig.hadithApiKey;
 
   /// Which header carries the key. Null with a key present means the key goes in
   /// the query string instead — see [apiKeyQueryParam].
   static String? get apiKeyHeader =>
-      _value('HADITH_API_KEY_HEADER') ??
+      BuildConfig.hadithApiKeyHeader ??
       (apiKey != null && apiKeyQueryParam == null ? 'x-api-key' : null);
 
-  static String? get apiKeyQueryParam => _value('HADITH_API_KEY_QUERY');
+  static String? get apiKeyQueryParam => BuildConfig.hadithApiKeyQuery;
 
   /// A remote fetch is only attempted when a base URL is configured. Everything
   /// else about the hadith layer works either way.

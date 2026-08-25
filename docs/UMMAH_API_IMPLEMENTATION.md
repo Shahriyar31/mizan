@@ -30,9 +30,14 @@ is a new section the brief asked for; both are built from `KnowledgeScaffold`,
 `lib/core/network/ummah_api_client.dart` (378 lines) and
 `lib/core/config/ummah_api_config.dart` (59).
 
-The key comes from `.env` via `flutter_dotenv` and travels as the `X-API-Key`
-header. It is never placed in a query string, never logged, and appears nowhere in
-`lib/`. `.env` stays git-ignored; `.env.example` documents the variable.
+The key travels as the `X-API-Key` header. It is never placed in a query string,
+never logged, and appears nowhere in `lib/`. It reaches the app as a compile-time
+`--dart-define` constant read once in `BuildConfig` — `flutter_dotenv` and the
+bundled `.env` asset are both gone, because an asset is a file inside the APK. It
+is also **withheld from release builds**, so a release sends no `X-API-Key` at all
+and runs on the anonymous rate limit; every endpoint answers without a key, so
+that costs access to nothing. `.env` stays git-ignored; `.env.example` documents
+the variable. See the README's *Environment and secrets*.
 
 Two decisions worth naming. The `{success, service, data, timestamp}` envelope is
 unwrapped in exactly one place, so no repository ever sees it. And every field read

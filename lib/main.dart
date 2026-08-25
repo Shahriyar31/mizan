@@ -2,9 +2,9 @@
 library;
 
 import 'package:flutter/material.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/branding/mizan_brand.dart';
+import 'core/config/build_config.dart';
 import 'core/config/supabase_config.dart';
 import 'core/utils/logger.dart';
 import 'features/home/domain/streak_provider.dart';
@@ -19,19 +19,18 @@ import 'app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file.
+  // Configuration is compiled in, not loaded. `.env` used to be a declared
+  // asset, which meant a plaintext copy of every key sat inside the APK for
+  // anybody to unzip; it now reaches the app as `--dart-define` constants and
+  // there is no file in the build to read. See core/config/build_config.dart —
+  // including what that does and does not protect.
   //
-  // Guarded because an unguarded `load` throws when the asset is missing, and it
-  // is the very first thing in `main` — so the failure mode was a permanently
-  // black screen with no message, for a problem (a .env that did not make it
-  // into the bundle) that has nothing to do with the person holding the phone.
-  // Everything downstream already treats an absent variable as absent, and
-  // SupabaseConfig turns that into a sentence on the sign-in screen.
-  try {
-    await dotenv.load(fileName: '.env');
-  } catch (e) {
-    AppLogger.error('.env did not load', error: e, tag: 'main');
-  }
+  // Nothing is awaited here as a result, and nothing can fail: a build made
+  // without its variables has them absent rather than wrong, and SupabaseConfig
+  // turns that into a sentence on the sign-in screen instead of a black screen.
+  // Logged once, by name and length only, so a debug console says which
+  // variables a build actually received.
+  AppLogger.info('build config: ${BuildConfig.describe()}', tag: 'main');
 
   // Tell the OS this app plays recitation, before any player exists. Without
   // this iOS routes it to the ambient stream (thin, silenced by the ringer

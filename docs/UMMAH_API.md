@@ -11,6 +11,17 @@ as describing the state at verification time, not today.
 
 ## 1. Is the key being loaded correctly?
 
+> **Superseded — the loading mechanism changed.** This section records a check of
+> the *dotenv* path, which no longer exists: `flutter_dotenv` has been removed and
+> `.env` is no longer a declared asset, because reading through the asset bundle
+> meant a plaintext copy of every key sat inside the APK. The key now reaches the
+> app as a compile-time `--dart-define` constant via
+> `lib/core/config/build_config.dart`, and is **withheld from release builds**
+> entirely, so a release sends no `X-API-Key` and runs on the anonymous rate
+> limit. What the check below still establishes is that the *value* in `.env` is
+> intact and correctly formatted; how it travels is now described in the README's
+> *Environment and secrets*.
+
 Yes — and this was checked with `flutter_dotenv`'s own parser rather than a
 lookalike, because the failure modes that matter live inside that parser. Its
 `_comment` regex strips `#…` to end-of-line, `_surroundQuotes` unwraps quotes, and
@@ -26,8 +37,8 @@ the real `.env` and asked what it produced.
 | Length after parse | 44 characters — **identical to the raw length**, so nothing was stripped, unquoted or `$`-substituted in transit |
 | Prefix | `umh_`, matching the documented key format |
 | Quotes / trailing whitespace / inline `#` comment / non-ASCII | none |
-| `.env` declared in `pubspec.yaml` assets | yes (line 63) — without this `dotenv.load()` throws at startup |
-| `dotenv.load(fileName: '.env')` runs before anything reads it | yes, `lib/main.dart:18` |
+| ~~`.env` declared in `pubspec.yaml` assets~~ | ~~yes (line 63)~~ — **reversed since.** That line was the leak: it put `.env` in the APK. It is gone, and `tools/build_release.sh` refuses to build if it reappears |
+| ~~`dotenv.load(fileName: '.env')` runs before anything reads it~~ | ~~yes, `lib/main.dart:18`~~ — **removed since.** There is no load step; the values are compile-time constants |
 | `.env` git-ignored and untracked | yes (`.gitignore:51`, `git ls-files` empty) |
 | Key literal anywhere in `lib/` or `docs/` | none — nothing is hardcoded |
 | Anything in `lib/` reads `UMMAH_API_KEY` today | **no** — no client exists yet; this is the gap Phase 1 fills |
@@ -171,14 +182,14 @@ collections including "Nawawi's 40" and "40 Hadith Qudsi" — note that the app'
 Nawawi's Forty. `/api/hadith/collections` settles it, and until it does, no
 mapping table gets written.
 
-### Proposed request construction (illustrative — not yet implemented)
+### Request construction (as built)
 
 ```dart
-// Awaiting approval. Shown so the auth path can be reviewed before it exists.
-static const _base = 'https://ummahapi.com';
-
+// See lib/core/config/ummah_api_config.dart. `BuildConfig.ummahApiKey` is a
+// compile-time constant, null when the variable was not passed — which is the
+// normal state of a release build, deliberately.
 Map<String, String> _headers() {
-  final key = dotenv.maybeGet('UMMAH_API_KEY')?.trim();
+  final key = UmmahApiConfig.apiKey;
   return {
     'Accept': 'application/json',
     if (key != null && key.isNotEmpty) 'X-API-Key': key,
@@ -186,11 +197,12 @@ Map<String, String> _headers() {
 }
 ```
 
-Three properties of that shape are deliberate. The key is read at call time from
-`dotenv`, not captured into a `const` or a field, so it exists in one place. A
-missing key degrades to an anonymous request rather than throwing — the app stays
-usable on a build where `.env` was not filled in. And the key never touches the
-`Uri`, so no cache key, log line or error message can carry it.
+Three properties of that shape are deliberate. The key is reached through one
+getter rather than captured into a field at each call site, so there is a single
+definition of where it comes from. A missing key degrades to an anonymous request
+rather than throwing — which is what keeps a release usable while the key is
+withheld from it. And the key never touches the `Uri`, so no cache key, log line
+or error message can carry it.
 
 ## 5. Run this, and the remaining unknowns close
 

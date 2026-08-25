@@ -284,9 +284,12 @@ place, `lib/core/config/ummah_api_config.dart`:
   in server access logs, proxy logs, crash reports and `Referer` headers — and,
   worst for a client that caches, in the cache key itself, which would mean
   storing a response in a file whose name contains the secret.
-- The key is read from `.env` **at call time**, never captured into a `const` or
-  a field, so there is exactly one definition of where it comes from and a build
-  with an empty `.env` degrades instead of crashing.
+- The key reaches the app as a compile-time `--dart-define` constant read in one
+  place (`BuildConfig`), and `UmmahApiConfig.apiKey` is a getter over it rather
+  than a captured field, so there is exactly one definition of where it comes
+  from. Release builds withhold it deliberately, so a release simply sends no
+  `X-API-Key` and runs on the anonymous rate limit — see *Environment and
+  secrets* above.
 - **Every endpoint answers without a key.** The key only lifts the rate limit
   from 5,000 requests / 15 min to unlimited. `isAuthenticated` is therefore a
   statement about quota, never about access, and nothing in the app is gated on
@@ -395,9 +398,14 @@ Key packages: `go_router ^13`, `flutter_riverpod ^2.5`, `supabase_flutter ^2.17`
 `sqflite ^2.3`, `just_audio ^0.10.6` with `audio_session ^0.2.4` declared
 explicitly (iOS routes to the ambient stream and Android never requests audio
 focus unless the session is configured), `dio ^5.4`, `http ^1.2`,
-`flutter_dotenv ^5.1`, `flutter_local_notifications ^22.3`, `timezone`,
+`flutter_local_notifications ^22.3`, `timezone`,
 `flutter_timezone`, `google_fonts ^6.2`, `intl ^0.20.3`, `crypto ^3.0.6`,
 `package_info_plus ^10.2`, `path_provider ^2.1.6`, `shared_preferences ^2.3`.
+
+No dotenv. `flutter_dotenv` was removed because it reads `.env` through the asset
+bundle, which requires `.env` to be a declared asset, which puts a plaintext copy
+of every key inside the APK. Configuration is compiled in instead — see
+*Environment and secrets*.
 
 Dart SDK `>=3.3.0 <4.0.0`.
 
@@ -480,37 +488,55 @@ Notes that will save an afternoon:
 
 ## Environment and secrets
 
-Create `.env` in the repository root. **Only two keys are read anywhere in
-`lib/`:**
+Configuration lives in `.env` at the repository root, but **`.env` is not
+bundled into the app.** It is deliberately absent from `pubspec.yaml`'s asset
+list, because anything in that list is a file inside the build — `unzip -p
+app-release.apk assets/flutter_assets/.env` would print the whole thing, and a
+web build would serve it at `/assets/.env`. Releases up to and including v1.0.0
+shipped that way; the keys that were in that build should be treated as public
+and rotated.
+
+Values now reach the app as compile-time `--dart-define` constants, read in one
+place, `lib/core/config/build_config.dart`. Nothing else in `lib/` calls
+`String.fromEnvironment`, and `flutter_dotenv` is no longer a dependency.
 
 ```dotenv
 SUPABASE_URL=https://<project>.supabase.co
 SUPABASE_ANON_KEY=<anon key>
 ```
 
-`SUPABASE_URL` defaults to `http://127.0.0.1:54321` when absent, which is a local
-Supabase, not a working app.
+Both are required for accounts, Halaqa and Al-Minbar, and both **are** compiled
+into a release on purpose: the anon key names the project and carries no
+privileges of its own, since every table is reached through row-level security.
+There is no localhost fallback — an absent or invalid value produces a sentence
+on the sign-in screen naming the problem, and `tools/build_release.sh` refuses to
+build a release pointed at localhost.
 
-Optional:
+Optional, and **withheld from release builds**:
 
 ```dotenv
 UMMAH_API_KEY=<key>            # lifts the rate limit only; every endpoint works without it
+GROQ_API_KEY=<key>             # read by nothing yet; Scholar AI is not built
 UMMAH_API_BASE_URL=<host>      # staging override
+HADITH_API_BASE_URL=<host>     # third-party hadith provider; unset in every build so far
 ```
 
-`.env.example` still advertises `GROQ_API_KEY`, `AZURE_OPENAI_*`,
-`AZURE_SEARCH_*` and `SUNNAH_API_KEY`. **Nothing in `lib/` reads any of them.**
-They are left over from an earlier design and are being removed.
+Withholding is a whitelist, not a blocklist. `tools/build_release.sh` names the
+handful of variables a release may carry and passes nothing else, so a new secret
+added to `.env` is excluded by default rather than shipped because somebody
+forgot a line. After building it unzips the artefact and greps it for every value
+it withheld, first proving the search works by finding one it knows is in there.
 
-> ⚠️ **`.env` is declared as a Flutter asset in `pubspec.yaml`, which means it is
-> bundled into the APK.** Anyone who unzips a release build can read it. That is
-> acceptable for the Supabase anon key, which is public by design and constrained
-> by RLS, and for the UmmahAPI key, which only affects rate limits. **Never put a
-> service-role key, a signing key, or any real secret in this file.** Secrets
-> belong behind an Edge Function.
+What this does **not** do is hide the values it does pass. A `--dart-define`
+string is compiled into the binary and `strings` will find it. That is fine for
+the two Supabase values and would not be fine for a real secret, which is why the
+Groq and UmmahAPI keys are left out entirely. The permanent answer for those is a
+proxy holding them server-side; until that exists, the app runs on the anonymous
+UmmahAPI rate limit and Scholar AI stays locked.
 
-Self-service account deletion is deliberately not implemented client-side: it
-needs a service-role key, which never belongs in client code. `deleteAccount()`
+**Never put a service-role key or a signing key in this file, even for
+development.** Self-service account deletion is deliberately not implemented
+client-side for the same reason: it needs a service-role key. `deleteAccount()`
 signs out and forgets the local flag.
 
 ---
@@ -532,8 +558,21 @@ flutter pub get
 #    supabase/migrations/BUNDLE_run_in_sql_editor.sql into its SQL editor,
 #    or skip it — the app runs fully signed out on local SQLite.
 
-# 4. Run
-flutter run
+# 4. Run — the flag matters, .env is delivered rather than bundled
+tools/run.sh
+#   equivalently: flutter run --dart-define-from-file=.env
+```
+
+Plain `flutter run` also starts, but with no configuration at all: reading works
+and the sign-in screen explains that it cannot reach the server. In Android
+Studio, set `--dart-define-from-file=.env` under Run → Edit Configurations →
+Additional run args, or the same thing happens there.
+
+To build something you intend to give somebody:
+
+```bash
+tools/build_release.sh              # universal release APK
+tools/build_release.sh appbundle    # .aab
 ```
 
 Signed out is a first-class mode, not a degraded one. Everything works except
@@ -560,7 +599,7 @@ and `test/widget_test.dart`. The layer unlock schedule is the one piece of logic
 with real unit coverage, because it is the piece where an off-by-one silently
 changes what a saved row means. `widget_test.dart` covers the theme layer —
 that light and dark resolve independently, and that a `MizanButton` renders and
-fires. Nothing pumps the real app root: it boots GoRouter, sqflite, dotenv and
+fires. Nothing pumps the real app root: it boots GoRouter, sqflite, Supabase and
 SharedPreferences, none of which answer in a bare `flutter test`, and faking a
 smoke test around that would prove less than the absence of one admits.
 
@@ -568,6 +607,8 @@ Other tools in `tools/`:
 
 | Tool | Purpose |
 | --- | --- |
+| `run.sh` | Debug run with `.env` delivered as `--dart-define` constants rather than bundled |
+| `build_release.sh` | Release build that passes a whitelist of variables, then searches the artefact for everything it withheld |
 | `analyze.sh` | Scoped type-check |
 | `audit_corpus.dart` | Measures keyword hit distribution across all 186 corpus entries — the method behind every theme threshold |
 | `validate_discover.py` | Checks Discover corpus files for structural problems |
@@ -581,14 +622,26 @@ Other tools in `tools/`:
 ## Building an APK
 
 ```bash
-flutter build apk --release
+tools/build_release.sh              # universal release APK
+tools/build_release.sh appbundle    # .aab for the Play Store
 # → build/app/outputs/flutter-apk/app-release.apk
 ```
+
+Use the script rather than `flutter build apk --release` directly. A bare
+`flutter build` passes no `--dart-define` values, so it produces an APK with no
+Supabase settings at all: it installs, it opens, reading works, and then accounts
+and circles fail on every phone it reaches — as network errors, which look like
+the server being down rather than like a bad build. The script passes the
+whitelist, refuses to build if `.env` has reappeared in `pubspec.yaml` assets or
+if `SUPABASE_URL` points at localhost, and then unzips the artefact and confirms
+that no withheld value is inside it. See *Environment and secrets*.
 
 For a device on the same machine:
 
 ```bash
-flutter build apk --debug
+tools/run.sh                        # debug, with .env delivered
+# or, to install a debug build and leave it there:
+flutter build apk --debug --dart-define-from-file=.env
 flutter install
 ```
 
