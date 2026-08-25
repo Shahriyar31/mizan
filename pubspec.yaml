@@ -44,7 +44,7 @@ dependencies:
   # After `flutter pub get`, run once to fetch the two runtime assets it serves
   # from web/ (they are not part of the Dart bundle):
   #     dart run sqflite_common_ffi_web:setup
-  sqflite_common_ffi_web: ^0.4.0
+  sqflite_common_ffi_web: ^1.1.2
 
   # Crypto (local account password hashing)
   crypto: ^3.0.6
