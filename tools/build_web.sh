@@ -17,6 +17,27 @@
 # absent. The search is more trustworthy here than on Android, because the
 # artefact is text: if a value were present, grep would certainly find it.
 #
+# ── WHY vercel.json EXISTS, AND WHY IT IS NOT OPTIONAL ────────────────
+# Flutter's web output has NO content hash in its filenames. Every build
+# overwrites the same two URLs — `/flutter_bootstrap.js` and `/main.dart.js`
+# (4.7 MB) — so a browser that has cached them keeps running the OLD app for as
+# long as its copy is considered fresh. Nothing in the page can fix that from the
+# inside: the stale JavaScript is the thing that would have to fix it.
+#
+# This is not theoretical. A fix shipped on 2026-08-25 worked on a laptop after a
+# reload and appeared to do nothing on an iPhone, because Safari was still running
+# the pre-fix bundle — and a home-screen PWA has no address bar and no reload
+# button, so it can sit on old code indefinitely.
+#
+# `vercel.json` sends `Cache-Control: no-cache` for the unhashed entry files.
+# That does not mean "do not store": it means "revalidate before reusing", so a
+# returning visitor sends one conditional request and gets a 304 of a few hundred
+# bytes unless the build actually changed. `assets/` and `canvaskit/` are left
+# alone — they are the large, rarely-changing part.
+#
+# Deleting that file, or adding another host without the same headers, brings the
+# problem straight back, and it will present as "the fix did not work".
+#
 # Usage:
 #   tools/build_web.sh                     # deploy at a domain root (Vercel)
 #   tools/build_web.sh /mizan/             # deploy in a subdirectory
