@@ -1059,6 +1059,20 @@ class _IsnadLayer extends StatelessWidget {
               ),
             ),
           ] else ...[
+            // Reached whenever the layer was built from the processed Ibn Kathir
+            // data, which is most ayat: that file has no `text`, `narrator`,
+            // `collection` or `grade` for its hadith entries, only a `reference`
+            // string — and that string is the output of a rough extraction pass,
+            // so it is usually a mid-sentence fragment rather than a citation.
+            // Nothing above renders it, and nothing here should either. See the
+            // header of tafsir_source.dart for why that data is not trusted.
+            //
+            // This text used to end "the chain of transmission for Al-Baqarah
+            // traces back through the companions of the Prophet ﷺ" — on every
+            // surah, because the sentence was hardcoded. Reading Yusuf and being
+            // told about Al-Baqarah is a false statement on screen, and it is
+            // exactly the failure the Citation Lock exists to prevent. Say only
+            // what is true for whichever ayah this is.
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
@@ -1066,10 +1080,10 @@ class _IsnadLayer extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Text(
-                'The narrations for this ayah are embedded within '
-                'Ibn Kathir\'s full commentary in the Scholars layer. '
-                'The chain of transmission for Al-Baqarah traces back '
-                'through the companions of the Prophet ﷺ.',
+                'No hadith has been matched to this ayah on its own yet. '
+                'The narrations Ibn Kathir cites for it are quoted inside his '
+                'commentary — read them, in his words and with his framing, in '
+                'the Scholars layer.',
                 style: AppTypography.bodyMedium(color: AppColors.quranMuted),
               ),
             ),
