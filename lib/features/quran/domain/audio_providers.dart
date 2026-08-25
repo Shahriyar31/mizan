@@ -13,10 +13,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../../core/platform/app_platform.dart';
 import '../../../core/utils/logger.dart';
 import '../../../services/audio/mp3quran_service.dart';
 import '../../../services/audio/playback_arbiter.dart';
+import '../../../services/audio/single_clip_loader.dart';
 import '../../../shared/models/reciter.dart';
 
 const String _tag = 'QuranAudio';
@@ -173,6 +173,10 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
   final AudioPlayer _player = AudioPlayer(handleInterruptions: false);
   AudioPlayer get player => _player;
 
+  /// Loads one surah at a time. Exists because doing that twice in a browser is
+  /// not one line — see [SingleClipLoader].
+  late final SingleClipLoader _loader = SingleClipLoader(_player);
+
   Stream<Duration> get positionStream => _player.positionStream;
   Stream<Duration?> get durationStream => _player.durationStream;
 
@@ -212,25 +216,23 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
       tag: _tag,
     );
     try {
-      // In a browser, release the platform player before loading a different
-      // surah. `AudioPlayer`'s root playlist carries the constant id `''` and
-      // `just_audio_web` caches its loaded source by that id, so a second
-      // `setUrl` on a live player is silently ignored and the *first* surah of
-      // the page session keeps playing — the reader-side twin of this is
-      // documented at length in `ayah_audio_provider.dart` (_startAyah).
-      // `stop()` disposes the web player, so the next load builds a fresh one.
-      //
-      // [AppPlatform.isWeb] is a `static const`, so this whole branch is
-      // compiled out of the Android build, which behaves exactly as before.
-      if (AppPlatform.isWeb) {
-        try {
-          await _player.stop();
-        } catch (_) {
-          // Nothing loaded yet. Not a failure.
-        }
+      // Pause before loading, always. It stops the outgoing surah immediately
+      // rather than letting its buffer play over the head of the new one, and in
+      // a browser it is also the only thing that lowers `just_audio_web`'s own
+      // `_playing` flag — a surah that ended by itself never lowers it, and the
+      // `play()` below would then return without touching the `<audio>` element.
+      try {
+        await _player.pause();
+      } catch (_) {
+        // Nothing loaded yet. Not a failure.
       }
-      final duration = await _player.setUrl(url);
-      AppLogger.info('setUrl ok, duration=$duration', tag: _tag);
+      // `setUrl` cannot load a second surah in a browser: the root playlist
+      // carries the constant id `''`, `just_audio_web` caches its loaded source
+      // by that id, and the first surah of the page session keeps playing. The
+      // loader appends and seeks instead — the whole diagnosis, and why the
+      // `stop()` that used to be here was worse, is in [SingleClipLoader].
+      final duration = await _loader.load(AudioSource.uri(Uri.parse(url)));
+      AppLogger.info('load ok, duration=$duration', tag: _tag);
       // Not awaited: just_audio's `play()` future completes when the surah
       // *ends*, not when it starts. Awaiting it here meant the status line that
       // used to follow ran an hour later and wrote "playing" over the `idle` the
@@ -263,7 +265,10 @@ class QuranAudioController extends StateNotifier<QuranAudioState> {
   }
 
   Future<void> stop() async {
-    await _player.stop();
+    // Through the loader: in a browser `_player.stop()` releases the platform
+    // player and destroys the page's only `<audio>` element with it, and that
+    // element is the one iOS Safari has unlocked. See [SingleClipLoader].
+    await _loader.stop();
     state = const QuranAudioState();
   }
 
