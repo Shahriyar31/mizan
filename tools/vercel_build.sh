@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
+set -e
 
+# Install Flutter
+git clone https://github.com/flutter/flutter.git --depth 1 -b stable
+export PATH="$PWD/flutter/bin:$PATH"
+
+flutter --version
+
+# Generate .env from Vercel environment variables
 cat > .env <<EOL
 SUPABASE_URL=$SUPABASE_URL
 SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
